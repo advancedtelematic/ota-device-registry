@@ -11,9 +11,9 @@ GRANT ALL PRIVILEGES ON \`device\_registry%\`.* TO 'sota_test'@'%';
 FLUSH PRIVILEGES;
 " > entrypoint.d/db_user.sql
 
-docker rm --force mariadb-sota || true
+docker rm --force mariadb-device-registry || true
 docker run -d \
-  --name mariadb-sota \
+  --name mariadb-device-registry \
   -p 3306:3306 \
   -v $(pwd)/entrypoint.d:/docker-entrypoint-initdb.d \
   -e MYSQL_ROOT_PASSWORD=sota-test \
@@ -28,9 +28,9 @@ MYSQL_PORT=${MYSQL_PORT-3306}
 function mysqladmin_alive {
     docker run \
            --rm \
-           --link mariadb-sota \
+           --link mariadb-device-registry \
            mariadb:10.1 \
-           mysqladmin ping --protocol=TCP -h mariadb-sota -P 3306 -u sota_test -ps0ta
+           mysqladmin ping --protocol=TCP -h mariadb-device-registry -P 3306 -u sota_test -ps0ta
 }
 
 TRIES=60
