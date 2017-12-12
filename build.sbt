@@ -19,6 +19,7 @@ lazy val `ota-device-registry` =
       )
     )
     .settings(libraryDependencies ++= library.libAts)
+    .settings(dependencyOverrides += "com.typesafe.akka" %% "akka-stream-kafka" % "0.18")
 
 // *****************************************************************************
 // Library dependencies
