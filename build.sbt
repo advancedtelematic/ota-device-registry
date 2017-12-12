@@ -80,11 +80,17 @@ lazy val gitSettings = Seq(
     git.useGitDescribe := true,
   )
 
+import com.typesafe.sbt.packager.docker.Cmd
 lazy val dockerSettings = Seq(
   dockerRepository := Some("advancedtelematic"),
   packageName := packageName.value,
   dockerUpdateLatest := true,
-  dockerBaseImage := "openjdk:8u151-jre-alpine"
+  dockerBaseImage := "openjdk:8u151-jre-alpine",
+  dockerCommands ++= Seq(
+    Cmd("USER", "root"),
+    Cmd("RUN", "apk upgrade --update && apk add --update bash coreutils"),
+    Cmd("USER", (daemonUser in Docker).value)
+  )
 )
 
 lazy val scalafmtSettings =
