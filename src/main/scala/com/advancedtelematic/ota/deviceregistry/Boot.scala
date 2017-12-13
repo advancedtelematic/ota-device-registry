@@ -84,7 +84,7 @@ object Boot
     }
 
   val routes: Route =
-  versionHeaders(version) {
+  (LogDirectives.logResponseMetrics("device-registry") & versionHeaders(version)) {
     new DeviceRegistryRoutes(authNamespace, namespaceAuthorizer, messageBus).route
   } ~ DbHealthResource(versionMap).route
 

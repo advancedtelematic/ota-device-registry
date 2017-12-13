@@ -9,7 +9,8 @@
 package com.advancedtelematic.ota.deviceregistry.data
 
 import com.advancedtelematic.ota.deviceregistry.data.CredentialsType.CredentialsType
-import com.advancedtelematic.ota.deviceregistry.data.Device.{DeviceId, DeviceName}
+import com.advancedtelematic.ota.deviceregistry.data.Device.DeviceName
+import io.circe.{Decoder, Encoder}
 
 /*
  * Device transfer object
@@ -24,8 +25,8 @@ final case class DeviceT(
 )
 
 object DeviceT {
-  private[this] implicit val DevcieIdEncoder = io.circe.generic.semiauto.deriveEncoder[DeviceId]
-  private[this] implicit val DevcieIdDecoder = io.circe.generic.semiauto.deriveDecoder[DeviceId]
+  private[this] implicit val DevcieIdEncoder = Encoder.encodeString.contramap[Device.DeviceId](_.underlying)
+  private[this] implicit val DevcieIdDecoder = Decoder.decodeString.map(Device.DeviceId.apply)
   import com.advancedtelematic.libats.codecs.CirceCodecs.{refinedDecoder, refinedEncoder}
   implicit val EncoderInstance = io.circe.generic.semiauto.deriveEncoder[DeviceT]
   implicit val DecoderInstance = io.circe.generic.semiauto.deriveDecoder[DeviceT]
