@@ -70,7 +70,7 @@ object DeviceRepository extends ColumnTypes {
   }
 
   def create(ns: Namespace, device: DeviceT)(implicit ec: ExecutionContext): DBIO[Uuid] = {
-    val uuid: Uuid = Uuid.generate()
+    val uuid: Uuid = device.deviceUuid.getOrElse(Uuid.generate())
 
     val dbIO = devices += Device(ns,
                                  uuid,

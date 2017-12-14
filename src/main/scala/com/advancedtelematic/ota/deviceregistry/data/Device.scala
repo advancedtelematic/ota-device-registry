@@ -30,7 +30,7 @@ final case class Device(namespace: Namespace,
                         deviceStatus: DeviceStatus = NotSeen) {
 
   // TODO: Use org.genivi.sota.core.data.client.ResponseEncoder
-  def toResponse: DeviceT = data.DeviceT(deviceName, deviceId, deviceType)
+  def toResponse: DeviceT = data.DeviceT(deviceName, Some(uuid), deviceId, deviceType)
 }
 
 object Device {
