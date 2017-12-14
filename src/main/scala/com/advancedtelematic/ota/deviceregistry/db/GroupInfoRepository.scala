@@ -72,6 +72,7 @@ object GroupInfoRepository extends SlickJsonHelper with ColumnTypes {
       .filter(r => r.id === id)
       .map(_.groupName)
       .update(newGroupName)
+      .handleIntegrityErrors(Errors.ConflictingDevice)
       .handleSingleUpdateError(Errors.MissingGroup)
 
   def groupInfoNamespace(groupId: Uuid)(implicit ec: ExecutionContext): DBIO[Namespace] =
