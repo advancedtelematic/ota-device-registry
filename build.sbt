@@ -63,6 +63,7 @@ lazy val commonSettings =
     scalaVersion := "2.12.4",
     organization := "com.advancedtelematic",
     organizationName := "ATS Advanced Telematic Systems GmbH",
+    name := "device-registry",
     startYear := Some(2017),
     licenses += ("MPL-2.0", url("http://mozilla.org/MPL/2.0/")),
     scalacOptions ++= Seq(
