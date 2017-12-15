@@ -8,7 +8,7 @@
   "container": {
     "type": "DOCKER",
     "docker": {
-      "image": "advancedtelematic/ota-device-registry:${DOCKER_TAG}",
+      "image": "advancedtelematic/device-registry:${DOCKER_TAG}",
       "parameters": [{"key": "log-driver", "value": "syslog"},
                      {"key": "log-opt", "value": "tag=${SERVICE_NAME}"}],
       "forcePullImage": true,
@@ -36,7 +36,7 @@
     "SERVICE_NAME": "${SERVICE_NAME}",
     "SERVICE_SCOPE": "internal",
     "SERVICE_TYPE": "http",
-    "SERVICE_IMAGE": "advancedtelematic/ota-device-registry:${DOCKER_TAG}",
+    "SERVICE_IMAGE": "advancedtelematic/device-registry:${DOCKER_TAG}",
     "SERVICE_HEALTH_CHECK": "curl --show-error --silent %<host>s:%<port>s/health"
   },
   "healthChecks": [{
