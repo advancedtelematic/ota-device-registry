@@ -18,6 +18,7 @@ import io.circe.{Decoder, Encoder}
 // TODO: Use org.genivi.sota.core.data.client.ResponseEncoder
 final case class DeviceT(
     deviceName: DeviceName,
+    deviceUuid: Option[Uuid] = None,
     deviceId: Option[Device.DeviceId] = None,
     deviceType: Device.DeviceType = Device.DeviceType.Other,
     credentials: Option[String] = None,

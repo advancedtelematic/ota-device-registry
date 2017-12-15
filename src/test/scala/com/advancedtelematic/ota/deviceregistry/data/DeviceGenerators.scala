@@ -55,8 +55,9 @@ trait DeviceGenerators {
     for {
       name       <- deviceNameGen
       deviceId   <- Gen.option(deviceIdGen)
+      deviceUuid <- Gen.option(UuidGenerator.genUuid)
       deviceType <- genDeviceType
-    } yield DeviceT(name, deviceId, deviceType)
+    } yield DeviceT(name, deviceUuid, deviceId, deviceType)
 
   val genDeviceT: Gen[DeviceT] = genDeviceTWith(genDeviceName, genDeviceId)
 

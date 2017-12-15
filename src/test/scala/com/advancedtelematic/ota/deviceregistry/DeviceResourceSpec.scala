@@ -130,6 +130,9 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures {
   property("POST request creates a new device.") {
     forAll { devicePre: DeviceT =>
       val uuid: Uuid = createDeviceOk(devicePre)
+      devicePre.deviceUuid.foreach { x =>
+        uuid should equal(x)
+      }
 
       fetchDevice(uuid) ~> route ~> check {
         status shouldBe OK
