@@ -80,13 +80,21 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures {
       val uuid: Uuid = createDeviceOk(devicePre.copy(deviceId = Some(deviceId)))
       fetchByDeviceId(deviceId) ~> route ~> check {
         status shouldBe OK
-        val devicePost1: Device = responseAs[Seq[Device]].head
+        val devicePost1: Device = responseAs[Device]
         fetchDevice(uuid) ~> route ~> check {
           status shouldBe OK
           val devicePost2: Device = responseAs[Device]
 
           devicePost1 shouldBe devicePost2
         }
+      }
+    }
+  }
+
+  property("GET request with ?deviceId for an unknown device yields 204 No Content") {
+    forAll { (deviceId: DeviceId, devicePre: DeviceT) =>
+      fetchByDeviceId(deviceId) ~> route ~> check {
+        status shouldBe NoContent
       }
     }
   }
@@ -104,19 +112,19 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures {
               fetchByDeviceId(deviceId) ~> route ~> check {
                 status match {
                   case OK =>
-                    responseAs[Seq[Device]].headOption match {
-                      case Some(_) => updateStatus shouldBe Conflict
-                      case None =>
-                        updateStatus shouldBe OK
+                    responseAs[Device]
+                    updateStatus shouldBe Conflict
 
-                        fetchDevice(uuid) ~> route ~> check {
-                          status shouldBe OK
-                          val devicePost: Device = responseAs[Device]
-                          devicePost.uuid shouldBe uuid
-                          devicePost.deviceId shouldBe d2.deviceId
-                          devicePost.deviceType shouldBe d2.deviceType
-                          devicePost.lastSeen shouldBe None
-                        }
+                  case NoContent =>
+                    updateStatus shouldBe OK
+
+                    fetchDevice(uuid) ~> route ~> check {
+                      status shouldBe OK
+                      val devicePost: Device = responseAs[Device]
+                      devicePost.uuid shouldBe uuid
+                      devicePost.deviceId shouldBe d2.deviceId
+                      devicePost.deviceType shouldBe d2.deviceType
+                      devicePost.lastSeen shouldBe None
                     }
                   case _ => assert(false, "unexpected status code: " + status)
                 }
