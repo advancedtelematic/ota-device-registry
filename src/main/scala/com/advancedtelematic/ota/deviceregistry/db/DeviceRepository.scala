@@ -91,8 +91,9 @@ object DeviceRepository extends ColumnTypes {
     for {
       devs <- findByDeviceId(ns, deviceId)
       (created, uuid) <- devs match {
-        case None    => create(ns, devT).map((true, _))
-        case Some(d) => DBIO.successful((false, d.uuid))
+        case Seq()  => create(ns, devT).map((true, _))
+        case Seq(d) => DBIO.successful((false, d.uuid))
+        case _      => DBIO.failed(Errors.ConflictingDevice)
       }
     } yield (created, uuid)
 
@@ -103,11 +104,10 @@ object DeviceRepository extends ColumnTypes {
       .headOption
       .flatMap(_.fold[DBIO[Device]](DBIO.failed(Errors.MissingDevice))(DBIO.successful))
 
-  def findByDeviceId(ns: Namespace, deviceId: DeviceId)(implicit ec: ExecutionContext): DBIO[Option[Device]] =
+  def findByDeviceId(ns: Namespace, deviceId: DeviceId)(implicit ec: ExecutionContext): DBIO[Seq[Device]] =
     devices
       .filter(d => d.namespace === ns && d.deviceId === deviceId)
       .result
-      .headOption
 
   def search(ns: Namespace,
              regEx: Option[String Refined Regex],
