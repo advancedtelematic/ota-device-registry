@@ -60,7 +60,10 @@ class DevicesResource(
       case (re, None, None, true, offset, limit) =>
         complete(db.run(DeviceRepository.searchUngrouped(ns, re, offset, limit)))
       case (None, Some(deviceId), None, false, _, _) =>
-        complete(db.run(DeviceRepository.findByDeviceId(ns, DeviceId(deviceId))))
+        onSuccess(db.run(DeviceRepository.findByDeviceId(ns, DeviceId(deviceId)))) {
+          case Some(x) => complete(OK -> x)
+          case None    => complete(NoContent)
+        }
       case _ =>
         complete((BadRequest, "'regex' and 'deviceId' parameters cannot be used together!"))
     }
