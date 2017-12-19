@@ -18,7 +18,7 @@ trait GroupGenerators {
 
   val genGroupName: Gen[Group.Name] = for {
     strLen <- Gen.choose(2, 100)
-    name   <- Gen.listOfN[Char](strLen, Arbitrary.arbChar.arbitrary)
+    name   <- Gen.containerOfN[Seq, Char](strLen, Gen.alphaNumChar)
   } yield Refined.unsafeApply(name.mkString)
 
   def genGroupInfo: Gen[Group] =
