@@ -1,6 +1,16 @@
-# ota-device-registry #
+# Device Registry #
 
-Welcome to ota-device-registry!
+Management of device status and configuration information. This project is part of [ota-community-edition][1].
+
+## Building
+
+`sbt docker:publishLocal` - to publish docker image locally.  
+
+## Running tests
+
+`deploy/ci_setup.sh` - to setup database.
+
+`sbt test` - to run tests
 
 ## Contribution policy ##
 
@@ -15,4 +25,5 @@ legal authority to do so.
 
 This code is licensed under the [Mozilla Public License 2.0](LICENSE), a copy of which can be found in this repository. All code is copyright [ATS Advanced Telematic Systems GmbH](https://www.advancedtelematic.com), 2016-2018.
 
+[1]: https://github.com/advancedtelematic/ota-community-edition
 
