@@ -9,10 +9,14 @@
 package com.advancedtelematic.ota.deviceregistry.db
 
 import java.time.Instant
+import java.util.UUID
 
 import com.advancedtelematic.libats.test.DatabaseSpec
 import com.advancedtelematic.ota.deviceregistry.data.DeviceGenerators.{genDeviceId, genDeviceT}
-import com.advancedtelematic.ota.deviceregistry.data.Namespaces
+import com.advancedtelematic.ota.deviceregistry.data.Uuid.Valid
+import com.advancedtelematic.ota.deviceregistry.data.{Namespaces, Uuid}
+import eu.timepit.refined.api.Refined
+import eu.timepit.refined.refineV
 import org.scalatest.concurrent.PatienceConfiguration.Timeout
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.time.{Seconds, Span}
@@ -50,6 +54,22 @@ class DeviceRepositorySpec extends FunSuite with DatabaseSpec with ScalaFutures 
 
     whenReady(db.run(createDevice), Timeout(Span(10, Seconds))) { count =>
       count shouldBe (1)
+    }
+  }
+
+  test("updateLastSeen UUID is case insensitive") {
+
+    val uuidStr   = UUID.randomUUID.toString
+    val uuidUpper = Uuid(Refined.unsafeApply(uuidStr.toUpperCase))
+    val uuidLower = Uuid(Refined.unsafeApply(uuidStr.toLowerCase))
+    val device    = genDeviceT.sample.get.copy(deviceId = Some(genDeviceId.sample.get), deviceUuid = Some(uuidUpper))
+    val updateLastSeen = for {
+      _   <- DeviceRepository.create(Namespaces.defaultNs, device)
+      res <- DeviceRepository.updateLastSeen(uuidLower, Instant.now()).map(_._1)
+    } yield res
+
+    whenReady(db.run(updateLastSeen), Timeout(Span(10, Seconds))) { r =>
+      r shouldBe true
     }
   }
 }

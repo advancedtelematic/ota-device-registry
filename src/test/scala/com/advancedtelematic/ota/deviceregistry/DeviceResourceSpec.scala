@@ -374,7 +374,7 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures {
       devices.values.length shouldBe limit
       devices.values.zip(devices.values.tail).foreach {
         case (device1, device2) =>
-          device1.deviceName.value.compareTo(device2.deviceName.value) should be <= 0
+          device1.deviceName.value.compareToIgnoreCase(device2.deviceName.value) should be <= 0
       }
     }
   }
