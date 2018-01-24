@@ -1,0 +1,43 @@
+# Default values for device-registry.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+replicaCount: 1
+image:
+  repository: advancedtelematic/device-registry
+  tag: 0.0.1-22-gc286097
+  pullPolicy: IfNotPresent
+service:
+  name: device-registry
+  type: ClusterIP
+  externalPort: 80
+  internalPort: 9001
+ingress:
+  enabled: false
+  # Used to create an Ingress record.
+  hosts:
+    - device-registry.ota.local
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    # kubernetes.io/tls-acme: "true"
+  tls:
+    # Secrets must be manually created in the namespace.
+    # - secretName: chart-example-tls
+    #   hosts:
+    #     - chart-example.local
+resources:
+  limits:
+    cpu: 80m
+    memory: 300Mi
+  requests:
+    cpu: 80m
+    memory: 300Mi
+javaOpts: "-Xmx250m"
+db:
+  host: mysql
+  user: device_registy
+  database: device_registy
+kafka:
+  host: kafka
+  topicSuffix: ota
+envPrefix:
+  ota
