@@ -21,7 +21,7 @@ object Group {
 
   implicit val validGroupName: Validate.Plain[String, ValidName] =
     Validate.fromPredicate(
-      name => name.length > 1 && name.length <= 100,
+      name => name.length > 1 && name.length <= 100 && name.matches("^[a-zA-Z0-9]*$"),
       name => s"($name should be between two and a hundred alphanumeric characters long.)",
       ValidName()
     )
