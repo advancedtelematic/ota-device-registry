@@ -9,8 +9,7 @@
 package com.advancedtelematic.ota.deviceregistry.db
 
 import cats.data.State
-import cats.instances.list._
-import cats.syntax.traverse._
+import cats.implicits._
 import com.advancedtelematic.libats.data.DataType.Namespace
 import com.advancedtelematic.libats.slick.db.SlickExtensions._
 import com.advancedtelematic.ota.deviceregistry.common.{Errors, SlickJsonHelper}
@@ -47,11 +46,12 @@ object SystemInfoRepository extends SlickJsonHelper {
     x => Json.fromValues(x.map(removeIdNrs)),
     x => Json.fromFields(x.toList.collect { case (i, v) if i != "id-nr" => (i, removeIdNrs(v)) })
   )
+
   private def addUniqueIdsSIM(j: Json): State[Int, Json] = j.arrayOrObject(
     State.pure(j),
-    _.toList.traverseU(addUniqueIdsSIM).map(Json.fromValues),
+    _.toList.traverse(addUniqueIdsSIM).map(Json.fromValues),
     _.toList
-      .traverseU {
+      .traverse {
         case (other, value) => addUniqueIdsSIM(value).map(other -> _)
       }
       .flatMap(
