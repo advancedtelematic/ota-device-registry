@@ -485,7 +485,7 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures {
         status shouldBe OK
         implicit val uuidKeyDecoder: KeyDecoder[Uuid] =
           (s: String) => Some(Uuid.fromJava(UUID.fromString(s)))
-        responseAs[Map[Uuid, Seq[PackageId]]] should contain(uuid -> Seq(p))
+        responseAs[Map[Uuid, Seq[PackageId]]].apply(uuid) shouldBe Seq(p)
       }
     }
   }

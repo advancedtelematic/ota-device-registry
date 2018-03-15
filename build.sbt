@@ -30,7 +30,7 @@ lazy val library =
     object Version {
       val scalaCheck = "1.13.5"
       val scalaTest  = "3.0.4"
-      val libAts     = "0.1.1-1-gf9dc44c"
+      val libAts     = "0.1.1-14-gd0c72e0"
       val akkaHttp = "10.0.10"
       val mariaDb = "1.4.4"
     }
@@ -67,6 +67,7 @@ lazy val commonSettings =
     startYear := Some(2017),
     licenses += ("MPL-2.0", url("http://mozilla.org/MPL/2.0/")),
     scalacOptions ++= Seq(
+      "-Ypartial-unification",
       "-unchecked",
       "-deprecation",
       "-language:_",
