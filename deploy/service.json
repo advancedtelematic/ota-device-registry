@@ -33,6 +33,7 @@
     "KAFKA_HOST": "${KAFKA_HOST}",
     "KAFKA_TOPIC_SUFFIX": "${KAFKA_TOPIC_SUFFIX}",
     "MESSAGING_MODE": "kafka",
+    "ENV_PREFIX": "${ENV_PREFIX}",
     "SERVICE_NAME": "${SERVICE_NAME}",
     "SERVICE_SCOPE": "internal",
     "SERVICE_TYPE": "http",
