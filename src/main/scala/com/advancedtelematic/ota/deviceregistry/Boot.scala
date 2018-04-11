@@ -17,11 +17,12 @@ import com.advancedtelematic.libats.data.DataType.Namespace
 import com.advancedtelematic.libats.http._
 import com.advancedtelematic.libats.http.monitoring.MetricsSupport
 import com.advancedtelematic.libats.http.DefaultRejectionHandler.rejectionHandler
-import com.advancedtelematic.libats.messaging.{MessageBus, MessageBusPublisher, MessageListener}
+import com.advancedtelematic.libats.messaging.{BusListenerMetrics, MessageBus, MessageBusPublisher, MessageListener}
 import com.advancedtelematic.libats.messaging.daemon.MessageBusListenerActor.Subscribe
 import com.advancedtelematic.libats.messaging_datatype.Messages.DeviceSeen
 import com.advancedtelematic.libats.slick.db.{BootMigrations, DatabaseConfig}
 import com.advancedtelematic.libats.slick.monitoring.{DatabaseMetrics, DbHealthResource}
+import com.advancedtelematic.metrics.InfluxdbMetricsReporterSupport
 import com.advancedtelematic.ota.deviceregistry.daemon.{DeviceSeenListener, DeviceUpdateStatusListener}
 import com.advancedtelematic.ota.deviceregistry.data.Uuid
 import com.advancedtelematic.ota.deviceregistry.db.DeviceRepository
@@ -61,7 +62,8 @@ object Boot
     with VersionInfo
     with DatabaseConfig
     with MetricsSupport
-    with DatabaseMetrics {
+    with DatabaseMetrics
+    with InfluxdbMetricsReporterSupport {
 
   import VersionDirectives._
   import UuidDirectives._
@@ -86,7 +88,7 @@ object Boot
   val routes: Route =
   (LogDirectives.logResponseMetrics("device-registry") & versionHeaders(version)) {
     new DeviceRegistryRoutes(authNamespace, namespaceAuthorizer, messageBus).route
-  } ~ DbHealthResource(versionMap).route
+  } ~ DbHealthResource(versionMap, healthMetrics = Seq(new BusListenerMetrics(metricRegistry))).route
 
   val updateSpecListener =
     system.actorOf(

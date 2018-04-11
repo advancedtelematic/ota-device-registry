@@ -41,7 +41,9 @@ lazy val library =
       "libats-messaging-datatype",
       "libats-slick",
       "libats-auth",
-      "libats-http"
+      "libats-http",
+      "libats-metrics",
+      "libats-metrics-akka"
     ).map("com.advancedtelematic" %% _ % Version.libAts)
     val akkaHttpTestKit = "com.typesafe.akka" %% "akka-http-testkit" % Version.akkaHttp
     val mariaDb = "org.mariadb.jdbc" % "mariadb-java-client" % Version.mariaDb
