@@ -23,7 +23,7 @@ import com.advancedtelematic.libats.messaging.MessageBusPublisher
 import com.advancedtelematic.ota.deviceregistry.data.{DeviceT, PackageId, Uuid}
 import com.advancedtelematic.ota.deviceregistry.data.Device.{ActiveDeviceCount, DeviceId}
 import com.advancedtelematic.ota.deviceregistry.db.{DeviceRepository, GroupMemberRepository, InstalledPackages}
-import com.advancedtelematic.ota.deviceregistry.messages.DeviceCreated
+import com.advancedtelematic.ota.deviceregistry.messages.{DeviceCreated, DeviceDeleted}
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.string.Regex
 import io.circe.KeyEncoder
@@ -80,6 +80,18 @@ class DevicesResource(
         complete(Created -> uuid)
       }
     }
+  }
+
+  def deleteDevice(ns: Namespace, uuid: Uuid): Route = {
+    val f = db
+      .run(DeviceRepository.delete(ns, uuid))
+      .andThen {
+        case scala.util.Success(_) =>
+          messageBus.publish(
+            DeviceDeleted(ns, uuid, Instant.now())
+          )
+      }
+    complete(f)
   }
 
   def fetchDevice(uuid: Uuid): Route =
@@ -148,6 +160,9 @@ class DevicesResource(
       deviceNamespaceAuthorizer { uuid =>
         (scope.put & entity(as[DeviceT]) & pathEnd) { device =>
           updateDevice(ns.namespace, uuid, device)
+        } ~
+        (scope.delete & pathEnd) {
+          deleteDevice(ns.namespace, uuid)
         } ~
         (scope.get & pathEnd) {
           fetchDevice(uuid)
