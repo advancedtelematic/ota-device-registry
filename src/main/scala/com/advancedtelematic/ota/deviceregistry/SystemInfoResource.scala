@@ -16,7 +16,8 @@ import com.advancedtelematic.libats.auth.{AuthedNamespaceScope, Scopes}
 import com.advancedtelematic.ota.deviceregistry.common.Errors.MissingSystemInfo
 import com.advancedtelematic.ota.deviceregistry.data.Uuid
 import com.advancedtelematic.ota.deviceregistry.db.SystemInfoRepository
-import io.circe.Json
+import com.advancedtelematic.ota.deviceregistry.db.SystemInfoRepository.NetworkInfo
+import io.circe.{Decoder, Encoder, Json}
 import org.slf4j.LoggerFactory
 import slick.jdbc.MySQLProfile.api._
 
@@ -29,6 +30,23 @@ class SystemInfoResource(
   import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
 
   val logger = LoggerFactory.getLogger(this.getClass)
+
+  implicit val NetworkInfoEncoder: Encoder[NetworkInfo] = Encoder.instance { x =>
+    import io.circe.syntax._
+    Json.obj(
+      "local_ipv4" -> x.localIpV4.asJson,
+      "mac"        -> x.macAddress.asJson,
+      "hostname"   -> x.hostname.asJson
+    )
+  }
+
+  implicit val NetworkInfoDecoder: Decoder[Uuid => NetworkInfo] = Decoder.instance { c =>
+    for {
+      ip       <- c.get[String]("local_ipv4")
+      mac      <- c.get[String]("mac")
+      hostname <- c.get[String]("hostname")
+    } yield (uuid: Uuid) => NetworkInfo(uuid, ip, hostname, mac)
+  }
 
   def fetchSystemInfo(uuid: Uuid): Route = {
     val comp = db.run(SystemInfoRepository.findByUuid(uuid)).recover {
@@ -49,17 +67,30 @@ class SystemInfoResource(
     (pathPrefix("devices") & authNamespace) { ns =>
       val scope = Scopes.devices(ns)
       deviceNamespaceAuthorizer { uuid =>
-        (scope.get & path("system_info")) {
-          fetchSystemInfo(uuid)
-        } ~
-        (scope.post & path("system_info")) {
-          entity(as[Json]) { body =>
-            createSystemInfo(uuid, body)
-          }
-        } ~
-        (scope.put & path("system_info")) {
-          entity(as[Json]) { body =>
-            updateSystemInfo(uuid, body)
+        pathPrefix("system_info") {
+          pathEnd {
+            scope.get {
+              fetchSystemInfo(uuid)
+            } ~
+            scope.post {
+              entity(as[Json]) { body =>
+                createSystemInfo(uuid, body)
+              }
+            } ~
+            scope.put {
+              entity(as[Json]) { body =>
+                updateSystemInfo(uuid, body)
+              }
+            }
+          } ~
+          path("network") {
+            get {
+              marshaller[NetworkInfo]
+              complete(db.run(SystemInfoRepository.getNetworkInfo(uuid)))
+            } ~
+            (put & entity(as[Uuid => NetworkInfo])) { payload =>
+              complete(NoContent -> db.run(SystemInfoRepository.setNetworkInfo(payload(uuid))))
+            }
           }
         }
       }
