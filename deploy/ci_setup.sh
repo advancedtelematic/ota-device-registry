@@ -19,7 +19,7 @@ docker run -d \
   -e MYSQL_ROOT_PASSWORD=sota-test \
   -e MYSQL_USER=sota_test \
   -e MYSQL_PASSWORD=s0ta \
-  mariadb:10.1 \
+  mariadb:10.3.2 \
   --character-set-server=utf8 --collation-server=utf8_unicode_ci \
   --max_connections=1000
 
