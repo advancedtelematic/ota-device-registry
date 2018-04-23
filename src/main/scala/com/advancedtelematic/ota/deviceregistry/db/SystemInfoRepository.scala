@@ -8,6 +8,7 @@
 
 package com.advancedtelematic.ota.deviceregistry.db
 
+import akka.Done
 import cats.data.State
 import cats.implicits._
 import com.advancedtelematic.libats.data.DataType.Namespace
@@ -38,6 +39,25 @@ object SystemInfoRepository extends SlickJsonHelper {
     def pk = primaryKey("uuid", uuid)
   }
   // scalastyle:on
+
+  final case class NetworkInfo(deviceUuid: Uuid, localIpV4: String, hostname: String, macAddress: String)
+
+  class SysInfoNetworkTable(tag: Tag) extends Table[NetworkInfo](tag, "DeviceSystem") {
+    def uuid       = column[Uuid]("uuid")
+    def localIpV4  = column[String]("local_ipv4")
+    def hostname   = column[String]("hostname")
+    def macAddress = column[String]("mac_address")
+
+    def * = (uuid, localIpV4, hostname, macAddress).mapTo[NetworkInfo]
+  }
+
+  private val networkInfos = TableQuery[SysInfoNetworkTable]
+
+  def setNetworkInfo(value: NetworkInfo)(implicit ec: ExecutionContext): DBIO[Done] =
+    networkInfos.insertOrUpdate(value).map(_ => Done)
+
+  def getNetworkInfo(deviceUuid: Uuid)(implicit ec: ExecutionContext): DBIO[NetworkInfo] =
+    networkInfos.filter(_.uuid === deviceUuid).result.failIfEmpty(Errors.MissingSystemInfo).map(_.head)
 
   val systemInfos = TableQuery[SystemInfoTable]
 

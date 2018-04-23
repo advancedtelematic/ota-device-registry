@@ -47,7 +47,7 @@ class DeviceRegistryRoutes(
     handleRejections(rejectionHandler) {
       ErrorHandler.handleErrors {
         new DevicesResource(namespaceExtractor, messageBus, deviceNamespaceAuthorizer).route ~
-        new SystemInfoResource(namespaceExtractor, deviceNamespaceAuthorizer).route ~
+        new SystemInfoResource(messageBus, namespaceExtractor, deviceNamespaceAuthorizer).route ~
         new PublicCredentialsResource(namespaceExtractor, messageBus, deviceNamespaceAuthorizer).route ~
         new GroupsResource(namespaceExtractor, deviceNamespaceAuthorizer).route
       }

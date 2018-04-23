@@ -8,27 +8,50 @@
 
 package com.advancedtelematic.ota.deviceregistry
 
+import akka.Done
 import akka.actor.ActorSystem
 import akka.http.scaladsl.model.StatusCodes._
 import akka.http.scaladsl.server.{Directive1, Route}
 import akka.http.scaladsl.server.Directives._
 import com.advancedtelematic.libats.auth.{AuthedNamespaceScope, Scopes}
+import com.advancedtelematic.libats.data.DataType.Namespace
+import com.advancedtelematic.libats.messaging.MessageBusPublisher
 import com.advancedtelematic.ota.deviceregistry.common.Errors.MissingSystemInfo
 import com.advancedtelematic.ota.deviceregistry.data.Uuid
 import com.advancedtelematic.ota.deviceregistry.db.SystemInfoRepository
-import io.circe.Json
+import com.advancedtelematic.ota.deviceregistry.db.SystemInfoRepository.NetworkInfo
+import com.advancedtelematic.ota.deviceregistry.messages.DeviceSystemInfoChanged
+import io.circe.{Decoder, Encoder, Json}
 import org.slf4j.LoggerFactory
 import slick.jdbc.MySQLProfile.api._
 
 import scala.concurrent.ExecutionContext
 
 class SystemInfoResource(
+    messageBus: MessageBusPublisher,
     authNamespace: Directive1[AuthedNamespaceScope],
     deviceNamespaceAuthorizer: Directive1[Uuid]
 )(implicit db: Database, actorSystem: ActorSystem, ec: ExecutionContext) {
   import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
 
   val logger = LoggerFactory.getLogger(this.getClass)
+
+  implicit val NetworkInfoEncoder: Encoder[NetworkInfo] = Encoder.instance { x =>
+    import io.circe.syntax._
+    Json.obj(
+      "local_ipv4" -> x.localIpV4.asJson,
+      "mac"        -> x.macAddress.asJson,
+      "hostname"   -> x.hostname.asJson
+    )
+  }
+
+  implicit val NetworkInfoDecoder: Decoder[Uuid => NetworkInfo] = Decoder.instance { c =>
+    for {
+      ip       <- c.get[String]("local_ipv4")
+      mac      <- c.get[String]("mac")
+      hostname <- c.get[String]("hostname")
+    } yield (uuid: Uuid) => NetworkInfo(uuid, ip, hostname, mac)
+  }
 
   def fetchSystemInfo(uuid: Uuid): Route = {
     val comp = db.run(SystemInfoRepository.findByUuid(uuid)).recover {
@@ -37,29 +60,60 @@ class SystemInfoResource(
     complete(comp)
   }
 
-  def createSystemInfo(uuid: Uuid, data: Json): Route = {
-    val f = db.run(SystemInfoRepository.create(uuid, data))
+  def createSystemInfo(ns: Namespace, uuid: Uuid, data: Json): Route = {
+    val f = db
+      .run(SystemInfoRepository.create(uuid, data))
+      .andThen {
+        case scala.util.Success(_) =>
+          messageBus.publish(DeviceSystemInfoChanged(ns, uuid))
+      }
     complete(Created -> f)
   }
 
-  def updateSystemInfo(uuid: Uuid, data: Json): Route =
-    complete(db.run(SystemInfoRepository.update(uuid, data)))
+  def updateSystemInfo(ns: Namespace, uuid: Uuid, data: Json): Route = {
+    val f = db
+      .run(SystemInfoRepository.update(uuid, data))
+      .andThen {
+        case scala.util.Success(_) =>
+          messageBus.publish(DeviceSystemInfoChanged(ns, uuid))
+      }
+    complete()
+  }
 
   def api: Route =
     (pathPrefix("devices") & authNamespace) { ns =>
       val scope = Scopes.devices(ns)
       deviceNamespaceAuthorizer { uuid =>
-        (scope.get & path("system_info")) {
-          fetchSystemInfo(uuid)
-        } ~
-        (scope.post & path("system_info")) {
-          entity(as[Json]) { body =>
-            createSystemInfo(uuid, body)
-          }
-        } ~
-        (scope.put & path("system_info")) {
-          entity(as[Json]) { body =>
-            updateSystemInfo(uuid, body)
+        pathPrefix("system_info") {
+          pathEnd {
+            scope.get {
+              fetchSystemInfo(uuid)
+            } ~
+            scope.post {
+              entity(as[Json]) { body =>
+                createSystemInfo(ns.namespace, uuid, body)
+              }
+            } ~
+            scope.put {
+              entity(as[Json]) { body =>
+                updateSystemInfo(ns.namespace, uuid, body)
+              }
+            }
+          } ~
+          path("network") {
+            get {
+              marshaller[NetworkInfo]
+              complete(db.run(SystemInfoRepository.getNetworkInfo(uuid)))
+            } ~
+            (put & entity(as[Uuid => NetworkInfo])) { payload =>
+              val result = db
+                .run(SystemInfoRepository.setNetworkInfo(payload(uuid)))
+                .andThen {
+                  case scala.util.Success(Done) =>
+                    messageBus.publish(DeviceSystemInfoChanged(ns.namespace, uuid))
+                }
+              complete(NoContent -> result)
+            }
           }
         }
       }
@@ -69,7 +123,7 @@ class SystemInfoResource(
     (pathPrefix("mydevice") & UuidDirectives.extractUuid) { uuid =>
       (put & path("system_info") & authedNs.oauthScope(s"ota-core.{uuid.show}.write")) {
         entity(as[Json]) { body =>
-          updateSystemInfo(uuid, body)
+          updateSystemInfo(authedNs.namespace, uuid, body)
         }
       }
     }
