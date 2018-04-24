@@ -96,6 +96,11 @@ trait DeviceRequests { self: ResourceSpec =>
   def updateSystemInfo(uuid: Uuid, json: Json)(implicit ec: ExecutionContext): HttpRequest =
     Put(Resource.uri(api, uuid.show, "system_info"), json)
 
+  def fetchNetworkInfo(uuid: Uuid)(implicit ec: ExecutionContext): HttpRequest = {
+    val uri = Resource.uri(api, uuid.show, "system_info", "network")
+    Get(uri)
+  }
+
   def listGroupsForDevice(device: Uuid)(implicit ec: ExecutionContext): HttpRequest =
     Get(Resource.uri(api, device.show, "groups"))
 
