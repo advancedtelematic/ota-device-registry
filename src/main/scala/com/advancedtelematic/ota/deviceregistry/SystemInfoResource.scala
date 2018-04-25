@@ -77,7 +77,7 @@ class SystemInfoResource(
         case scala.util.Success(_) =>
           messageBus.publish(DeviceSystemInfoChanged(ns, uuid))
       }
-    complete()
+    complete(OK -> f)
   }
 
   def api: Route =
@@ -102,8 +102,13 @@ class SystemInfoResource(
           } ~
           path("network") {
             get {
-              marshaller[NetworkInfo]
-              complete(db.run(SystemInfoRepository.getNetworkInfo(uuid)))
+              val networkInfo = db.run(SystemInfoRepository.getNetworkInfo(uuid))
+              completeOrRecoverWith(networkInfo) {
+                case MissingSystemInfo =>
+                  complete(OK -> NetworkInfo(uuid, "", "", ""))
+                case t =>
+                  failWith(t)
+              }
             } ~
             (put & entity(as[Uuid => NetworkInfo])) { payload =>
               val result = db

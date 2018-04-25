@@ -11,6 +11,7 @@ package com.advancedtelematic.ota.deviceregistry
 import com.advancedtelematic.ota.deviceregistry.data.{DeviceT, Uuid}
 import com.advancedtelematic.ota.deviceregistry.db.SystemInfoRepository.removeIdNrs
 import io.circe.Json
+import org.scalacheck.Shrink
 
 class SystemInfoResourceSpec extends ResourcePropSpec {
   import akka.http.scaladsl.model.StatusCodes._
@@ -21,6 +22,34 @@ class SystemInfoResourceSpec extends ResourcePropSpec {
       fetchSystemInfo(uuid) ~> route ~> check { status shouldBe NotFound }
       createSystemInfo(uuid, json) ~> route ~> check { status shouldBe NotFound }
       updateSystemInfo(uuid, json) ~> route ~> check { status shouldBe NotFound }
+    }
+  }
+
+  property("GET /system_info/network returns 404 NotFound on non-existent device") {
+    forAll { (uuid: Uuid) =>
+      fetchNetworkInfo(uuid) ~> route ~> check { status shouldBe NotFound }
+    }
+  }
+
+  implicit def noShrink[T]: Shrink[T] = Shrink.shrinkAny
+
+  property("GET /system_info/network returns empty strings if network info was not reported") {
+    forAll { (device: DeviceT, json: Option[Json]) =>
+      val uuid = createDeviceOk(device)
+
+      json.foreach { sysinfo =>
+        createSystemInfo(uuid, removeIdNrs(sysinfo)) ~> route ~> check {
+          status shouldBe Created
+        }
+      }
+
+      fetchNetworkInfo(uuid) ~> route ~> check {
+        status shouldBe OK
+        val json = responseAs[Json]
+        json.hcursor.get[String]("local_ipv4").toOption should equal(Some(""))
+        json.hcursor.get[String]("mac").toOption should equal(Some(""))
+        json.hcursor.get[String]("hostname").toOption should equal(Some(""))
+      }
     }
   }
 

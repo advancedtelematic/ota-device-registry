@@ -19,7 +19,7 @@ docker run -d \
   -e MYSQL_ROOT_PASSWORD=sota-test \
   -e MYSQL_USER=sota_test \
   -e MYSQL_PASSWORD=s0ta \
-  mariadb:10.3.2 \
+  mariadb:10.2 \
   --character-set-server=utf8 --collation-server=utf8_unicode_ci \
   --max_connections=1000
 
@@ -29,7 +29,7 @@ function mysqladmin_alive {
     docker run \
            --rm \
            --link mariadb-device-registry \
-           mariadb:10.1 \
+           mariadb:10.2 \
            mysqladmin ping --protocol=TCP -h mariadb-device-registry -P 3306 -u sota_test -ps0ta
 }
 
