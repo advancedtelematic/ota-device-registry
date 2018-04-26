@@ -30,7 +30,7 @@ import com.advancedtelematic.ota.deviceregistry.messages.UpdateSpec
 import slick.jdbc.MySQLProfile.api._
 
 import scala.concurrent.{ExecutionContext, Future}
-import scala.util.Try
+import scala.util.{Failure, Success, Try}
 
 /**
   * Base API routing class.
@@ -78,9 +78,9 @@ object Boot
     db.run(DeviceRepository.deviceNamespace(deviceId))
 
   lazy val messageBus =
-    MessageBus.publisher(system, config) match {
-      case Right(v) => v
-      case Left(error) =>
+    Try(MessageBus.publisher(system, config)) match {
+      case Success(v) => v
+      case Failure(error) =>
         log.error("Could not initialize message bus publisher", error)
         MessageBusPublisher.ignore
     }

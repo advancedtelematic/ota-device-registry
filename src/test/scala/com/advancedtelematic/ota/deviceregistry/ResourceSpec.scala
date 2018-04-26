@@ -59,10 +59,7 @@ trait ResourceSpec
     db.run(DeviceRepository.deviceNamespace(deviceId))
 
   lazy val messageBus =
-    MessageBus.publisher(system, system.settings.config) match {
-      case Right(v)  => v
-      case Left(err) => throw err
-    }
+    MessageBus.publisher(system, system.settings.config)
 
   // Route
   lazy implicit val route: Route =
