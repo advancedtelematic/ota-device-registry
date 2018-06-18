@@ -19,14 +19,20 @@ import com.advancedtelematic.libats.http.monitoring.MetricsSupport
 import com.advancedtelematic.libats.http.DefaultRejectionHandler.rejectionHandler
 import com.advancedtelematic.libats.messaging.{BusListenerMetrics, MessageBus, MessageBusPublisher, MessageListener}
 import com.advancedtelematic.libats.messaging.daemon.MessageBusListenerActor.Subscribe
+import com.advancedtelematic.libats.messaging_datatype.MessageLike
 import com.advancedtelematic.libats.messaging_datatype.Messages.DeviceSeen
 import com.advancedtelematic.libats.slick.db.{BootMigrations, DatabaseConfig}
 import com.advancedtelematic.libats.slick.monitoring.{DatabaseMetrics, DbHealthResource}
 import com.advancedtelematic.metrics.InfluxdbMetricsReporterSupport
-import com.advancedtelematic.ota.deviceregistry.daemon.{DeviceSeenListener, DeviceUpdateStatusListener}
-import com.advancedtelematic.ota.deviceregistry.data.Uuid
-import com.advancedtelematic.ota.deviceregistry.db.DeviceRepository
+import com.advancedtelematic.ota.deviceregistry.daemon.{
+  DeviceEventListener,
+  DeviceSeenListener,
+  DeviceUpdateStatusListener
+}
+import com.advancedtelematic.ota.deviceregistry.data.{Event, Uuid}
+import com.advancedtelematic.ota.deviceregistry.db.{DeviceRepository, EventJournal}
 import com.advancedtelematic.ota.deviceregistry.messages.UpdateSpec
+import io.circe.{Decoder, Encoder}
 import slick.jdbc.MySQLProfile.api._
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -77,13 +83,7 @@ object Boot
   private def deviceAllowed(deviceId: Uuid): Future[Namespace] =
     db.run(DeviceRepository.deviceNamespace(deviceId))
 
-  lazy val messageBus =
-    MessageBus.publisher(system, config) match {
-      case Right(v) => v
-      case Left(error) =>
-        log.error("Could not initialize message bus publisher", error)
-        MessageBusPublisher.ignore
-    }
+  lazy val messageBus = MessageBus.publisher(system, config)
 
   val routes: Route =
   (LogDirectives.logResponseMetrics("device-registry") & versionHeaders(version)) {
@@ -103,6 +103,8 @@ object Boot
         .props[DeviceSeen](system.settings.config, DeviceSeenListener.action(messageBus), metricRegistry)
     )
   deviceSeenListener ! Subscribe
+
+  new DeviceEventListener(system.settings.config, db, metricRegistry).start()
 
   val host = config.getString("server.host")
   val port = config.getInt("server.port")

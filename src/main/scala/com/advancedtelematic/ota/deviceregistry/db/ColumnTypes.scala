@@ -13,11 +13,13 @@ import com.advancedtelematic.ota.deviceregistry.data.PackageId
 
 trait ColumnTypes {
   import slick.jdbc.MySQLProfile.api._
-  protected implicit val namespaceColumnType =
+  private[db] implicit val namespaceColumnType =
     MappedColumnType.base[Namespace, String](_.get, Namespace.apply)
 
-  protected case class LiftedPackageId(name: Rep[PackageId.Name], version: Rep[PackageId.Version])
+  private[db] case class LiftedPackageId(name: Rep[PackageId.Name], version: Rep[PackageId.Version])
 
-  protected implicit object LiftedPackageShape
+  private[db] implicit object LiftedPackageShape
       extends CaseClassShape(LiftedPackageId.tupled, (p: (PackageId.Name, PackageId.Version)) => PackageId(p._1, p._2))
 }
+
+object ColumnTypes extends ColumnTypes

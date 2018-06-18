@@ -15,7 +15,8 @@ lazy val `ota-device-registry` =
         library.mariaDb,
         library.scalaCheck % Test,
         library.scalaTest  % Test,
-        library.akkaHttpTestKit % Test
+        library.akkaHttpTestKit % Test,
+        library.circeTesting % Test
       )
     )
     .settings(libraryDependencies ++= library.libAts)
@@ -30,9 +31,10 @@ lazy val library =
     object Version {
       val scalaCheck = "1.13.5"
       val scalaTest  = "3.0.4"
-      val libAts     = "0.1.1-14-gd0c72e0"
+      val libAts     = "0.1.2-15-g3c1cdd2"
       val akkaHttp = "10.0.10"
       val mariaDb = "1.4.4"
+      val circe = "0.9.1"
     }
     val scalaCheck = "org.scalacheck" %% "scalacheck" % Version.scalaCheck
     val scalaTest  = "org.scalatest"  %% "scalatest"  % Version.scalaTest
@@ -47,6 +49,7 @@ lazy val library =
     ).map("com.advancedtelematic" %% _ % Version.libAts)
     val akkaHttpTestKit = "com.typesafe.akka" %% "akka-http-testkit" % Version.akkaHttp
     val mariaDb = "org.mariadb.jdbc" % "mariadb-java-client" % Version.mariaDb
+    val circeTesting = "io.circe" %% "circe-testing" % Version.circe
   }
 
 // *****************************************************************************
