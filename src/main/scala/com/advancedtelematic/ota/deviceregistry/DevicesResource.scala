@@ -20,16 +20,41 @@ import cats.syntax.show._
 import com.advancedtelematic.libats.auth.{AuthedNamespaceScope, Scopes}
 import com.advancedtelematic.libats.data.DataType.Namespace
 import com.advancedtelematic.libats.messaging.MessageBusPublisher
-import com.advancedtelematic.ota.deviceregistry.data.{DeviceT, PackageId, Uuid}
+import com.advancedtelematic.libats.messaging_datatype.MessageLike
+import com.advancedtelematic.ota.deviceregistry.data.{DeviceT, Event, EventType, PackageId, Uuid}
 import com.advancedtelematic.ota.deviceregistry.data.Device.{ActiveDeviceCount, DeviceId}
-import com.advancedtelematic.ota.deviceregistry.db.{DeviceRepository, GroupMemberRepository, InstalledPackages}
-import com.advancedtelematic.ota.deviceregistry.messages.DeviceCreated
+import com.advancedtelematic.ota.deviceregistry.db.{
+  DeviceRepository,
+  EventJournal,
+  GroupMemberRepository,
+  InstalledPackages
+}
+import com.advancedtelematic.ota.deviceregistry.messages.{DeviceCreated, DeviceEventMessage}
+import com.advancedtelematic.ota.deviceregistry.DevicesResource.EventPayload
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.string.Regex
-import io.circe.KeyEncoder
+import io.circe.{Encoder, Json, KeyEncoder}
 import slick.jdbc.MySQLProfile.api._
 
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{ExecutionContext, Future}
+
+object DevicesResource {
+  import io.circe.Decoder
+
+  type EventPayload = (Uuid, Instant) => Event
+  private[DevicesResource] implicit val EventPayloadDecoder: io.circe.Decoder[EventPayload] =
+    io.circe.Decoder.instance { c =>
+      for {
+        id         <- c.get[String]("id")
+        deviceTime <- c.get[Instant]("deviceTime")(io.circe.java8.time.decodeInstant)
+        eventType  <- c.get[EventType]("eventType")
+        payload    <- c.get[Json]("event")
+      } yield
+        (deviceUuid: Uuid, receivedAt: Instant) => Event(deviceUuid, id, eventType, deviceTime, receivedAt, payload)
+
+    }
+
+}
 
 class DevicesResource(
     namespaceExtractor: Directive1[AuthedNamespaceScope],
@@ -45,6 +70,8 @@ class DevicesResource(
 
   val extractPackageId: Directive1[PackageId] =
     pathPrefix(Segment / Segment).as(PackageId.apply)
+
+  val eventJournal = new EventJournal(db)
 
   def searchDevice(ns: Namespace): Route =
     parameters(
@@ -141,9 +168,6 @@ class DevicesResource(
   def api: Route = namespaceExtractor { ns =>
     val scope = Scopes.devices(ns)
     pathPrefix("devices") {
-      (scope.post & entity(as[DeviceT]) & pathEndOrSingleSlash) { device =>
-        createDevice(ns.namespace, device)
-      } ~
       (scope.get & pathEnd) { searchDevice(ns.namespace) } ~
       deviceNamespaceAuthorizer { uuid =>
         (scope.put & entity(as[DeviceT]) & pathEnd) { device =>
@@ -157,7 +181,34 @@ class DevicesResource(
         } ~
         (path("packages") & scope.get) {
           listPackagesOnDevice(uuid)
+        } ~
+        path("events") {
+          import DevicesResource.{EventPayloadDecoder}
+          (post & pathEnd) {
+            extractLog { log =>
+              entity(as[List[EventPayload]]) { xs =>
+                val timestamp = Instant.now()
+                val recordingResult: List[Future[Unit]] =
+                  xs.map(_.apply(uuid, timestamp)).map(x => messageBus.publish(DeviceEventMessage(ns.namespace, x)))
+                onComplete(Future.sequence(recordingResult)) {
+                  case scala.util.Success(_) =>
+                    complete(StatusCodes.NoContent)
+
+                  case scala.util.Failure(t) =>
+                    log.error(t, "Unable write events to log.")
+                    complete(StatusCodes.ServiceUnavailable)
+                }
+              }
+            }
+          } ~
+          (get & pathEnd) {
+            val events = eventJournal.getEvents(uuid)
+            complete(events)
+          }
         }
+      } ~
+      (scope.post & entity(as[DeviceT]) & pathEndOrSingleSlash) { device =>
+        createDevice(ns.namespace, device)
       }
     } ~
     (scope.get & pathPrefix("device_count") & extractPackageId) { pkg =>
