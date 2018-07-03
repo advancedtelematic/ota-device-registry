@@ -45,7 +45,8 @@ lazy val library =
       "libats-auth",
       "libats-http",
       "libats-metrics",
-      "libats-metrics-akka"
+      "libats-metrics-akka",
+      "libats-metrics-prometheus"
     ).map("com.advancedtelematic" %% _ % Version.libAts)
     val akkaHttpTestKit = "com.typesafe.akka" %% "akka-http-testkit" % Version.akkaHttp
     val mariaDb = "org.mariadb.jdbc" % "mariadb-java-client" % Version.mariaDb
