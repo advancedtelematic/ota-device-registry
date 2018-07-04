@@ -23,7 +23,8 @@ import com.advancedtelematic.libats.messaging_datatype.MessageLike
 import com.advancedtelematic.libats.messaging_datatype.Messages.DeviceSeen
 import com.advancedtelematic.libats.slick.db.{BootMigrations, DatabaseConfig}
 import com.advancedtelematic.libats.slick.monitoring.{DatabaseMetrics, DbHealthResource}
-import com.advancedtelematic.metrics.InfluxdbMetricsReporterSupport
+import com.advancedtelematic.metrics.{AkkaHttpRequestMetrics, InfluxdbMetricsReporterSupport}
+import com.advancedtelematic.metrics.prometheus.PrometheusMetricsSupport
 import com.advancedtelematic.ota.deviceregistry.daemon.{
   DeviceEventListener,
   DeviceSeenListener,
@@ -69,7 +70,9 @@ object Boot
     with DatabaseConfig
     with MetricsSupport
     with DatabaseMetrics
-    with InfluxdbMetricsReporterSupport {
+    with InfluxdbMetricsReporterSupport
+    with AkkaHttpRequestMetrics
+    with PrometheusMetricsSupport {
 
   import VersionDirectives._
   import UuidDirectives._
@@ -86,7 +89,8 @@ object Boot
   lazy val messageBus = MessageBus.publisher(system, config)
 
   val routes: Route =
-  (LogDirectives.logResponseMetrics("device-registry") & versionHeaders(version)) {
+  (LogDirectives.logResponseMetrics("device-registry") & requestMetrics(metricRegistry) & versionHeaders(version)) {
+    prometheusMetricsRoutes ~
     new DeviceRegistryRoutes(authNamespace, namespaceAuthorizer, messageBus).route
   } ~ DbHealthResource(versionMap, healthMetrics = Seq(new BusListenerMetrics(metricRegistry))).route
 
