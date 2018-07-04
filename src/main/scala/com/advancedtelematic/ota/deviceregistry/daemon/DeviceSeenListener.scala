@@ -13,6 +13,7 @@ import com.advancedtelematic.libats.messaging.MessageBusPublisher
 import com.advancedtelematic.libats.messaging_datatype.Messages.DeviceSeen
 import com.advancedtelematic.ota.deviceregistry.data.{DeviceStatus, Uuid}
 import com.advancedtelematic.ota.deviceregistry.db.DeviceRepository
+import com.advancedtelematic.ota.deviceregistry.common.Errors
 import com.advancedtelematic.ota.deviceregistry.messages.DeviceActivated
 import org.slf4j.LoggerFactory
 
@@ -41,6 +42,8 @@ object DeviceSeenListener {
           }
       }
       .recover {
+        case Errors.MissingDevice =>
+          _logger.warn(s"Ignore event for missing or deleted device: $msg")
         case ex =>
           _logger.warn(s"Could not process $msg", ex)
       }

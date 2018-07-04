@@ -196,8 +196,11 @@ object DeviceRepository extends ColumnTypes {
   def delete(ns: Namespace, uuid: Uuid)(implicit ec: ExecutionContext): DBIO[Unit] = {
     val dbIO = for {
       _ <- exists(ns, uuid)
-      _ <- devices.filter(d => d.namespace === ns && d.uuid === uuid).delete
+      _ <- EventJournal.deleteEvents(uuid)
+      _ <- GroupMemberRepository.removeGroupMemberAll(uuid)
+      _ <- PublicCredentialsRepository.delete(uuid)
       _ <- SystemInfoRepository.delete(uuid)
+      _ <- devices.filter(d => d.namespace === ns && d.uuid === uuid).delete
     } yield ()
 
     dbIO.transactionally
