@@ -11,7 +11,7 @@ package com.advancedtelematic.ota.deviceregistry.db
 import java.time.Instant
 
 import com.advancedtelematic.libats.test.DatabaseSpec
-import com.advancedtelematic.ota.deviceregistry.data.DeviceGenerators.{genDeviceId, genDeviceT}
+import com.advancedtelematic.ota.deviceregistry.data.DeviceGenerators.{genDeviceId, genDeviceT, genMarketCode}
 import com.advancedtelematic.ota.deviceregistry.data.Namespaces
 import org.scalatest.concurrent.PatienceConfiguration.Timeout
 import org.scalatest.concurrent.ScalaFutures
@@ -33,8 +33,8 @@ class DeviceRepositorySpec extends FunSuite with DatabaseSpec with ScalaFutures 
 
     whenReady(db.run(setTwice), Timeout(Span(10, Seconds))) {
       case (f, s) =>
-        f shouldBe (true)
-        s shouldBe (false)
+        f shouldBe true
+        s shouldBe false
     }
   }
 
@@ -52,4 +52,33 @@ class DeviceRepositorySpec extends FunSuite with DatabaseSpec with ScalaFutures 
       count shouldBe (1)
     }
   }
+
+  test("finds a device with an existing market code") {
+    val device1 = genDeviceT.retryUntil(_.marketCode.isDefined).sample.get
+    val device2 = genDeviceT.sample.get
+    val device3 = genDeviceT.sample.get
+    val insertAndFind = for {
+      uuid1 <- DeviceRepository.create(Namespaces.defaultNs, device1)
+      _     <- DeviceRepository.create(Namespaces.defaultNs, device2)
+      _     <- DeviceRepository.create(Namespaces.defaultNs, device3)
+      found <- DeviceRepository.findByMarketCode(device1.marketCode.get)
+    } yield (found, uuid1)
+
+    whenReady(db.run(insertAndFind), Timeout(Span(10, Seconds))) {
+      case (found, uuid1) =>
+        found.get.uuid shouldBe uuid1
+    }
+  }
+
+  test("doesn't find a device with a non-existing market code") {
+    val nonExistingMarketCode = genMarketCode.sample.get
+    val device = genDeviceT.retryUntil(d => d.marketCode.isEmpty || d.marketCode.get != nonExistingMarketCode).sample.get
+    val insertAndFind = DeviceRepository
+      .create(Namespaces.defaultNs, device)
+      .flatMap(_ => DeviceRepository.findByMarketCode(nonExistingMarketCode))
+
+    val foundDevice = db.run(insertAndFind).futureValue
+    foundDevice should not be 'defined
+  }
+
 }

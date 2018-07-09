@@ -61,12 +61,12 @@ object DeviceRepository extends ColumnTypes {
   def create(ns: Namespace, device: DeviceT)(implicit ec: ExecutionContext): DBIO[Uuid] = {
     val uuid: Uuid = device.deviceUuid.getOrElse(Uuid.generate())
 
-    val dbDevice = Device(ns,
-      uuid,
-      device.deviceName,
-      device.deviceId,
-      device.deviceType,
-      marketCode = device.marketCode,
+    val dbDevice= Device(ns,
+                                 uuid,
+                                 device.deviceName,
+                                 device.deviceId,
+                                 device.deviceType,
+                                 marketCode = device.marketCode,
                                  createdAt = Instant.now())
 
     val dbIO = devices += dbDevice
@@ -173,6 +173,12 @@ object DeviceRepository extends ColumnTypes {
       .result
       .headOption
       .flatMap(_.fold[DBIO[Device]](DBIO.failed(Errors.MissingDevice))(DBIO.successful))
+
+  def findByMarketCode(marketCode: MarketCode)(implicit ec: ExecutionContext): DBIO[Option[Device]] =
+    devices
+      .filter(_.marketCode === marketCode)
+      .result
+      .headOption
 
   def updateLastSeen(uuid: Uuid, when: Instant)(implicit ec: ExecutionContext): DBIO[(Boolean, Namespace)] = {
 
