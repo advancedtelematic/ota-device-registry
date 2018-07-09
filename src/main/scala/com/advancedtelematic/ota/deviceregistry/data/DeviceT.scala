@@ -22,12 +22,16 @@ final case class DeviceT(
     deviceId: Option[Device.DeviceId] = None,
     deviceType: Device.DeviceType = Device.DeviceType.Other,
     credentials: Option[String] = None,
-    credentialsType: Option[CredentialsType] = None
+    credentialsType: Option[CredentialsType] = None,
+    marketCode: Option[Device.MarketCode] = None
 )
 
 object DeviceT {
   private[this] implicit val DevcieIdEncoder = Encoder.encodeString.contramap[Device.DeviceId](_.underlying)
   private[this] implicit val DevcieIdDecoder = Decoder.decodeString.map(Device.DeviceId.apply)
+  private[this] implicit val DeviceMarketCodeEncoder =
+    Encoder.encodeString.contramap[Device.MarketCode](_.underlying)
+  private[this] implicit val DeviceMarketCodeDecoder = Decoder.decodeString.map(Device.MarketCode.apply)
   import com.advancedtelematic.libats.codecs.CirceCodecs.{refinedDecoder, refinedEncoder}
   implicit val EncoderInstance = io.circe.generic.semiauto.deriveEncoder[DeviceT]
   implicit val DecoderInstance = io.circe.generic.semiauto.deriveDecoder[DeviceT]

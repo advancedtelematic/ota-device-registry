@@ -8,11 +8,11 @@
 
 package com.advancedtelematic.ota.deviceregistry.data
 
-import eu.timepit.refined.api.Refined
-import org.scalacheck.{Arbitrary, Gen}
 import java.time.Instant
 
 import com.advancedtelematic.ota.deviceregistry.data
+import eu.timepit.refined.api.Refined
+import org.scalacheck.{Arbitrary, Gen}
 
 trait DeviceGenerators {
 
@@ -39,6 +39,11 @@ trait DeviceGenerators {
     millis <- Gen.chooseNum[Long](0, 10000000000000L)
   } yield Instant.ofEpochMilli(millis)
 
+  val genMarketCode: Gen[MarketCode] = for {
+    size       <- Gen.choose(10, 100)
+    marketCode <- Gen.containerOfN[Seq, Char](size, Gen.alphaNumChar)
+  } yield MarketCode(marketCode.mkString)
+
   def genDeviceWith(deviceNameGen: Gen[DeviceName], deviceIdGen: Gen[DeviceId]): Gen[Device] =
     for {
       uuid       <- arbitrary[Uuid]
@@ -57,7 +62,8 @@ trait DeviceGenerators {
       deviceId   <- deviceIdGen.map(Some.apply)
       deviceUuid <- Gen.option(UuidGenerator.genUuid)
       deviceType <- genDeviceType
-    } yield DeviceT(name, deviceUuid, deviceId, deviceType)
+      marketCode <- Gen.option(genMarketCode)
+    } yield DeviceT(name, deviceUuid, deviceId, deviceType, marketCode = marketCode)
 
   val genDeviceT: Gen[DeviceT] = genDeviceTWith(genDeviceName, genDeviceId)
 

@@ -8,8 +8,8 @@
 
 package com.advancedtelematic.ota.deviceregistry
 
-import java.time.{Instant, OffsetDateTime}
 import java.time.temporal.ChronoUnit
+import java.time.{Instant, OffsetDateTime}
 import java.util.UUID
 
 import akka.http.scaladsl.model.StatusCodes._
@@ -21,14 +21,13 @@ import com.advancedtelematic.libats.messaging_datatype.Messages.DeviceSeen
 import com.advancedtelematic.ota.deviceregistry.common.PackageStat
 import com.advancedtelematic.ota.deviceregistry.daemon.{DeleteDeviceHandler, DeviceSeenListener}
 import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
-import com.advancedtelematic.ota.deviceregistry.data.{Device, DeviceStatus, DeviceT, PackageId, Uuid}
-import com.advancedtelematic.ota.deviceregistry.db.{DeviceRepository, InstalledPackages}
+import com.advancedtelematic.ota.deviceregistry.data.{Device, DeviceStatus, DeviceT, PackageId, Uuid, _}
 import com.advancedtelematic.ota.deviceregistry.db.InstalledPackages.{DevicesCount, InstalledPackage}
-import io.circe.{Json, KeyDecoder}
+import com.advancedtelematic.ota.deviceregistry.db.{DeviceRepository, InstalledPackages}
 import io.circe.generic.auto._
-import com.advancedtelematic.ota.deviceregistry.data._
-import org.scalacheck.{Gen, Shrink}
+import io.circe.{Json, KeyDecoder}
 import org.scalacheck.Arbitrary._
+import org.scalacheck.{Gen, Shrink}
 import org.scalatest.concurrent.{Eventually, ScalaFutures}
 import org.scalatest.time.{Millis, Seconds, Span}
 
@@ -38,8 +37,8 @@ import org.scalatest.time.{Millis, Seconds, Span}
 class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventually {
 
   import Device._
-  import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
   import GeneratorOps._
+  import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
 
   private val deviceNumber  = DeviceRepository.defaultLimit + 10
   private implicit val exec = system.dispatcher
@@ -611,6 +610,19 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
       groups.total should be(2)
       groups.values should contain(groupId1)
       groups.values should contain(groupId2)
+    }
+  }
+
+  property("POST request creates a new device with market code.") {
+    val deviceT = genDeviceT.retryUntil(_.marketCode.isDefined).sample.get
+    val uuid    = createDeviceOk(deviceT)
+    fetchDevice(uuid) ~> route ~> check {
+      status shouldBe OK
+      val devicePost = responseAs[Device]
+      devicePost.uuid shouldBe uuid
+      devicePost.deviceId shouldBe deviceT.deviceId
+      devicePost.deviceType shouldBe deviceT.deviceType
+      devicePost.marketCode shouldBe deviceT.marketCode
     }
   }
 

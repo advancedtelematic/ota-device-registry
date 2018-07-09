@@ -29,10 +29,8 @@ object Uuid {
     def show(uuid: Uuid) = uuid.underlying.value
   }
 
-  implicit val UuidOrdering: Ordering[Uuid] = new Ordering[Uuid] {
-    override def compare(uuid1: Uuid, uuid2: Uuid): Int =
-      uuid1.underlying.value compare uuid2.underlying.value
-  }
+  implicit val UuidOrdering: Ordering[Uuid] = (uuid1: Uuid, uuid2: Uuid) =>
+    uuid1.underlying.value compare uuid2.underlying.value
 
   def generate(): Uuid = Uuid(refineV[Valid](UUID.randomUUID.toString).right.get)
 

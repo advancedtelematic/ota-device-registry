@@ -19,13 +19,12 @@ import com.advancedtelematic.libats.slick.db.SlickUUIDKey._
 import com.advancedtelematic.ota.deviceregistry.common.Errors
 import com.advancedtelematic.ota.deviceregistry.data.DeviceStatus.DeviceStatus
 import com.advancedtelematic.ota.deviceregistry.data.Group.{GroupExpression, GroupId}
-import com.advancedtelematic.ota.deviceregistry.data._
+import com.advancedtelematic.ota.deviceregistry.data.{Device, DeviceStatus, DeviceT, Uuid, _}
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.string.Regex
 import slick.jdbc.MySQLProfile.api._
 
 import scala.concurrent.ExecutionContext
-import scala.util.{Failure, Success}
 
 object DeviceRepository extends ColumnTypes {
   val defaultLimit = 50
@@ -48,9 +47,10 @@ object DeviceRepository extends ColumnTypes {
     def createdAt    = column[Instant]("created_at")
     def activatedAt  = column[Option[Instant]]("activated_at")
     def deviceStatus = column[DeviceStatus]("device_status")
+    def marketCode   = column[Option[MarketCode]]("market_code")
 
     def * =
-      (namespace, uuid, deviceName, deviceId, deviceType, lastSeen, createdAt, activatedAt, deviceStatus).shaped <> ((Device.apply _).tupled, Device.unapply)
+      (namespace, uuid, deviceName, deviceId, deviceType, lastSeen, createdAt, activatedAt, deviceStatus, marketCode).shaped <> ((Device.apply _).tupled, Device.unapply)
 
     def pk = primaryKey("uuid", uuid)
   }
@@ -66,7 +66,8 @@ object DeviceRepository extends ColumnTypes {
       device.deviceName,
       device.deviceId,
       device.deviceType,
-      createdAt = Instant.now())
+      marketCode = device.marketCode,
+                                 createdAt = Instant.now())
 
     val dbIO = devices += dbDevice
     dbIO

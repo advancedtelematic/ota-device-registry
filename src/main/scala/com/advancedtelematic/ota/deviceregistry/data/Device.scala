@@ -14,7 +14,7 @@ import cats.Show
 import cats.syntax.show._
 import com.advancedtelematic.libats.data.DataType.Namespace
 import com.advancedtelematic.ota.deviceregistry.data
-import com.advancedtelematic.ota.deviceregistry.data.Device.{DeviceId, DeviceName, DeviceType}
+import com.advancedtelematic.ota.deviceregistry.data.Device.{DeviceId, MarketCode, DeviceName, DeviceType}
 import com.advancedtelematic.ota.deviceregistry.data.DeviceStatus._
 import eu.timepit.refined.api.{Refined, Validate}
 import io.circe.{Decoder, Encoder}
@@ -27,7 +27,8 @@ final case class Device(namespace: Namespace,
                         lastSeen: Option[Instant] = None,
                         createdAt: Instant,
                         activatedAt: Option[Instant] = None,
-                        deviceStatus: DeviceStatus = NotSeen) {
+                        deviceStatus: DeviceStatus = NotSeen,
+                        marketCode: Option[MarketCode] = None) {
 
   // TODO: Use org.genivi.sota.core.data.client.ResponseEncoder
   def toResponse: DeviceT = data.DeviceT(deviceName, Some(uuid), deviceId, deviceType)
@@ -40,11 +41,16 @@ object Device {
     def show(deviceId: DeviceId) = deviceId.underlying
   }
 
+  final case class MarketCode(underlying: String) extends AnyVal
+  implicit val showDeviceMarketCode = new Show[MarketCode] {
+    def show(marketCode: MarketCode): String = marketCode.underlying
+  }
+
   case class ValidDeviceName()
   type DeviceName = Refined[String, ValidDeviceName]
   implicit val validDeviceName: Validate.Plain[String, ValidDeviceName] =
     Validate.fromPredicate(
-      name => name.size < 200,
+      name => name.length < 200,
       name => s"$name is not a valid DeviceName since it is longer than 200 characters",
       ValidDeviceName()
     )
@@ -85,14 +91,11 @@ object Device {
     io.circe.generic.semiauto.deriveDecoder[Device]
   }
 
-  implicit val DeviceIdOrdering: Ordering[DeviceId] = new Ordering[DeviceId] {
-    override def compare(id1: DeviceId, id2: DeviceId): Int = id1.underlying compare id2.underlying
-  }
+  implicit val DeviceIdOrdering: Ordering[DeviceId] = (id1: DeviceId, id2: DeviceId) =>
+    id1.underlying compare id2.underlying
 
   implicit def DeviceOrdering(implicit ord: Ordering[Uuid]): Ordering[Device] =
-    new Ordering[Device] {
-      override def compare(d1: Device, d2: Device): Int = ord.compare(d1.uuid, d2.uuid)
-    }
+    (d1: Device, d2: Device) => ord.compare(d1.uuid, d2.uuid)
 
   implicit val showOffsetDateTable = new Show[OffsetDateTime] {
     def show(odt: OffsetDateTime) = odt.toString
