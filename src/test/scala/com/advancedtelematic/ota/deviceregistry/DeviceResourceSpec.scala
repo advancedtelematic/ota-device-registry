@@ -58,6 +58,7 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures {
     forAll { (uuid: Uuid, device: DeviceT, json: Json) =>
       fetchDevice(uuid) ~> route ~> check { status shouldBe NotFound }
       updateDevice(uuid, device) ~> route ~> check { status shouldBe NotFound }
+      deleteDevice(uuid) ~> route ~> check { status shouldBe NotFound }
     }
   }
 
@@ -510,6 +511,105 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures {
       r.total shouldBe 2
       r.values.contains(PackageStat(pkgVersion.head, 5)) shouldBe true
       r.values.contains(PackageStat(pkgVersion(1), 5)) shouldBe true
+    }
+  }
+
+  property("DELETE existing device returns 204") {
+    forAll { devicePre: DeviceT =>
+      val uuid: Uuid = createDeviceOk(devicePre)
+
+      deleteDevice(uuid) ~> route ~> check {
+        status shouldBe NoContent
+      }
+    }
+  }
+
+  property("DELETE already deleted device returns 404") {
+    forAll { devicePre: DeviceT =>
+      val uuid: Uuid = createDeviceOk(devicePre)
+      deleteDevice(uuid) ~> route ~> check {
+        status shouldBe NoContent
+      }
+
+      deleteDevice(uuid) ~> route ~> check {
+        status shouldBe NotFound
+      }
+    }
+  }
+
+  property("DELETE device removes it from its group") {
+    forAll { (devicePre: DeviceT, groupName: Group.Name) =>
+      val uuid: Uuid = createDeviceOk(devicePre)
+      val groupId    = createGroupOk(groupName)
+
+      addDeviceToGroupOk(groupId, uuid)
+      listDevicesInGroup(groupId) ~> route ~> check {
+        status shouldBe OK
+        val devices = responseAs[PaginationResult[Uuid]]
+        devices.values.find(_ == uuid) shouldBe Some(uuid)
+      }
+
+      deleteDevice(uuid) ~> route ~> check {
+        status shouldBe NoContent
+      }
+      fetchByGroupId(groupId, offset = 0, limit = 10) ~> route ~> check {
+        status shouldBe OK
+        val devices = responseAs[PaginationResult[Device]]
+        devices.values.find(_.uuid == uuid) shouldBe None
+      }
+      listDevicesInGroup(groupId) ~> route ~> check {
+        status shouldBe OK
+        val devices = responseAs[PaginationResult[Uuid]]
+        devices.values.find(_ == uuid) shouldBe None
+      }
+    }
+  }
+
+  property("DELETE device removes it from all groups") {
+    val deviceNumber         = 50
+    val deviceTs             = genConflictFreeDeviceTs(deviceNumber).sample.get
+    val deviceIds: Seq[Uuid] = deviceTs.map(createDeviceOk(_))
+
+    val groupNumber         = 10
+    val groups              = Gen.listOfN(groupNumber, genGroupName).sample.get
+    val groupIds: Seq[Uuid] = groups.map(createGroupOk(_))
+
+    (0 until deviceNumber).foreach { i =>
+      addDeviceToGroupOk(groupIds(i % groupNumber), deviceIds(i))
+    }
+
+    val uuid: Uuid = deviceIds.head
+    deleteDevice(uuid) ~> route ~> check {
+      status shouldBe NoContent
+    }
+
+    (0 until groupNumber).foreach { i =>
+      fetchByGroupId(groupIds(i), offset = 0, limit = deviceNumber) ~> route ~> check {
+        status shouldBe OK
+        val devices = responseAs[PaginationResult[Device]]
+        devices.values.find(_.uuid == uuid) shouldBe None
+      }
+    }
+  }
+
+  property("DELETE device does not cause error on subsequent DeviceSeen events") {
+    forAll(genConflictFreeDeviceTs(2)) {
+      case Seq(d1, d2) =>
+        val uuid1 = createDeviceOk(d1)
+        val uuid2 = createDeviceOk(d2)
+
+        deleteDevice(uuid1) ~> route ~> check {
+          status shouldBe NoContent
+        }
+
+        sendDeviceSeen(uuid1)
+        sendDeviceSeen(uuid2)
+        fetchDevice(uuid2) ~> route ~> check {
+          val devicePost: Device = responseAs[Device]
+          devicePost.lastSeen should not be None
+          isRecent(devicePost.lastSeen) shouldBe true
+          devicePost.deviceStatus should not be DeviceStatus.NotSeen
+        }
     }
   }
 }

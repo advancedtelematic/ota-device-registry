@@ -16,7 +16,7 @@ import com.advancedtelematic.libats.slick.db.SlickExtensions.javaInstantMapping
 import io.circe.{Json, JsonObject}
 import slick.jdbc.MySQLProfile.api._
 
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 
 object EventJournal {
   private implicit val JsonType = MappedColumnType.base[Json, String](
@@ -43,6 +43,8 @@ object EventJournal {
 
   private[EventJournal] val events = TableQuery[EventJournalTable]
 
+  def deleteEvents(deviceUuid: Uuid)(implicit ec: ExecutionContext): DBIO[Int] =
+    events.filter(_.deviceUuid === deviceUuid).delete
 }
 
 class EventJournal(db: Database) {
