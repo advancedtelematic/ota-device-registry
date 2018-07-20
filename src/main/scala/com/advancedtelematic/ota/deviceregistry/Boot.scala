@@ -26,6 +26,7 @@ import com.advancedtelematic.libats.slick.monitoring.{DatabaseMetrics, DbHealthR
 import com.advancedtelematic.metrics.{AkkaHttpRequestMetrics, InfluxdbMetricsReporterSupport}
 import com.advancedtelematic.metrics.prometheus.PrometheusMetricsSupport
 import com.advancedtelematic.ota.deviceregistry.daemon.{
+  DeleteDeviceHandler,
   DeviceEventListener,
   DeviceSeenListener,
   DeviceUpdateStatusListener
@@ -109,6 +110,7 @@ object Boot
   deviceSeenListener ! Subscribe
 
   new DeviceEventListener(system.settings.config, db, metricRegistry).start()
+  new DeleteDeviceHandler(system.settings.config, db, metricRegistry).start()
 
   val host = config.getString("server.host")
   val port = config.getInt("server.port")

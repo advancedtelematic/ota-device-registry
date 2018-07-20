@@ -5,7 +5,7 @@
 lazy val `ota-device-registry` =
   project
     .in(file("."))
-    .enablePlugins(AutomateHeaderPlugin, GitVersioning, BuildInfoPlugin, DockerPlugin, JavaAppPackaging)
+    .enablePlugins(GitVersioning, BuildInfoPlugin, DockerPlugin, JavaAppPackaging)
     .settings(settings)
     .settings(
       resolvers += "Sonatype Nexus Repository Manager" at "http://nexus.advancedtelematic.com:8081/content/repositories/releases"

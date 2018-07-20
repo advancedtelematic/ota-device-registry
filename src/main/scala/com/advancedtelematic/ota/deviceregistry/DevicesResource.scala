@@ -29,7 +29,7 @@ import com.advancedtelematic.ota.deviceregistry.db.{
   GroupMemberRepository,
   InstalledPackages
 }
-import com.advancedtelematic.ota.deviceregistry.messages.{DeviceCreated, DeviceDeleted, DeviceEventMessage}
+import com.advancedtelematic.ota.deviceregistry.messages.{DeleteDeviceRequest, DeviceCreated, DeviceEventMessage}
 import com.advancedtelematic.ota.deviceregistry.DevicesResource.EventPayload
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.string.Regex
@@ -110,15 +110,10 @@ class DevicesResource(
   }
 
   def deleteDevice(ns: Namespace, uuid: Uuid): Route = {
-    val f = db
-      .run(DeviceRepository.delete(ns, uuid))
-      .andThen {
-        case scala.util.Success(_) =>
-          messageBus.publish(
-            DeviceDeleted(ns, uuid, Instant.now())
-          )
-      }
-    onSuccess(f) { complete(StatusCodes.NoContent) }
+    val f = messageBus.publish(
+      DeleteDeviceRequest(ns, uuid, Instant.now())
+    )
+    onSuccess(f) { complete(StatusCodes.Accepted) }
   }
 
   def fetchDevice(uuid: Uuid): Route =
