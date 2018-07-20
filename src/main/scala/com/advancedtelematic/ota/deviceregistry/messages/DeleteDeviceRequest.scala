@@ -15,10 +15,10 @@ import com.advancedtelematic.libats.messaging_datatype.MessageLike
 import com.advancedtelematic.ota.deviceregistry.data.Uuid
 import com.advancedtelematic.ota.deviceregistry.data.Device.{DeviceId, DeviceName, DeviceType}
 
-final case class DeviceDeleted(namespace: Namespace, uuid: Uuid, timestamp: Instant = Instant.now())
+final case class DeleteDeviceRequest(namespace: Namespace, uuid: Uuid, timestamp: Instant = Instant.now())
 
-object DeviceDeleted {
+object DeleteDeviceRequest {
   import cats.syntax.show._
   import com.advancedtelematic.libats.codecs.CirceCodecs._
-  implicit val MessageLikeInstance = MessageLike[DeviceDeleted](_.uuid.show)
+  implicit val MessageLikeInstance = MessageLike[DeleteDeviceRequest](_.uuid.show)
 }

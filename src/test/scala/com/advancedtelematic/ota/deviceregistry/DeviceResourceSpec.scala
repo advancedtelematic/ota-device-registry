@@ -14,26 +14,27 @@ import java.util.UUID
 
 import akka.http.scaladsl.model.StatusCodes._
 import com.advancedtelematic.libats.data.PaginationResult
+import com.advancedtelematic.libats.http.monitoring.MetricsSupport
 import com.advancedtelematic.libats.messaging.MessageBusPublisher
 import com.advancedtelematic.libats.messaging_datatype.DataType
 import com.advancedtelematic.libats.messaging_datatype.Messages.DeviceSeen
 import com.advancedtelematic.ota.deviceregistry.common.PackageStat
-import com.advancedtelematic.ota.deviceregistry.daemon.DeviceSeenListener
+import com.advancedtelematic.ota.deviceregistry.daemon.{DeleteDeviceHandler, DeviceSeenListener}
 import com.advancedtelematic.ota.deviceregistry.data.{Device, DeviceStatus, DeviceT, PackageId, Uuid}
 import com.advancedtelematic.ota.deviceregistry.db.{DeviceRepository, InstalledPackages}
 import com.advancedtelematic.ota.deviceregistry.db.InstalledPackages.{DevicesCount, InstalledPackage}
 import io.circe.{Json, KeyDecoder}
 import io.circe.generic.auto._
 import com.advancedtelematic.ota.deviceregistry.data._
-import org.scalacheck.Gen
+import org.scalacheck.{Gen, Shrink}
 import org.scalacheck.Arbitrary._
-import org.scalatest.concurrent.ScalaFutures
+import org.scalatest.concurrent.{Eventually, ScalaFutures}
 import org.scalatest.time.{Millis, Seconds, Span}
 
 /**
   * Spec for DeviceRepository REST actions
   */
-class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures {
+class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventually {
 
   import Device._
   import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
@@ -514,28 +515,18 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures {
     }
   }
 
-  property("DELETE existing device returns 204") {
+  property("DELETE existing device returns 202") {
     forAll { devicePre: DeviceT =>
       val uuid: Uuid = createDeviceOk(devicePre)
 
       deleteDevice(uuid) ~> route ~> check {
-        status shouldBe NoContent
+        status shouldBe Accepted
       }
     }
   }
 
-  property("DELETE already deleted device returns 404") {
-    forAll { devicePre: DeviceT =>
-      val uuid: Uuid = createDeviceOk(devicePre)
-      deleteDevice(uuid) ~> route ~> check {
-        status shouldBe NoContent
-      }
-
-      deleteDevice(uuid) ~> route ~> check {
-        status shouldBe NotFound
-      }
-    }
-  }
+  implicit def noShrink[T]: Shrink[T] = Shrink.shrinkAny
+  new DeleteDeviceHandler(system.settings.config, db, MetricsSupport.metricRegistry).start()
 
   property("DELETE device removes it from its group") {
     forAll { (devicePre: DeviceT, groupName: Group.Name) =>
@@ -550,13 +541,18 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures {
       }
 
       deleteDevice(uuid) ~> route ~> check {
-        status shouldBe NoContent
+        status shouldBe Accepted
       }
-      fetchByGroupId(groupId, offset = 0, limit = 10) ~> route ~> check {
-        status shouldBe OK
-        val devices = responseAs[PaginationResult[Device]]
-        devices.values.find(_.uuid == uuid) shouldBe None
+
+      import org.scalatest.time.SpanSugar._
+      eventually(timeout(5.seconds), interval(100.millis)) {
+        fetchByGroupId(groupId, offset = 0, limit = 10) ~> route ~> check {
+          status shouldBe OK
+          val devices = responseAs[PaginationResult[Device]]
+          devices.values.find(_.uuid == uuid) shouldBe None
+        }
       }
+
       listDevicesInGroup(groupId) ~> route ~> check {
         status shouldBe OK
         val devices = responseAs[PaginationResult[Uuid]]
@@ -568,11 +564,11 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures {
   property("DELETE device removes it from all groups") {
     val deviceNumber         = 50
     val deviceTs             = genConflictFreeDeviceTs(deviceNumber).sample.get
-    val deviceIds: Seq[Uuid] = deviceTs.map(createDeviceOk(_))
+    val deviceIds: Seq[Uuid] = deviceTs.map(createDeviceOk)
 
     val groupNumber         = 10
     val groups              = Gen.listOfN(groupNumber, genGroupName).sample.get
-    val groupIds: Seq[Uuid] = groups.map(createGroupOk(_))
+    val groupIds: Seq[Uuid] = groups.map(createGroupOk)
 
     (0 until deviceNumber).foreach { i =>
       addDeviceToGroupOk(groupIds(i % groupNumber), deviceIds(i))
@@ -580,14 +576,17 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures {
 
     val uuid: Uuid = deviceIds.head
     deleteDevice(uuid) ~> route ~> check {
-      status shouldBe NoContent
+      status shouldBe Accepted
     }
 
-    (0 until groupNumber).foreach { i =>
-      fetchByGroupId(groupIds(i), offset = 0, limit = deviceNumber) ~> route ~> check {
-        status shouldBe OK
-        val devices = responseAs[PaginationResult[Device]]
-        devices.values.find(_.uuid == uuid) shouldBe None
+    import org.scalatest.time.SpanSugar._
+    eventually(timeout(5.seconds), interval(100.millis)) {
+      (0 until groupNumber).foreach { i =>
+        fetchByGroupId(groupIds(i), offset = 0, limit = deviceNumber) ~> route ~> check {
+          status shouldBe OK
+          val devices = responseAs[PaginationResult[Device]]
+          devices.values.find(_.uuid == uuid) shouldBe None
+        }
       }
     }
   }
@@ -599,7 +598,7 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures {
         val uuid2 = createDeviceOk(d2)
 
         deleteDevice(uuid1) ~> route ~> check {
-          status shouldBe NoContent
+          status shouldBe Accepted
         }
 
         sendDeviceSeen(uuid1)
