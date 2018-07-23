@@ -38,6 +38,9 @@ trait GroupRequests {
         )
     }
 
+  def getGroupDetails(groupId: Uuid)(implicit ec: ExecutionContext): HttpRequest =
+    Get(Resource.uri("device_groups", groupId.underlying.value))
+
   def countDevicesInGroup(groupId: Uuid)(implicit ec: ExecutionContext): HttpRequest =
     Get(Resource.uri("device_groups", groupId.underlying.value, "count"))
 

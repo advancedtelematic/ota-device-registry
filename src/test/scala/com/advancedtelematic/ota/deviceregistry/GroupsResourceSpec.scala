@@ -13,8 +13,8 @@ import com.advancedtelematic.libats.data.PaginationResult
 import com.advancedtelematic.ota.deviceregistry.data.{Group, Uuid}
 import io.circe.Json
 import io.circe.parser._
-import org.scalacheck.Gen
 import org.scalacheck.Arbitrary._
+import org.scalacheck.Gen
 import org.scalatest.FunSuite
 
 class GroupsResourceSpec extends FunSuite with ResourceSpec {
@@ -102,6 +102,26 @@ class GroupsResourceSpec extends FunSuite with ResourceSpec {
       val result = responseAs[PaginationResult[Uuid]]
       result.values.length shouldBe limit
       allDevices.slice(offset, offset + limit) shouldEqual result.values
+    }
+  }
+
+  test("Get group details gives group id and name.") {
+    val groupName = genGroupName.sample.get
+    val groupId   = createGroupOk(groupName)
+
+    getGroupDetails(groupId) ~> route ~> check {
+      status shouldBe OK
+      val group: Group = responseAs[Group]
+      group.id shouldBe groupId
+      group.groupName shouldBe groupName
+    }
+  }
+
+  test("Get group details of valid non-existing group fails with 404.") {
+    val groupId = genGroupInfo.sample.get.id
+
+    getGroupDetails(groupId) ~> route ~> check {
+      status shouldBe NotFound
     }
   }
 

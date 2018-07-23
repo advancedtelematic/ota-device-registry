@@ -13,8 +13,8 @@ import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.server._
 import com.advancedtelematic.libats.auth.{AuthedNamespaceScope, Scopes}
 import com.advancedtelematic.libats.data.DataType.Namespace
-import com.advancedtelematic.ota.deviceregistry.data.Uuid
 import com.advancedtelematic.ota.deviceregistry.data.Group.Name
+import com.advancedtelematic.ota.deviceregistry.data.Uuid
 import com.advancedtelematic.ota.deviceregistry.db.{GroupInfoRepository, GroupMemberRepository}
 import slick.jdbc.MySQLProfile.api._
 
@@ -26,10 +26,8 @@ class GroupsResource(
 )(implicit ec: ExecutionContext, db: Database)
     extends Directives {
 
-  import com.advancedtelematic.libats.http.RefinedMarshallingSupport._
-  import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
-  import com.advancedtelematic.libats.codecs.CirceCodecs._
   import UuidDirectives._
+  import com.advancedtelematic.libats.http.RefinedMarshallingSupport._
   import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
 
   private val extractGroupId = allowExtractor(namespaceExtractor, extractUuid, groupAllowed)
@@ -46,6 +44,9 @@ class GroupsResource(
     parameters(('offset.as[Long].?, 'limit.as[Long].?)) { (offset, limit) =>
       complete(db.run(GroupInfoRepository.list(ns, offset, limit)))
     }
+
+  def getGroup(groupId: Uuid): Route =
+    complete(db.run(GroupInfoRepository.findById(groupId)))
 
   def createGroup(id: Uuid, groupName: Name, namespace: Namespace): Route =
     complete(StatusCodes.Created -> db.run(GroupInfoRepository.create(id, groupName, namespace)))
@@ -70,6 +71,9 @@ class GroupsResource(
       } ~
       (scope.get & pathEnd) {
         listGroups(ns.namespace)
+      } ~
+      (scope.get & extractGroupId & pathEndOrSingleSlash) { groupId =>
+        getGroup(groupId)
       } ~
       (scope.get & extractGroupId & path("devices")) { groupId =>
         getDevicesInGroup(groupId)

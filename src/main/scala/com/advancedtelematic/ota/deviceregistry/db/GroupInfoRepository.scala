@@ -48,7 +48,7 @@ object GroupInfoRepository extends SlickJsonHelper with ColumnTypes {
   protected def findByName(groupName: Name, namespace: Namespace) =
     groupInfos.filter(r => r.groupName === groupName && r.namespace === namespace)
 
-  protected def findById(id: Uuid)(implicit ec: ExecutionContext): DBIO[Group] =
+  def findById(id: Uuid)(implicit ec: ExecutionContext): DBIO[Group] =
     groupInfos
       .filter(r => r.id === id)
       .result
