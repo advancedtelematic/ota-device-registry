@@ -13,12 +13,14 @@ import com.advancedtelematic.libats.data.DataType.Namespace
 import com.advancedtelematic.libats.slick.db.SlickExtensions._
 import com.advancedtelematic.ota.deviceregistry.data
 import com.advancedtelematic.ota.deviceregistry.common.{Errors, SlickJsonHelper}
-import com.advancedtelematic.ota.deviceregistry.data.{Group, Uuid}
+import com.advancedtelematic.ota.deviceregistry.data.{Group, GroupType, Uuid}
 import com.advancedtelematic.ota.deviceregistry.data.Group.Name
 import slick.jdbc.MySQLProfile.api._
 import com.advancedtelematic.libats.slick.codecs.SlickRefined._
+import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
+import SlickMappings._
 
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{ExecutionContext, Future}
 
 object GroupInfoRepository extends SlickJsonHelper with ColumnTypes {
 
@@ -26,13 +28,13 @@ object GroupInfoRepository extends SlickJsonHelper with ColumnTypes {
 
   // scalastyle:off
   class GroupInfoTable(tag: Tag) extends Table[Group](tag, "DeviceGroup") {
-    def id        = column[Uuid]("id", O.PrimaryKey)
-    def groupName = column[Name]("group_name")
-    def namespace = column[Namespace]("namespace")
+    def id         = column[Uuid]("id", O.PrimaryKey)
+    def groupName  = column[Name]("group_name")
+    def namespace  = column[Namespace]("namespace")
+    def `type`     = column[GroupType]("type")
+    def expression = column[String]("expression")
 
-    def * =
-      (id, groupName, namespace).shaped <>
-      ((Group.apply _).tupled, Group.unapply)
+    def * = (id, groupName, namespace, `type`, expression) <> ((Group.apply _).tupled, Group.unapply)
   }
   // scalastyle:on
 
@@ -48,7 +50,10 @@ object GroupInfoRepository extends SlickJsonHelper with ColumnTypes {
   protected def findByName(groupName: Name, namespace: Namespace) =
     groupInfos.filter(r => r.groupName === groupName && r.namespace === namespace)
 
-  def findById(id: Uuid)(implicit ec: ExecutionContext): DBIO[Group] =
+  def findById(id: Uuid)(implicit db: Database, ec: ExecutionContext): Future[Group] =
+    db.run(findByIdAction(id))
+
+  def findByIdAction(id: Uuid)(implicit ec: ExecutionContext): DBIO[Group] =
     groupInfos
       .filter(r => r.id === id)
       .result
@@ -60,10 +65,10 @@ object GroupInfoRepository extends SlickJsonHelper with ColumnTypes {
       .result
       .failIfNotSingle(Errors.MissingGroup)
 
-  def create(id: Uuid, groupName: Name, namespace: Namespace)(
+  def create(id: Uuid, groupName: Name, namespace: Namespace, groupType: GroupType, expression: String)(
       implicit ec: ExecutionContext
   ): DBIO[Uuid] =
-    (groupInfos += data.Group(id, groupName, namespace))
+    (groupInfos += data.Group(id, groupName, namespace, groupType, expression))
       .handleIntegrityErrors(Errors.ConflictingGroup)
       .map(_ => id)
 

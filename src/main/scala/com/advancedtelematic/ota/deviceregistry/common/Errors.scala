@@ -19,14 +19,16 @@ object Errors {
   import akka.http.scaladsl.model.StatusCodes
 
   object Codes {
-    val MissingDevice           = ErrorCode("missing_device")
-    val ConflictingDevice       = ErrorCode("conflicting_device")
-    val SystemInfoAlreadyExists = ErrorCode("system_info_already_exists")
-    val MissingGroupInfo        = ErrorCode("missing_group_info")
-    val GroupAlreadyExists      = ErrorCode("group_already_exists")
-    val MemberAlreadyExists     = ErrorCode("device_already_a_group_member")
-    val RequestNeedsDeviceId    = ErrorCode("reguest_needs_deviceid")
-    val RequestNeedsCredentials = ErrorCode("request_needs_credentials")
+    val MissingDevice                      = ErrorCode("missing_device")
+    val ConflictingDevice                  = ErrorCode("conflicting_device")
+    val SystemInfoAlreadyExists            = ErrorCode("system_info_already_exists")
+    val MissingGroupInfo                   = ErrorCode("missing_group_info")
+    val GroupAlreadyExists                 = ErrorCode("group_already_exists")
+    val MemberAlreadyExists                = ErrorCode("device_already_a_group_member")
+    val RequestNeedsDeviceId               = ErrorCode("reguest_needs_deviceid")
+    val RequestNeedsCredentials            = ErrorCode("request_needs_credentials")
+    val CannotAddDeviceToDynamicGroup      = ErrorCode("cannot_add_device_to_dynamic_group")
+    val CannotRemoveDeviceFromDynamicGroup = ErrorCode("cannot_remove_device_from_dynamic_group")
   }
 
   val MissingDevice = RawError(Codes.MissingDevice, StatusCodes.NotFound, "device doesn't exist")
@@ -44,4 +46,13 @@ object Errors {
     RawError(Codes.RequestNeedsDeviceId, StatusCodes.BadRequest, "request should contain deviceId")
   val RequestNeedsCredentials =
     RawError(Codes.RequestNeedsCredentials, StatusCodes.BadRequest, "request should contain credentials")
+
+  val CannotAddDeviceToDynamicGroup =
+    RawError(Codes.CannotAddDeviceToDynamicGroup, StatusCodes.BadRequest, "cannot add device to dynamic group")
+
+  val CannotRemoveDeviceFromDynamicGroup =
+    RawError(Codes.CannotRemoveDeviceFromDynamicGroup,
+             StatusCodes.BadRequest,
+             "cannot remove device from dynamic group")
+
 }

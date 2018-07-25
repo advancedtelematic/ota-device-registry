@@ -537,7 +537,7 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
 
     val groupNumber         = 10
     val groups              = Gen.listOfN(groupNumber, genGroupName).sample.get
-    val groupIds: Seq[Uuid] = groups.map(createGroupOk)
+    val groupIds: Seq[Uuid] = groups.map(m => createGroupOk(m))
 
     (0 until deviceNumber).foreach { i =>
       addDeviceToGroupOk(groupIds(i % groupNumber), deviceIds(i))

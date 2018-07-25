@@ -11,8 +11,9 @@ package com.advancedtelematic.ota.deviceregistry
 import akka.http.scaladsl.model.HttpRequest
 import akka.http.scaladsl.model.Uri.Query
 import akka.http.scaladsl.model.StatusCodes._
-import com.advancedtelematic.ota.deviceregistry.data.Uuid
+import com.advancedtelematic.ota.deviceregistry.data.{GroupType, Uuid}
 import com.advancedtelematic.ota.deviceregistry.data.Group.Name
+import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
 
 import scala.concurrent.ExecutionContext
 
@@ -46,11 +47,23 @@ trait GroupRequests {
 
   def listGroups(): HttpRequest = Get(Resource.uri(groupsApi))
 
-  def createGroup(groupName: Name)(implicit ec: ExecutionContext): HttpRequest =
-    Post(Resource.uri(groupsApi).withQuery(Query("groupName" -> groupName.value)))
+  def createGroup(groupName: Name, groupType: GroupType = GroupType.static, expression: String)(
+      implicit ec: ExecutionContext
+  ): HttpRequest =
+    Post(
+      Resource
+        .uri(groupsApi)
+        .withQuery(Query("groupName" -> groupName.value, "type" -> groupType.toString, "expression" -> expression))
+    )
 
   def createGroupOk(groupName: Name)(implicit ec: ExecutionContext): Uuid =
-    createGroup(groupName) ~> route ~> check {
+    createGroup(groupName, GroupType.static, "") ~> route ~> check {
+      status shouldBe Created
+      responseAs[Uuid]
+    }
+
+  def createDynamicGroupOk(groupName: Name, expression: String)(implicit ec: ExecutionContext): Uuid =
+    createGroup(groupName, GroupType.dynamic, expression) ~> route ~> check {
       status shouldBe Created
       responseAs[Uuid]
     }

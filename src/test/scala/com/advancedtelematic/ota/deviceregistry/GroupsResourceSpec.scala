@@ -11,8 +11,6 @@ package com.advancedtelematic.ota.deviceregistry
 import akka.http.scaladsl.model.StatusCodes._
 import com.advancedtelematic.libats.data.PaginationResult
 import com.advancedtelematic.ota.deviceregistry.data.{Group, Uuid}
-import io.circe.Json
-import io.circe.parser._
 import org.scalacheck.Arbitrary._
 import org.scalacheck.Gen
 import org.scalatest.FunSuite
@@ -20,28 +18,6 @@ import org.scalatest.FunSuite
 class GroupsResourceSpec extends FunSuite with ResourceSpec {
   import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
 
-  private def createSystemInfoOk(uuid: Uuid, systemInfo: Json) =
-    createSystemInfo(uuid, systemInfo) ~> route ~> check {
-      status shouldBe Created
-    }
-
-  private val complexJsonArray =
-    Json.arr(
-      Json.fromFields(List(("key", Json.fromString("value")), ("type", Json.fromString("fish"))))
-    )
-  private val complexNumericJsonArray =
-    Json.arr(Json.fromFields(List(("key", Json.fromString("value")), ("type", Json.fromInt(5)))))
-
-  private val groupInfo = parse("""{"cat":"dog","fish":{"cow":1}}""").toOption.get
-  private val systemInfos = Seq(
-    parse("""{"cat":"dog","fish":{"cow":1,"sheep":[42,"penguin",23]}}"""), // device #1
-    parse("""{"cat":"dog","fish":{"cow":1,"sloth":true},"antilope":"bison"}"""), // device #2
-    parse("""{"fish":{"cow":1},"cat":"dog"}"""), // matches without discarding
-    parse("""{"fish":{"cow":1,"sloth":false},"antilope":"emu","cat":"dog"}"""), // matches with discarding
-    parse("""{"cat":"liger","fish":{"cow":1}}"""), // doesn't match without discarding
-    parse("""{"cat":"dog","fish":{"cow":1},"bison":17}"""), // doesn't match without discarding
-    parse("""{"cat":"dog","fish":{"cow":2,"sheep":false},"antilope":"emu"}""") // doesn't match with discarding
-  ).map(_.toOption.get)
   private val limit = 30
 
   import com.advancedtelematic.libats.codecs.CirceCodecs._
