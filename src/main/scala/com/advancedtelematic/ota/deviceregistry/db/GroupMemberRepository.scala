@@ -15,7 +15,7 @@ import com.advancedtelematic.ota.deviceregistry.data.Uuid
 import slick.jdbc.MySQLProfile.api._
 import slick.lifted.Tag
 
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{ExecutionContext, Future}
 
 object GroupMemberRepository {
 
@@ -61,6 +61,12 @@ object GroupMemberRepository {
       .delete
 
   def listDevicesInGroup(groupId: Uuid, offset: Option[Long], limit: Option[Long])(
+      implicit db: Database,
+      ec: ExecutionContext
+  ): Future[PaginationResult[Uuid]] =
+    db.run(listDevicesInGroupAction(groupId, offset, limit))
+
+  def listDevicesInGroupAction(groupId: Uuid, offset: Option[Long], limit: Option[Long])(
       implicit ec: ExecutionContext
   ): DBIO[PaginationResult[Uuid]] =
     groupMembers
@@ -69,7 +75,7 @@ object GroupMemberRepository {
       .paginateResult(offset.getOrElse(0L), limit.getOrElse(defaultLimit))
 
   def countDevicesInGroup(groupId: Uuid)(implicit ec: ExecutionContext): DBIO[Long] =
-    listDevicesInGroup(groupId, None, None).map(_.total)
+    listDevicesInGroupAction(groupId, None, None).map(_.total)
 
   def listGroupsForDevice(device: Uuid, offset: Option[Long], limit: Option[Long])(
       implicit ec: ExecutionContext

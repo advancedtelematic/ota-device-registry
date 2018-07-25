@@ -10,7 +10,7 @@ package com.advancedtelematic.ota.deviceregistry
 
 import akka.http.scaladsl.model.StatusCodes._
 import com.advancedtelematic.libats.data.PaginationResult
-import com.advancedtelematic.ota.deviceregistry.data.{Group, Uuid}
+import com.advancedtelematic.ota.deviceregistry.data.{Group, GroupType, Uuid}
 import io.circe.Json
 import io.circe.parser._
 import org.scalacheck.Arbitrary._
@@ -200,4 +200,19 @@ class GroupsResourceSpec extends FunSuite with ResourceSpec {
     }
   }
 
+  test("can create a dynamic group") {
+    val group = genGroupInfo.sample.get
+    createDynamicGroupOk(group.groupName, "")
+  }
+
+  test("XXX device gets added to dynamic group") {
+    val group    = genGroupInfo.sample.get
+    val deviceId = createDeviceOk(genDeviceT.sample.get)
+    val groupId  = createDynamicGroupOk(group.groupName, deviceId.underlying.value)
+    listDevicesInGroup(groupId) ~> route ~> check {
+      status shouldBe OK
+      val devices = responseAs[PaginationResult[Uuid]]
+      devices.values.contains(deviceId) shouldBe true
+    }
+  }
 }

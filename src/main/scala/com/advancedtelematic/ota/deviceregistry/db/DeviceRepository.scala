@@ -10,26 +10,26 @@ package com.advancedtelematic.ota.deviceregistry.db
 
 import java.time.Instant
 
-import com.advancedtelematic.libats.data.PaginationResult
 import com.advancedtelematic.libats.data.DataType.Namespace
+import com.advancedtelematic.libats.data.PaginationResult
 import com.advancedtelematic.libats.slick.codecs.SlickRefined._
 import com.advancedtelematic.libats.slick.db.Operators.regex
 import com.advancedtelematic.libats.slick.db.SlickExtensions._
 import com.advancedtelematic.ota.deviceregistry.common.Errors
-import com.advancedtelematic.ota.deviceregistry.data.{Device, DeviceStatus, DeviceT, Uuid}
 import com.advancedtelematic.ota.deviceregistry.data.DeviceStatus.DeviceStatus
+import com.advancedtelematic.ota.deviceregistry.data.{Device, DeviceStatus, DeviceT, Uuid}
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.string.Regex
 import slick.jdbc.MySQLProfile.api._
 
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{ExecutionContext, Future}
 
 object DeviceRepository extends ColumnTypes {
   val defaultLimit = 50
   val maxLimit     = 1000
 
-  import com.advancedtelematic.libats.slick.db.SlickAnyVal._
   import Device._
+  import com.advancedtelematic.libats.slick.db.SlickAnyVal._
 
   private[this] implicit val DeviceStatusColumnType =
     MappedColumnType.base[DeviceStatus.Value, String](_.toString, DeviceStatus.withName)
@@ -108,6 +108,18 @@ object DeviceRepository extends ColumnTypes {
     devices
       .filter(d => d.namespace === ns && d.deviceId === deviceId)
       .result
+
+  def searchByDeviceIdContains(ns: Namespace, expression: String, offset: Option[Long], limit: Option[Long])(
+      implicit db: Database,
+      ec: ExecutionContext
+  ): Future[PaginationResult[Uuid]] = {
+    val io = devices
+      .filter(_.namespace === ns)
+//      .filter(d => regex(d.deviceId, ".*" + expression + ".*"))
+      .map(_.uuid)
+      .paginateAndSortResult(identity, offset.getOrElse(0L), limit.getOrElse[Long](defaultLimit))
+    db.run(io)
+  }
 
   def search(ns: Namespace,
              regEx: Option[String Refined Regex],

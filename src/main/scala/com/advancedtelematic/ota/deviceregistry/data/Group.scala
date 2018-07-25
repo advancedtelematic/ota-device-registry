@@ -10,9 +10,20 @@ package com.advancedtelematic.ota.deviceregistry.data
 
 import com.advancedtelematic.libats.data.DataType.Namespace
 import com.advancedtelematic.ota.deviceregistry.data.Group._
+import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
 import eu.timepit.refined.api.{Refined, Validate}
+import io.circe.{Decoder, Encoder}
 
-case class Group(id: Uuid, groupName: Name, namespace: Namespace)
+case class Group(id: Uuid, groupName: Name, namespace: Namespace, `type`: GroupType, expression: String = "")
+
+object GroupType extends Enumeration {
+  type GroupType = Value
+
+  val static, dynamic = Value
+
+  implicit val JsonEncoder = Encoder.enumEncoder(GroupType)
+  implicit val JsonDecoder = Decoder.enumDecoder(GroupType)
+}
 
 object Group {
   case class ValidName()

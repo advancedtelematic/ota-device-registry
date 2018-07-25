@@ -24,7 +24,7 @@ trait GroupGenerators {
   def genGroupInfo: Gen[Group] =
     for {
       name <- genGroupName
-    } yield Group(Uuid.generate(), name, defaultNs)
+    } yield Group(Uuid.generate(), name, defaultNs, GroupType.static, "")
 
   implicit lazy val arbGroupName: Arbitrary[Group.Name] = Arbitrary(genGroupName)
   implicit lazy val arbGroupInfo: Arbitrary[Group]      = Arbitrary(genGroupInfo)

@@ -11,10 +11,12 @@ package com.advancedtelematic.ota.deviceregistry
 import akka.http.scaladsl.marshalling.Marshaller._
 import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.server._
+import akka.http.scaladsl.unmarshalling.Unmarshaller
 import com.advancedtelematic.libats.auth.{AuthedNamespaceScope, Scopes}
 import com.advancedtelematic.libats.data.DataType.Namespace
 import com.advancedtelematic.ota.deviceregistry.data.Group.Name
-import com.advancedtelematic.ota.deviceregistry.data.Uuid
+import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
+import com.advancedtelematic.ota.deviceregistry.data.{GroupType, Uuid}
 import com.advancedtelematic.ota.deviceregistry.db.{GroupInfoRepository, GroupMemberRepository}
 import slick.jdbc.MySQLProfile.api._
 
@@ -35,9 +37,11 @@ class GroupsResource(
   private def groupAllowed(groupId: Uuid): Future[Namespace] =
     db.run(GroupInfoRepository.groupInfoNamespace(groupId))
 
+  val groupMembership = new GroupMembership()
+
   def getDevicesInGroup(groupId: Uuid): Route =
     parameters(('offset.as[Long].?, 'limit.as[Long].?)) { (offset, limit) =>
-      complete(db.run(GroupMemberRepository.listDevicesInGroup(groupId, offset, limit)))
+      complete(groupMembership.listDevices(groupId, offset, limit))
     }
 
   def listGroups(ns: Namespace): Route =
@@ -46,10 +50,10 @@ class GroupsResource(
     }
 
   def getGroup(groupId: Uuid): Route =
-    complete(db.run(GroupInfoRepository.findById(groupId)))
+    complete(db.run(GroupInfoRepository.findByIdAction(groupId)))
 
-  def createGroup(id: Uuid, groupName: Name, namespace: Namespace): Route =
-    complete(StatusCodes.Created -> db.run(GroupInfoRepository.create(id, groupName, namespace)))
+  def createGroup(id: Uuid, groupName: Name, namespace: Namespace, groupType: GroupType, expression: String): Route =
+    complete(StatusCodes.Created -> db.run(GroupInfoRepository.create(id, groupName, namespace, groupType, expression)))
 
   def renameGroup(groupId: Uuid, newGroupName: Name): Route =
     complete(db.run(GroupInfoRepository.renameGroup(groupId, newGroupName)))
@@ -63,11 +67,14 @@ class GroupsResource(
   def removeDeviceFromGroup(groupId: Uuid, deviceId: Uuid): Route =
     complete(db.run(GroupMemberRepository.removeGroupMember(groupId, deviceId)))
 
+  implicit val groupTypeParamUnmarshaller = Unmarshaller.strict[String, GroupType](GroupType.withName)
+
   val route: Route =
     (pathPrefix("device_groups") & namespaceExtractor) { ns =>
       val scope = Scopes.devices(ns)
-      (scope.post & parameter('groupName.as[Name]) & pathEnd) { groupName =>
-        createGroup(Uuid.generate(), groupName, ns.namespace)
+      (scope.post & parameter('groupName.as[Name]) & parameter('type.as[GroupType]) & parameter('expression.as[String]) & pathEnd) {
+        (groupName, `type`, expression) =>
+          createGroup(Uuid.generate(), groupName, ns.namespace, `type`, expression)
       } ~
       (scope.get & pathEnd) {
         listGroups(ns.namespace)
