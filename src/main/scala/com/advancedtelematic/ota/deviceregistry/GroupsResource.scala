@@ -17,7 +17,7 @@ import com.advancedtelematic.libats.data.DataType.Namespace
 import com.advancedtelematic.ota.deviceregistry.data.Group.Name
 import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
 import com.advancedtelematic.ota.deviceregistry.data.{GroupType, Uuid}
-import com.advancedtelematic.ota.deviceregistry.db.{GroupInfoRepository, GroupMemberRepository}
+import com.advancedtelematic.ota.deviceregistry.db.GroupInfoRepository
 import slick.jdbc.MySQLProfile.api._
 
 import scala.concurrent.{ExecutionContext, Future}

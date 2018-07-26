@@ -3,13 +3,15 @@ package com.advancedtelematic.ota.deviceregistry
 import akka.http.scaladsl.model.StatusCodes._
 import com.advancedtelematic.libats.data.PaginationResult
 import com.advancedtelematic.ota.deviceregistry.data.{Group, Uuid}
+import com.advancedtelematic.ota.deviceregistry.db.DeviceRepository
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
 import org.scalatest.FunSuite
 
-class SmartGroupsSpec extends FunSuite with ResourceSpec {
+class DynamicGroupsSpec extends FunSuite with ResourceSpec {
 
   import com.advancedtelematic.libats.codecs.CirceCodecs._
   import io.circe.generic.semiauto.deriveDecoder
+
   private[this] implicit val GroupDecoder = deriveDecoder[Group]
 
   test("can create a smart group") {
@@ -26,7 +28,7 @@ class SmartGroupsSpec extends FunSuite with ResourceSpec {
     listDevicesInGroup(groupId) ~> route ~> check {
       status shouldBe OK
       val devices = responseAs[PaginationResult[Uuid]]
-      devices.values should have size (1)
+      devices.values should have size 1
       devices.values.contains(deviceUuid) shouldBe true
     }
   }
@@ -42,7 +44,7 @@ class SmartGroupsSpec extends FunSuite with ResourceSpec {
     }
   }
 
-  test("smart group  does not return devices that do not match when using empty expression") {
+  test("smart group does not return devices that do not match when using empty expression") {
     val group      = genGroupInfo.sample.get
     val deviceT    = genDeviceT.retryUntil(_.deviceId.isDefined).sample.get
     val deviceUuid = createDeviceOk(deviceT)
@@ -87,4 +89,22 @@ class SmartGroupsSpec extends FunSuite with ResourceSpec {
     }
   }
 
+  test("deleting a device causes it to be removed from dynamic group") {
+    val group      = genGroupInfo.sample.get
+    val deviceT    = genDeviceT.retryUntil(_.deviceId.isDefined).sample.get
+    val deviceUuid = createDeviceOk(deviceT)
+    val groupId    = createDynamicGroupOk(group.groupName, deviceT.deviceId.get.underlying)
+    listDevicesInGroup(groupId) ~> route ~> check {
+      status shouldBe OK
+      responseAs[PaginationResult[Uuid]].values should contain(deviceUuid)
+    }
+
+    import org.scalatest.concurrent.ScalaFutures._
+    db.run(DeviceRepository.delete(group.namespace, deviceUuid)).futureValue
+
+    listDevicesInGroup(groupId) ~> route ~> check {
+      status shouldBe OK
+      responseAs[PaginationResult[Uuid]].values should be(empty)
+    }
+  }
 }

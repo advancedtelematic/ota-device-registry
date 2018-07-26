@@ -110,9 +110,7 @@ class DevicesResource(
   }
 
   def deleteDevice(ns: Namespace, uuid: Uuid): Route = {
-    val f = messageBus.publish(
-      DeleteDeviceRequest(ns, uuid, Instant.now())
-    )
+    val f = messageBus.publish(DeleteDeviceRequest(ns, uuid, Instant.now()))
     onSuccess(f) { complete(StatusCodes.Accepted) }
   }
 
