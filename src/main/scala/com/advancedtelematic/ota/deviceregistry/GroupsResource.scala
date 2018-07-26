@@ -65,7 +65,7 @@ class GroupsResource(
     complete(groupMembership.addGroupMember(groupId, deviceId))
 
   def removeDeviceFromGroup(groupId: Uuid, deviceId: Uuid): Route =
-    complete(db.run(GroupMemberRepository.removeGroupMember(groupId, deviceId)))
+    complete(groupMembership.removeGroupMember(groupId, deviceId))
 
   implicit val groupTypeParamUnmarshaller = Unmarshaller.strict[String, GroupType](GroupType.withName)
 

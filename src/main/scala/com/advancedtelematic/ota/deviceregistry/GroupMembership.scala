@@ -11,13 +11,13 @@ import scala.concurrent.{ExecutionContext, Future}
 
 protected trait GroupMembershipT {
   def listDevices(group: Group, offset: Option[Long], limit: Option[Long]): Future[PaginationResult[Uuid]]
-
   def addGroupMember(groupId: Uuid, deviceId: Uuid): Future[Unit]
-
   def countDevices(group: Group): Future[Long]
+  def removeGroupMember(group: Group, deviceId: Uuid): Future[Unit]
 }
 
-protected class DynamicMembership()(implicit db: Database, ec: ExecutionContext) extends GroupMembershipT {
+protected class DynamicMembership(implicit db: Database, ec: ExecutionContext) extends GroupMembershipT {
+
   override def listDevices(group: Group, offset: Option[Long], limit: Option[Long]): Future[PaginationResult[Uuid]] =
     DeviceRepository.searchByDeviceIdContains(group.namespace, group.expression, offset, limit)
 
@@ -26,9 +26,14 @@ protected class DynamicMembership()(implicit db: Database, ec: ExecutionContext)
 
   override def countDevices(group: Group): Future[Long] =
     db.run(DeviceRepository.countByDeviceIdContains(group.namespace, group.expression))
+
+  override def removeGroupMember(group: Group, deviceId: Uuid): Future[Unit] =
+    FastFuture.failed(Errors.CannotRemoveDeviceFromDynamicGroup)
+
 }
 
-protected class StaticMembership()(implicit db: Database, ec: ExecutionContext) extends GroupMembershipT {
+protected class StaticMembership(implicit db: Database, ec: ExecutionContext) extends GroupMembershipT {
+
   override def listDevices(group: Group, offset: Option[Long], limit: Option[Long]): Future[PaginationResult[Uuid]] =
     GroupMemberRepository.listDevicesInGroup(group.id, offset, limit)
 
@@ -36,9 +41,13 @@ protected class StaticMembership()(implicit db: Database, ec: ExecutionContext) 
     db.run(GroupMemberRepository.addGroupMember(groupId, deviceId)).map(_ => ())
 
   override def countDevices(group: Group): Future[Long] = db.run(GroupMemberRepository.countDevicesInGroup(group.id))
+
+  override def removeGroupMember(group: Group, deviceId: Uuid): Future[Unit] =
+    db.run(GroupMemberRepository.removeGroupMember(group.id, deviceId))
+
 }
 
-class GroupMembership()(implicit val db: Database, ec: ExecutionContext) {
+class GroupMembership(implicit val db: Database, ec: ExecutionContext) {
 
   private def run[T](groupId: Uuid)(fn: (Group, GroupMembershipT) => Future[T]): Future[T] =
     GroupInfoRepository.findById(groupId).flatMap {
@@ -58,6 +67,10 @@ class GroupMembership()(implicit val db: Database, ec: ExecutionContext) {
 
   def countDevices(groupId: Uuid): Future[Long] = run(groupId) { (g, m) =>
     m.countDevices(g)
+  }
+
+  def removeGroupMember(groupId: Uuid, deviceId: Uuid) = run(groupId) { (g, m) =>
+    m.removeGroupMember(g, deviceId)
   }
 
 }

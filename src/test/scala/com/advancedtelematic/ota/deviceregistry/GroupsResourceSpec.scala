@@ -10,9 +10,7 @@ package com.advancedtelematic.ota.deviceregistry
 
 import akka.http.scaladsl.model.StatusCodes._
 import com.advancedtelematic.libats.data.PaginationResult
-import com.advancedtelematic.ota.deviceregistry.data.{Group, GroupType, Uuid}
-import io.circe.Json
-import io.circe.parser._
+import com.advancedtelematic.ota.deviceregistry.data.{Group, Uuid}
 import org.scalacheck.Arbitrary._
 import org.scalacheck.Gen
 import org.scalatest.FunSuite
@@ -20,28 +18,6 @@ import org.scalatest.FunSuite
 class GroupsResourceSpec extends FunSuite with ResourceSpec {
   import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
 
-  private def createSystemInfoOk(uuid: Uuid, systemInfo: Json) =
-    createSystemInfo(uuid, systemInfo) ~> route ~> check {
-      status shouldBe Created
-    }
-
-  private val complexJsonArray =
-    Json.arr(
-      Json.fromFields(List(("key", Json.fromString("value")), ("type", Json.fromString("fish"))))
-    )
-  private val complexNumericJsonArray =
-    Json.arr(Json.fromFields(List(("key", Json.fromString("value")), ("type", Json.fromInt(5)))))
-
-  private val groupInfo = parse("""{"cat":"dog","fish":{"cow":1}}""").toOption.get
-  private val systemInfos = Seq(
-    parse("""{"cat":"dog","fish":{"cow":1,"sheep":[42,"penguin",23]}}"""), // device #1
-    parse("""{"cat":"dog","fish":{"cow":1,"sloth":true},"antilope":"bison"}"""), // device #2
-    parse("""{"fish":{"cow":1},"cat":"dog"}"""), // matches without discarding
-    parse("""{"fish":{"cow":1,"sloth":false},"antilope":"emu","cat":"dog"}"""), // matches with discarding
-    parse("""{"cat":"liger","fish":{"cow":1}}"""), // doesn't match without discarding
-    parse("""{"cat":"dog","fish":{"cow":1},"bison":17}"""), // doesn't match without discarding
-    parse("""{"cat":"dog","fish":{"cow":2,"sheep":false},"antilope":"emu"}""") // doesn't match with discarding
-  ).map(_.toOption.get)
   private val limit = 30
 
   import com.advancedtelematic.libats.codecs.CirceCodecs._
@@ -200,68 +176,4 @@ class GroupsResourceSpec extends FunSuite with ResourceSpec {
     }
   }
 
-  test("can create a dynamic group") {
-    val group = genGroupInfo.sample.get
-    createDynamicGroupOk(group.groupName, "")
-  }
-
-  test("XX device gets added to dynamic group") {
-    val group      = genGroupInfo.sample.get
-    val deviceT    = genDeviceT.retryUntil(_.deviceId.isDefined).sample.get
-    val deviceUuid = createDeviceOk(deviceT)
-    val groupId    = createDynamicGroupOk(group.groupName, deviceT.deviceId.get.underlying)
-
-    listDevicesInGroup(groupId) ~> route ~> check {
-      status shouldBe OK
-      val devices = responseAs[PaginationResult[Uuid]]
-      devices.values should have size (1)
-      devices.values.contains(deviceUuid) shouldBe true
-    }
-  }
-
-  test("XX smart group should return empty when no device matches") {
-    val group   = genGroupInfo.sample.get
-    val groupId = createDynamicGroupOk(group.groupName, "   ")
-
-    listDevicesInGroup(groupId) ~> route ~> check {
-      status shouldBe OK
-      val devices = responseAs[PaginationResult[Uuid]]
-      devices.values should be(empty)
-    }
-  }
-
-  test("XXX smart group  does not return devices that do not match when using empty expression") {
-    val group      = genGroupInfo.sample.get
-    val deviceT    = genDeviceT.retryUntil(_.deviceId.isDefined).sample.get
-    val deviceUuid = createDeviceOk(deviceT)
-    val groupId    = createDynamicGroupOk(group.groupName, "")
-    listDevicesInGroup(groupId) ~> route ~> check {
-      status shouldBe OK
-      val devices = responseAs[PaginationResult[Uuid]]
-      devices.values shouldNot contain(deviceUuid)
-    }
-  }
-
-  test("XXX adding a device to smart group fails") {
-    val group      = genGroupInfo.sample.get
-    val deviceT    = genDeviceT.sample.get
-    val deviceUuid = createDeviceOk(deviceT)
-    val groupId    = createDynamicGroupOk(group.groupName, "")
-
-    addDeviceToGroup(groupId, deviceUuid) ~> route ~> check {
-      status shouldBe BadRequest
-    }
-  }
-
-  test("XXX counts devices for dynamic group") {
-    val group   = genGroupInfo.sample.get
-    val deviceT = genDeviceT.retryUntil(_.deviceId.isDefined).sample.get
-    val _       = createDeviceOk(deviceT)
-    val groupId = createDynamicGroupOk(group.groupName, deviceT.deviceId.get.underlying)
-
-    countDevicesInGroup(groupId) ~> route ~> check {
-      status shouldBe OK
-      responseAs[Long] shouldBe 1
-    }
-  }
 }
