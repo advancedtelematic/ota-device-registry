@@ -1,13 +1,13 @@
 package com.advancedtelematic.ota.deviceregistry
 
+import akka.http.scaladsl.model.StatusCodes._
 import com.advancedtelematic.libats.data.PaginationResult
 import com.advancedtelematic.ota.deviceregistry.data.{Group, Uuid}
+import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
 import org.scalatest.FunSuite
-import akka.http.scaladsl.model.StatusCodes._
 
 class SmartGroupsSpec extends FunSuite with ResourceSpec {
 
-  import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
   import com.advancedtelematic.libats.codecs.CirceCodecs._
   import io.circe.generic.semiauto.deriveDecoder
   private[this] implicit val GroupDecoder = deriveDecoder[Group]
@@ -77,7 +77,7 @@ class SmartGroupsSpec extends FunSuite with ResourceSpec {
     }
   }
 
-  test("XXX removing a device from a smart group fails") {
+  test("removing a device from a smart group fails") {
     val group      = genGroupInfo.sample.get
     val deviceT    = genDeviceT.retryUntil(_.deviceId.isDefined).sample.get
     val deviceUuid = createDeviceOk(deviceT)
