@@ -120,19 +120,16 @@ object DeviceRepository extends ColumnTypes {
 
   private def deviceIdContainsQuery(ns: Namespace, expression: String, offset: Option[Long], limit: Option[Long])(
       implicit ec: ExecutionContext
-  ) = {
-    val regexFilter: DeviceTable => Rep[Boolean] =
-      if (expression.isEmpty)
-        _ => false.bind
-      else
-        deviceTable => regex(deviceTable.deviceId, ".*" + expression + ".*")
-
-    devices
-      .filter(_.namespace === ns)
-      .filter(regexFilter)
-      .map(_.uuid)
-      .paginateAndSortResult(identity, offset.getOrElse(0L), limit.getOrElse[Long](defaultLimit))
-  }
+  ): DBIO[PaginationResult[Uuid]] =
+    if (expression.isEmpty)
+      DBIO.successful(PaginationResult(0, 0, 0, Seq.empty))
+    else {
+      devices
+        .filter(_.namespace === ns)
+        .filter(_.deviceId.mappedTo[String].like("%" + expression + "%"))
+        .map(_.uuid)
+        .paginateAndSortResult(identity, offset.getOrElse(0L), limit.getOrElse[Long](defaultLimit))
+    }
 
   def search(ns: Namespace,
              regEx: Option[String Refined Regex],
