@@ -59,10 +59,10 @@ class GroupsResource(
     complete(db.run(GroupInfoRepository.renameGroup(groupId, newGroupName)))
 
   def countDevices(groupId: Uuid): Route =
-    complete(db.run(GroupMemberRepository.countDevicesInGroup(groupId)))
+    complete(groupMembership.countDevices(groupId))
 
   def addDeviceToGroup(groupId: Uuid, deviceId: Uuid): Route =
-    complete(db.run(GroupMemberRepository.addGroupMember(groupId, deviceId)))
+    complete(groupMembership.addGroupMember(groupId, deviceId))
 
   def removeDeviceFromGroup(groupId: Uuid, deviceId: Uuid): Route =
     complete(db.run(GroupMemberRepository.removeGroupMember(groupId, deviceId)))

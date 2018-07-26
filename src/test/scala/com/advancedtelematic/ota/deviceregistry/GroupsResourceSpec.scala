@@ -205,14 +205,63 @@ class GroupsResourceSpec extends FunSuite with ResourceSpec {
     createDynamicGroupOk(group.groupName, "")
   }
 
-  test("XXX device gets added to dynamic group") {
-    val group    = genGroupInfo.sample.get
-    val deviceId = createDeviceOk(genDeviceT.sample.get)
-    val groupId  = createDynamicGroupOk(group.groupName, deviceId.underlying.value)
+  test("XX device gets added to dynamic group") {
+    val group      = genGroupInfo.sample.get
+    val deviceT    = genDeviceT.retryUntil(_.deviceId.isDefined).sample.get
+    val deviceUuid = createDeviceOk(deviceT)
+    val groupId    = createDynamicGroupOk(group.groupName, deviceT.deviceId.get.underlying)
+
     listDevicesInGroup(groupId) ~> route ~> check {
       status shouldBe OK
       val devices = responseAs[PaginationResult[Uuid]]
-      devices.values.contains(deviceId) shouldBe true
+      devices.values should have size (1)
+      devices.values.contains(deviceUuid) shouldBe true
+    }
+  }
+
+  test("XX smart group should return empty when no device matches") {
+    val group   = genGroupInfo.sample.get
+    val groupId = createDynamicGroupOk(group.groupName, "   ")
+
+    listDevicesInGroup(groupId) ~> route ~> check {
+      status shouldBe OK
+      val devices = responseAs[PaginationResult[Uuid]]
+      devices.values should be(empty)
+    }
+  }
+
+  test("XXX smart group  does not return devices that do not match when using empty expression") {
+    val group      = genGroupInfo.sample.get
+    val deviceT    = genDeviceT.retryUntil(_.deviceId.isDefined).sample.get
+    val deviceUuid = createDeviceOk(deviceT)
+    val groupId    = createDynamicGroupOk(group.groupName, "")
+    listDevicesInGroup(groupId) ~> route ~> check {
+      status shouldBe OK
+      val devices = responseAs[PaginationResult[Uuid]]
+      devices.values shouldNot contain(deviceUuid)
+    }
+  }
+
+  test("XXX adding a device to smart group fails") {
+    val group      = genGroupInfo.sample.get
+    val deviceT    = genDeviceT.sample.get
+    val deviceUuid = createDeviceOk(deviceT)
+    val groupId    = createDynamicGroupOk(group.groupName, "")
+
+    addDeviceToGroup(groupId, deviceUuid) ~> route ~> check {
+      status shouldBe BadRequest
+    }
+  }
+
+  test("XXX counts devices for dynamic group") {
+    val group   = genGroupInfo.sample.get
+    val deviceT = genDeviceT.retryUntil(_.deviceId.isDefined).sample.get
+    val _       = createDeviceOk(deviceT)
+    val groupId = createDynamicGroupOk(group.groupName, deviceT.deviceId.get.underlying)
+
+    countDevicesInGroup(groupId) ~> route ~> check {
+      status shouldBe OK
+      responseAs[Long] shouldBe 1
     }
   }
 }

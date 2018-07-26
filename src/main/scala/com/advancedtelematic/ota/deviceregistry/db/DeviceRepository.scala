@@ -20,6 +20,7 @@ import com.advancedtelematic.ota.deviceregistry.data.DeviceStatus.DeviceStatus
 import com.advancedtelematic.ota.deviceregistry.data.{Device, DeviceStatus, DeviceT, Uuid}
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.string.Regex
+import slick.jdbc.MySQLProfile
 import slick.jdbc.MySQLProfile.api._
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -112,13 +113,25 @@ object DeviceRepository extends ColumnTypes {
   def searchByDeviceIdContains(ns: Namespace, expression: String, offset: Option[Long], limit: Option[Long])(
       implicit db: Database,
       ec: ExecutionContext
-  ): Future[PaginationResult[Uuid]] = {
-    val io = devices
+  ): Future[PaginationResult[Uuid]] = db.run { deviceIdContainsQuery(ns, expression, offset, limit) }
+
+  def countByDeviceIdContains(ns: Namespace, expression: String)(implicit ec: ExecutionContext) =
+    deviceIdContainsQuery(ns, expression, None, None).map(_.total)
+
+  private def deviceIdContainsQuery(ns: Namespace, expression: String, offset: Option[Long], limit: Option[Long])(
+      implicit ec: ExecutionContext
+  ) = {
+    val regexFilter: DeviceTable => Rep[Boolean] =
+      if (expression.isEmpty)
+        _ => false.bind
+      else
+        deviceTable => regex(deviceTable.deviceId, ".*" + expression + ".*")
+
+    devices
       .filter(_.namespace === ns)
-//      .filter(d => regex(d.deviceId, ".*" + expression + ".*"))
+      .filter(regexFilter)
       .map(_.uuid)
       .paginateAndSortResult(identity, offset.getOrElse(0L), limit.getOrElse[Long](defaultLimit))
-    db.run(io)
   }
 
   def search(ns: Namespace,
