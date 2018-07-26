@@ -15,12 +15,13 @@ import com.advancedtelematic.libats.data.PaginationResult
 import com.advancedtelematic.libats.slick.codecs.SlickRefined._
 import com.advancedtelematic.libats.slick.db.Operators.regex
 import com.advancedtelematic.libats.slick.db.SlickExtensions._
+import com.advancedtelematic.libats.slick.db.SlickUUIDKey._
 import com.advancedtelematic.ota.deviceregistry.common.Errors
 import com.advancedtelematic.ota.deviceregistry.data.DeviceStatus.DeviceStatus
+import com.advancedtelematic.ota.deviceregistry.data.Group.{GroupExpression, GroupId}
 import com.advancedtelematic.ota.deviceregistry.data.{Device, DeviceStatus, DeviceT, Uuid}
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.string.Regex
-import slick.jdbc.MySQLProfile
 import slick.jdbc.MySQLProfile.api._
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -55,20 +56,6 @@ object DeviceRepository extends ColumnTypes {
 
   // scalastyle:on
   val devices = TableQuery[DeviceTable]
-
-  def list(ns: Namespace, offset: Option[Long], limit: Option[Long]): DBIO[Seq[Device]] = {
-    val filteredDevices = devices.filter(_.namespace === ns)
-    (offset, limit) match {
-      case (None, None) =>
-        filteredDevices
-          .sortBy(_.deviceName)
-          .result
-      case _ =>
-        filteredDevices
-          .paginateAndSort(_.deviceName, offset.getOrElse(0), limit.getOrElse(defaultLimit))
-          .result
-    }
-  }
 
   def create(ns: Namespace, device: DeviceT)(implicit ec: ExecutionContext): DBIO[Uuid] = {
     val uuid: Uuid = device.deviceUuid.getOrElse(Uuid.generate())
@@ -110,15 +97,21 @@ object DeviceRepository extends ColumnTypes {
       .filter(d => d.namespace === ns && d.deviceId === deviceId)
       .result
 
-  def searchByDeviceIdContains(ns: Namespace, expression: String, offset: Option[Long], limit: Option[Long])(
+  def searchByDeviceIdContains(ns: Namespace,
+                               expression: Option[GroupExpression],
+                               offset: Option[Long],
+                               limit: Option[Long])(
       implicit db: Database,
       ec: ExecutionContext
   ): Future[PaginationResult[Uuid]] = db.run { deviceIdContainsQuery(ns, expression, offset, limit) }
 
-  def countByDeviceIdContains(ns: Namespace, expression: String)(implicit ec: ExecutionContext) =
+  def countByDeviceIdContains(ns: Namespace, expression: Option[GroupExpression])(implicit ec: ExecutionContext) =
     deviceIdContainsQuery(ns, expression, None, None).map(_.total)
 
-  private def deviceIdContainsQuery(ns: Namespace, expression: String, offset: Option[Long], limit: Option[Long])(
+  private def deviceIdContainsQuery(ns: Namespace,
+                                    expression: Option[GroupExpression],
+                                    offset: Option[Long],
+                                    limit: Option[Long])(
       implicit ec: ExecutionContext
   ): DBIO[PaginationResult[Uuid]] =
     if (expression.isEmpty)
@@ -126,14 +119,14 @@ object DeviceRepository extends ColumnTypes {
     else {
       devices
         .filter(_.namespace === ns)
-        .filter(_.deviceId.mappedTo[String].like("%" + expression + "%"))
+        .filter(_.deviceId.mappedTo[String].like("%" + expression.get.value + "%"))
         .map(_.uuid)
         .paginateAndSortResult(identity, offset.getOrElse(0L), limit.getOrElse[Long](defaultLimit))
     }
 
   def search(ns: Namespace,
              regEx: Option[String Refined Regex],
-             groupId: Option[Uuid],
+             groupId: Option[GroupId],
              offset: Option[Long],
              limit: Option[Long])(implicit ec: ExecutionContext): DBIO[PaginationResult[Device]] = {
     val byNamespace = devices.filter(d => d.namespace === ns)

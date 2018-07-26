@@ -8,13 +8,20 @@
 
 package com.advancedtelematic.ota.deviceregistry.data
 
+import java.util.UUID
+
 import com.advancedtelematic.libats.data.DataType.Namespace
+import com.advancedtelematic.libats.data.UUIDKey.{UUIDKey, UUIDKeyObj}
 import com.advancedtelematic.ota.deviceregistry.data.Group._
 import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
 import eu.timepit.refined.api.{Refined, Validate}
 import io.circe.{Decoder, Encoder}
 
-case class Group(id: Uuid, groupName: Name, namespace: Namespace, `type`: GroupType, expression: String = "")
+case class Group(id: GroupId,
+                 groupName: Name,
+                 namespace: Namespace,
+                 `type`: GroupType,
+                 expression: Option[GroupExpression] = None)
 
 object GroupType extends Enumeration {
   type GroupType = Value
@@ -26,8 +33,11 @@ object GroupType extends Enumeration {
 }
 
 object Group {
-  case class ValidName()
 
+  final case class GroupId(uuid: UUID) extends UUIDKey
+  object GroupId                       extends UUIDKeyObj[GroupId]
+
+  case class ValidName()
   type Name = Refined[String, ValidName]
 
   implicit val validGroupName: Validate.Plain[String, ValidName] =
@@ -35,6 +45,16 @@ object Group {
       name => name.length > 1 && name.length <= 100,
       name => s"($name should be between two and a hundred alphanumeric characters long.)",
       ValidName()
+    )
+
+  case class ValidExpression()
+  type GroupExpression = Refined[String, ValidExpression]
+
+  implicit val validGroupExpression: Validate.Plain[String, ValidExpression] =
+    Validate.fromPredicate(
+      expression => expression.length > 1 && expression.length <= 200,
+      expression => s"group expression ($expression) must be between 1 and 200 characters.",
+      ValidExpression()
     )
 
   implicit val EncoderInstance = {

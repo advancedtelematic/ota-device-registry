@@ -14,6 +14,7 @@ import akka.http.scaladsl.model.{HttpRequest, StatusCodes, Uri}
 import akka.http.scaladsl.model.Uri.{Path, Query}
 import akka.http.scaladsl.server.Route
 import cats.syntax.show._
+import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
 import com.advancedtelematic.ota.deviceregistry.data.{Device, DeviceT, PackageId, Uuid}
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
 import io.circe.Json
@@ -57,7 +58,7 @@ trait DeviceRequests { self: ResourceSpec =>
   def fetchByDeviceId(deviceId: Device.DeviceId): HttpRequest =
     Get(Resource.uri(api).withQuery(Query("deviceId" -> deviceId.show)))
 
-  def fetchByGroupId(groupId: Uuid, offset: Long = 0, limit: Long = 50): HttpRequest =
+  def fetchByGroupId(groupId: GroupId, offset: Long = 0, limit: Long = 50): HttpRequest =
     Get(
       Resource
         .uri(api)

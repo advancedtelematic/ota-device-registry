@@ -9,6 +9,7 @@
 package com.advancedtelematic.ota.deviceregistry
 
 import java.time.{Instant, OffsetDateTime}
+import java.util.UUID
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.model.{StatusCodes, Uri}
@@ -31,6 +32,7 @@ import com.advancedtelematic.ota.deviceregistry.db.{
 }
 import com.advancedtelematic.ota.deviceregistry.messages.{DeleteDeviceRequest, DeviceCreated, DeviceEventMessage}
 import com.advancedtelematic.ota.deviceregistry.DevicesResource.EventPayload
+import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.string.Regex
 import io.circe.{Encoder, Json, KeyEncoder}
@@ -73,17 +75,21 @@ class DevicesResource(
 
   val eventJournal = new EventJournal(db)
 
+  implicit val groupIdUnmarshaller = Unmarshaller.strict[String, GroupId] { str =>
+    GroupId(UUID.fromString(str))
+  }
+
   def searchDevice(ns: Namespace): Route =
     parameters(
       ('regex.as[String Refined Regex].?,
        'deviceId.as[String].?, // TODO: Use refined
-       'groupId.as[String Refined Uuid.Valid].?,
+       'groupId.as[GroupId].?,
        'ungrouped ? false,
        'offset.as[Long].?,
        'limit.as[Long].?)
     ) {
       case (re, None, groupId, false, offset, limit) =>
-        complete(db.run(DeviceRepository.search(ns, re, groupId.map(Uuid(_)), offset, limit)))
+        complete(db.run(DeviceRepository.search(ns, re, groupId, offset, limit)))
       case (re, None, None, true, offset, limit) =>
         complete(db.run(DeviceRepository.searchUngrouped(ns, re, offset, limit)))
       case (None, Some(deviceId), None, false, _, _) =>
@@ -110,9 +116,7 @@ class DevicesResource(
   }
 
   def deleteDevice(ns: Namespace, uuid: Uuid): Route = {
-    val f = messageBus.publish(
-      DeleteDeviceRequest(ns, uuid, Instant.now())
-    )
+    val f = messageBus.publish(DeleteDeviceRequest(ns, uuid, Instant.now()))
     onSuccess(f) { complete(StatusCodes.Accepted) }
   }
 

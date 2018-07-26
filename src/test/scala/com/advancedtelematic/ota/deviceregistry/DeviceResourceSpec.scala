@@ -20,6 +20,7 @@ import com.advancedtelematic.libats.messaging_datatype.DataType
 import com.advancedtelematic.libats.messaging_datatype.Messages.DeviceSeen
 import com.advancedtelematic.ota.deviceregistry.common.PackageStat
 import com.advancedtelematic.ota.deviceregistry.daemon.{DeleteDeviceHandler, DeviceSeenListener}
+import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
 import com.advancedtelematic.ota.deviceregistry.data.{Device, DeviceStatus, DeviceT, PackageId, Uuid}
 import com.advancedtelematic.ota.deviceregistry.db.{DeviceRepository, InstalledPackages}
 import com.advancedtelematic.ota.deviceregistry.db.InstalledPackages.{DevicesCount, InstalledPackage}
@@ -305,8 +306,8 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
     val groups       = Gen.listOfN(groupNumber, genGroupName).sample.get
     val pkg          = genPackageId.sample.get
 
-    val deviceIds: Seq[Uuid] = deviceTs.map(createDeviceOk(_))
-    val groupIds: Seq[Uuid]  = groups.map(createGroupOk(_))
+    val deviceIds: Seq[Uuid]   = deviceTs.map(createDeviceOk)
+    val groupIds: Seq[GroupId] = groups.map(createGroupOk)
 
     (0 until deviceNumber).foreach { i =>
       addDeviceToGroupOk(groupIds(i % groupNumber), deviceIds(i))
@@ -325,7 +326,7 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
   property("can list devices with custom pagination limit") {
     val limit                = 30
     val deviceTs             = genConflictFreeDeviceTs(deviceNumber).sample.get
-    val deviceIds: Seq[Uuid] = deviceTs.map(createDeviceOk(_))
+    val deviceIds: Seq[Uuid] = deviceTs.map(createDeviceOk)
 
     searchDevice("", limit = limit) ~> route ~> check {
       status shouldBe OK
@@ -356,7 +357,7 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
     val offset               = 10
     val deviceNumber         = 50
     val deviceTs             = genConflictFreeDeviceTs(deviceNumber).sample.get
-    val deviceIds: Seq[Uuid] = deviceTs.map(createDeviceOk(_))
+    val deviceIds: Seq[Uuid] = deviceTs.map(createDeviceOk)
     val group                = genGroupName.sample.get
     val groupId              = createGroupOk(group)
 
@@ -383,7 +384,7 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
   property("can list ungrouped devices") {
     val deviceNumber         = 50
     val deviceTs             = genConflictFreeDeviceTs(deviceNumber).sample.get
-    val deviceIds: Seq[Uuid] = deviceTs.map(createDeviceOk(_))
+    val deviceIds: Seq[Uuid] = deviceTs.map(createDeviceOk)
 
     val beforeGrouping = fetchUngrouped(offset = 0, limit = deviceNumber) ~> route ~> check {
       status shouldBe OK
@@ -535,9 +536,9 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
     val deviceTs             = genConflictFreeDeviceTs(deviceNumber).sample.get
     val deviceIds: Seq[Uuid] = deviceTs.map(createDeviceOk)
 
-    val groupNumber         = 10
-    val groups              = Gen.listOfN(groupNumber, genGroupName).sample.get
-    val groupIds: Seq[Uuid] = groups.map(m => createGroupOk(m))
+    val groupNumber            = 10
+    val groups                 = Gen.listOfN(groupNumber, genGroupName).sample.get
+    val groupIds: Seq[GroupId] = groups.map(m => createGroupOk(m))
 
     (0 until deviceNumber).foreach { i =>
       addDeviceToGroupOk(groupIds(i % groupNumber), deviceIds(i))
