@@ -10,6 +10,7 @@ package com.advancedtelematic.ota.deviceregistry
 
 import akka.http.scaladsl.model.StatusCodes._
 import com.advancedtelematic.libats.data.PaginationResult
+import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
 import com.advancedtelematic.ota.deviceregistry.data.{Group, Uuid}
 import org.scalacheck.Arbitrary._
 import org.scalacheck.Gen
@@ -118,7 +119,7 @@ class GroupsResourceSpec extends FunSuite with ResourceSpec {
   }
 
   test("counting devices should fail for non-existent groups") {
-    countDevicesInGroup(genUuid.sample.get) ~> route ~> check {
+    countDevicesInGroup(GroupId.generate()) ~> route ~> check {
       status shouldBe NotFound
     }
   }

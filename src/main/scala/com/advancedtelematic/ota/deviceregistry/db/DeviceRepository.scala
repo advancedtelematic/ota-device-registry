@@ -15,12 +15,13 @@ import com.advancedtelematic.libats.data.PaginationResult
 import com.advancedtelematic.libats.slick.codecs.SlickRefined._
 import com.advancedtelematic.libats.slick.db.Operators.regex
 import com.advancedtelematic.libats.slick.db.SlickExtensions._
+import com.advancedtelematic.libats.slick.db.SlickUUIDKey._
 import com.advancedtelematic.ota.deviceregistry.common.Errors
 import com.advancedtelematic.ota.deviceregistry.data.DeviceStatus.DeviceStatus
+import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
 import com.advancedtelematic.ota.deviceregistry.data.{Device, DeviceStatus, DeviceT, Uuid}
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.string.Regex
-import slick.jdbc.MySQLProfile
 import slick.jdbc.MySQLProfile.api._
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -133,7 +134,7 @@ object DeviceRepository extends ColumnTypes {
 
   def search(ns: Namespace,
              regEx: Option[String Refined Regex],
-             groupId: Option[Uuid],
+             groupId: Option[GroupId],
              offset: Option[Long],
              limit: Option[Long])(implicit ec: ExecutionContext): DBIO[PaginationResult[Device]] = {
     val byNamespace = devices.filter(d => d.namespace === ns)

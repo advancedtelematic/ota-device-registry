@@ -15,7 +15,9 @@ import com.advancedtelematic.libats.data.DataType.Namespace
 import com.advancedtelematic.libats.slick.codecs.SlickRefined._
 import com.advancedtelematic.libats.slick.db.Operators.regex
 import com.advancedtelematic.libats.slick.db.SlickExtensions._
+import com.advancedtelematic.libats.slick.db.SlickUUIDKey._
 import com.advancedtelematic.ota.deviceregistry.common.PackageStat
+import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
 import com.advancedtelematic.ota.deviceregistry.data.{PackageId, Uuid}
 import com.advancedtelematic.ota.deviceregistry.data.PackageId.Name
 import eu.timepit.refined.api.Refined
@@ -37,7 +39,7 @@ object InstalledPackages extends ColumnTypes {
     implicit val EncoderInstance = io.circe.generic.semiauto.deriveEncoder[InstalledPackage]
   }
 
-  case class DevicesCount(deviceCount: Int, groupIds: Set[Uuid])
+  case class DevicesCount(deviceCount: Int, groupIds: Set[GroupId])
 
   object DevicesCount {
     implicit val EncoderInstance = io.circe.generic.semiauto.deriveEncoder[DevicesCount]
