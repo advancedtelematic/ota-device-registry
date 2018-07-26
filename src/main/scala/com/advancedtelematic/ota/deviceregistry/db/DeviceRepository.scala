@@ -18,7 +18,7 @@ import com.advancedtelematic.libats.slick.db.SlickExtensions._
 import com.advancedtelematic.libats.slick.db.SlickUUIDKey._
 import com.advancedtelematic.ota.deviceregistry.common.Errors
 import com.advancedtelematic.ota.deviceregistry.data.DeviceStatus.DeviceStatus
-import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
+import com.advancedtelematic.ota.deviceregistry.data.Group.{GroupExpression, GroupId}
 import com.advancedtelematic.ota.deviceregistry.data.{Device, DeviceStatus, DeviceT, Uuid}
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.string.Regex
@@ -111,15 +111,21 @@ object DeviceRepository extends ColumnTypes {
       .filter(d => d.namespace === ns && d.deviceId === deviceId)
       .result
 
-  def searchByDeviceIdContains(ns: Namespace, expression: String, offset: Option[Long], limit: Option[Long])(
+  def searchByDeviceIdContains(ns: Namespace,
+                               expression: Option[GroupExpression],
+                               offset: Option[Long],
+                               limit: Option[Long])(
       implicit db: Database,
       ec: ExecutionContext
   ): Future[PaginationResult[Uuid]] = db.run { deviceIdContainsQuery(ns, expression, offset, limit) }
 
-  def countByDeviceIdContains(ns: Namespace, expression: String)(implicit ec: ExecutionContext) =
+  def countByDeviceIdContains(ns: Namespace, expression: Option[GroupExpression])(implicit ec: ExecutionContext) =
     deviceIdContainsQuery(ns, expression, None, None).map(_.total)
 
-  private def deviceIdContainsQuery(ns: Namespace, expression: String, offset: Option[Long], limit: Option[Long])(
+  private def deviceIdContainsQuery(ns: Namespace,
+                                    expression: Option[GroupExpression],
+                                    offset: Option[Long],
+                                    limit: Option[Long])(
       implicit ec: ExecutionContext
   ): DBIO[PaginationResult[Uuid]] =
     if (expression.isEmpty)
@@ -127,7 +133,7 @@ object DeviceRepository extends ColumnTypes {
     else {
       devices
         .filter(_.namespace === ns)
-        .filter(_.deviceId.mappedTo[String].like("%" + expression + "%"))
+        .filter(_.deviceId.mappedTo[String].like("%" + expression.get.value + "%"))
         .map(_.uuid)
         .paginateAndSortResult(identity, offset.getOrElse(0L), limit.getOrElse[Long](defaultLimit))
     }

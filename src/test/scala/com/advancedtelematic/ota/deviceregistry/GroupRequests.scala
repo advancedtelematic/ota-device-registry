@@ -12,10 +12,12 @@ import akka.http.scaladsl.model.HttpRequest
 import akka.http.scaladsl.model.Uri.Query
 import akka.http.scaladsl.model.StatusCodes._
 import com.advancedtelematic.ota.deviceregistry.data.{GroupType, Uuid}
-import com.advancedtelematic.ota.deviceregistry.data.Group.{GroupId, Name}
+import com.advancedtelematic.ota.deviceregistry.data.Group.{GroupExpression, GroupId, Name}
 import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
 import cats.syntax.show._
 import GroupId._
+import io.circe.Json
+
 import scala.concurrent.ExecutionContext
 
 trait GroupRequests {
@@ -48,23 +50,32 @@ trait GroupRequests {
 
   def listGroups(): HttpRequest = Get(Resource.uri(groupsApi))
 
-  def createGroup(groupName: Name, groupType: GroupType = GroupType.static, expression: String)(
+  def createGroup(groupName: Name, groupType: GroupType = GroupType.static, expression: Option[GroupExpression] = None)(
       implicit ec: ExecutionContext
-  ): HttpRequest =
+  ): HttpRequest = {
+    val defaultQuery = Map("groupName" -> groupName.value, "type" -> groupType.toString)
+
+    val query =
+      if (expression.isDefined)
+        defaultQuery + ("expression" -> expression.get.value)
+      else
+        defaultQuery
+
     Post(
       Resource
         .uri(groupsApi)
-        .withQuery(Query("groupName" -> groupName.value, "type" -> groupType.toString, "expression" -> expression))
+        .withQuery(Query(query))
     )
+  }
 
   def createGroupOk(groupName: Name)(implicit ec: ExecutionContext): GroupId =
-    createGroup(groupName, GroupType.static, "") ~> route ~> check {
+    createGroup(groupName, GroupType.static) ~> route ~> check {
       status shouldBe Created
       responseAs[GroupId]
     }
 
-  def createDynamicGroupOk(groupName: Name, expression: String)(implicit ec: ExecutionContext): GroupId =
-    createGroup(groupName, GroupType.dynamic, expression) ~> route ~> check {
+  def createDynamicGroupOk(groupName: Name, expression: GroupExpression)(implicit ec: ExecutionContext): GroupId =
+    createGroup(groupName, GroupType.dynamic, Some(expression)) ~> route ~> check {
       status shouldBe Created
       responseAs[GroupId]
     }

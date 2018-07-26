@@ -14,12 +14,13 @@ import akka.http.scaladsl.server._
 import akka.http.scaladsl.unmarshalling.Unmarshaller
 import com.advancedtelematic.libats.auth.{AuthedNamespaceScope, Scopes}
 import com.advancedtelematic.libats.data.DataType.Namespace
-import com.advancedtelematic.ota.deviceregistry.data.Group.{GroupId, Name}
+import com.advancedtelematic.ota.deviceregistry.data.Group.{GroupExpression, GroupId, Name}
 import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
 import com.advancedtelematic.ota.deviceregistry.data.{GroupType, Uuid}
 import com.advancedtelematic.ota.deviceregistry.db.GroupInfoRepository
 import slick.jdbc.MySQLProfile.api._
 import com.advancedtelematic.libats.http.UUIDKeyPath._
+
 import scala.concurrent.{ExecutionContext, Future}
 
 class GroupsResource(
@@ -55,7 +56,11 @@ class GroupsResource(
   def getGroup(groupId: GroupId): Route =
     complete(db.run(GroupInfoRepository.findByIdAction(groupId)))
 
-  def createGroup(id: GroupId, groupName: Name, namespace: Namespace, groupType: GroupType, expression: String): Route =
+  def createGroup(id: GroupId,
+                  groupName: Name,
+                  namespace: Namespace,
+                  groupType: GroupType,
+                  expression: Option[GroupExpression]): Route =
     complete(StatusCodes.Created -> db.run(GroupInfoRepository.create(id, groupName, namespace, groupType, expression)))
 
   def renameGroup(groupId: GroupId, newGroupName: Name): Route =
@@ -75,9 +80,10 @@ class GroupsResource(
   val route: Route =
     (pathPrefix("device_groups") & namespaceExtractor) { ns =>
       val scope = Scopes.devices(ns)
-      (scope.post & parameter('groupName.as[Name]) & parameter('type.as[GroupType]) & parameter('expression.as[String]) & pathEnd) {
-        (groupName, `type`, expression) =>
-          createGroup(GroupId.generate(), groupName, ns.namespace, `type`, expression)
+      (scope.post & parameter('groupName.as[Name]) & parameter('type.as[GroupType]) & parameter(
+        'expression.as[GroupExpression].?
+      ) & pathEnd) { (groupName, `type`, expression) =>
+        createGroup(GroupId.generate(), groupName, ns.namespace, `type`, expression)
       } ~
       (scope.get & pathEnd) {
         listGroups(ns.namespace)

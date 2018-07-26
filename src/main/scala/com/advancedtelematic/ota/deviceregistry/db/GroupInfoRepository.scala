@@ -14,7 +14,7 @@ import com.advancedtelematic.libats.slick.db.SlickExtensions._
 import com.advancedtelematic.ota.deviceregistry.data
 import com.advancedtelematic.ota.deviceregistry.common.{Errors, SlickJsonHelper}
 import com.advancedtelematic.ota.deviceregistry.data.{Group, GroupType, Uuid}
-import com.advancedtelematic.ota.deviceregistry.data.Group.{GroupId, Name}
+import com.advancedtelematic.ota.deviceregistry.data.Group.{GroupExpression, GroupId, Name}
 import slick.jdbc.MySQLProfile.api._
 import com.advancedtelematic.libats.slick.codecs.SlickRefined._
 import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
@@ -33,7 +33,7 @@ object GroupInfoRepository extends SlickJsonHelper with ColumnTypes {
     def groupName  = column[Name]("group_name")
     def namespace  = column[Namespace]("namespace")
     def `type`     = column[GroupType]("type")
-    def expression = column[String]("expression")
+    def expression = column[Option[GroupExpression]]("expression")
 
     def * = (id, groupName, namespace, `type`, expression) <> ((Group.apply _).tupled, Group.unapply)
   }
@@ -66,7 +66,11 @@ object GroupInfoRepository extends SlickJsonHelper with ColumnTypes {
       .result
       .failIfNotSingle(Errors.MissingGroup)
 
-  def create(id: GroupId, groupName: Name, namespace: Namespace, groupType: GroupType, expression: String)(
+  def create(id: GroupId,
+             groupName: Name,
+             namespace: Namespace,
+             groupType: GroupType,
+             expression: Option[GroupExpression])(
       implicit ec: ExecutionContext
   ): DBIO[GroupId] =
     (groupInfos += data.Group(id, groupName, namespace, groupType, expression))

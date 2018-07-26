@@ -17,7 +17,11 @@ import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
 import eu.timepit.refined.api.{Refined, Validate}
 import io.circe.{Decoder, Encoder}
 
-case class Group(id: GroupId, groupName: Name, namespace: Namespace, `type`: GroupType, expression: String = "")
+case class Group(id: GroupId,
+                 groupName: Name,
+                 namespace: Namespace,
+                 `type`: GroupType,
+                 expression: Option[GroupExpression] = None)
 
 object GroupType extends Enumeration {
   type GroupType = Value
@@ -41,6 +45,16 @@ object Group {
       name => name.length > 1 && name.length <= 100,
       name => s"($name should be between two and a hundred alphanumeric characters long.)",
       ValidName()
+    )
+
+  case class ValidExpression()
+  type GroupExpression = Refined[String, ValidExpression]
+
+  implicit val validGroupExpression: Validate.Plain[String, ValidExpression] =
+    Validate.fromPredicate(
+      expression => expression.length > 1 && expression.length <= 200,
+      expression => s"group expression ($expression) must be between 1 and 200 characters.",
+      ValidExpression()
     )
 
   implicit val EncoderInstance = {
