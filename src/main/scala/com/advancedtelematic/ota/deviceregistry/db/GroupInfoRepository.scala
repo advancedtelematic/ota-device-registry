@@ -13,7 +13,7 @@ import com.advancedtelematic.libats.data.DataType.Namespace
 import com.advancedtelematic.libats.slick.db.SlickExtensions._
 import com.advancedtelematic.ota.deviceregistry.data
 import com.advancedtelematic.ota.deviceregistry.common.{Errors, SlickJsonHelper}
-import com.advancedtelematic.ota.deviceregistry.data.{Group, GroupType, Uuid}
+import com.advancedtelematic.ota.deviceregistry.data.Group
 import com.advancedtelematic.ota.deviceregistry.data.Group.{GroupExpression, GroupId, Name}
 import slick.jdbc.MySQLProfile.api._
 import com.advancedtelematic.libats.slick.codecs.SlickRefined._
@@ -48,7 +48,7 @@ object GroupInfoRepository extends SlickJsonHelper with ColumnTypes {
       .filter(g => g.namespace === namespace)
       .paginateResult(offset.getOrElse(0L), limit.getOrElse(defaultLimit))
 
-  protected def findByName(groupName: Name, namespace: Namespace) =
+  protected def findByName(groupName: Name, namespace: Namespace): Query[GroupInfoTable, Group, Seq] =
     groupInfos.filter(r => r.groupName === groupName && r.namespace === namespace)
 
   def findById(id: GroupId)(implicit db: Database, ec: ExecutionContext): Future[Group] =
@@ -57,12 +57,6 @@ object GroupInfoRepository extends SlickJsonHelper with ColumnTypes {
   def findByIdAction(id: GroupId)(implicit ec: ExecutionContext): DBIO[Group] =
     groupInfos
       .filter(r => r.id === id)
-      .result
-      .failIfNotSingle(Errors.MissingGroup)
-
-  def getIdFromName(groupName: Name, namespace: Namespace)(implicit ec: ExecutionContext): DBIO[GroupId] =
-    findByName(groupName, namespace)
-      .map(_.id)
       .result
       .failIfNotSingle(Errors.MissingGroup)
 
@@ -91,12 +85,5 @@ object GroupInfoRepository extends SlickJsonHelper with ColumnTypes {
       .map(_.namespace)
       .result
       .failIfNotSingle(Errors.MissingGroup)
-
-  def exists(id: GroupId, namespace: Namespace)(implicit ec: ExecutionContext): DBIO[Group] =
-    groupInfos
-      .filter(d => d.namespace === namespace && d.id === id)
-      .result
-      .headOption
-      .failIfNone(Errors.MissingGroup)
 
 }

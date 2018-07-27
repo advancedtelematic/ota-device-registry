@@ -1,7 +1,7 @@
 package com.advancedtelematic.ota.deviceregistry
 
 import akka.http.scaladsl.model.StatusCodes._
-import com.advancedtelematic.libats.data.{ErrorRepresentation, PaginationResult}
+import com.advancedtelematic.libats.data.PaginationResult
 import com.advancedtelematic.ota.deviceregistry.data.Group.{GroupExpression, ValidExpression}
 import com.advancedtelematic.ota.deviceregistry.data.{Group, GroupType, Uuid}
 import com.advancedtelematic.ota.deviceregistry.db.DeviceRepository
@@ -10,11 +10,9 @@ import org.scalatest.FunSuite
 import org.scalatest.concurrent.ScalaFutures._
 import eu.timepit.refined.refineV
 import cats.syntax.either._
-import com.advancedtelematic.ota.deviceregistry.common.Errors
 import com.advancedtelematic.ota.deviceregistry.data.Device.DeviceId
 import eu.timepit.refined.api.Refined
 import Group._
-import akka.http.scaladsl.unmarshalling.Unmarshaller.UnsupportedContentTypeException
 
 class DynamicGroupsSpec extends FunSuite with ResourceSpec {
 
@@ -28,12 +26,12 @@ class DynamicGroupsSpec extends FunSuite with ResourceSpec {
       refineV[ValidExpression](value.underlying).valueOr(err => throw new IllegalArgumentException(err))
   }
 
-  test("can create a smart group") {
+  test("dynamic group gets created.") {
     val group = genGroupInfo.sample.get
     createDynamicGroupOk(group.groupName, Refined.unsafeApply("valid exp"))
   }
 
-  test("device gets added to smart group") {
+  test("device gets added to dynamic group") {
     val group      = genGroupInfo.sample.get
     val deviceT    = genDeviceT.retryUntil(_.deviceId.isDefined).sample.get
     val deviceUuid = createDeviceOk(deviceT)
@@ -47,7 +45,7 @@ class DynamicGroupsSpec extends FunSuite with ResourceSpec {
     }
   }
 
-  test("smart group should return empty when no device matches") {
+  test("dynamic group is empty when no device matches the expression") {
     val group   = genGroupInfo.sample.get
     val groupId = createDynamicGroupOk(group.groupName, Refined.unsafeApply("valid expression that doesnt match"))
 
@@ -58,7 +56,7 @@ class DynamicGroupsSpec extends FunSuite with ResourceSpec {
     }
   }
 
-  test("XXX cannot create smart group with invalid expression") {
+  test("dynamic group with invalid expression is not created") {
     val group      = genGroupInfo.sample.get
     val deviceT    = genDeviceT.retryUntil(_.deviceId.isDefined).sample.get
     val deviceUuid = createDeviceOk(deviceT)
@@ -67,7 +65,7 @@ class DynamicGroupsSpec extends FunSuite with ResourceSpec {
     }
   }
 
-  test("adding a device to smart group fails") {
+  test("manually adding a device to dynamic group fails") {
     val group      = genGroupInfo.sample.get
     val deviceT    = genDeviceT.retryUntil(_.deviceId.isDefined).sample.get
     val deviceUuid = createDeviceOk(deviceT)
@@ -90,7 +88,7 @@ class DynamicGroupsSpec extends FunSuite with ResourceSpec {
     }
   }
 
-  test("removing a device from a smart group fails") {
+  test("removing a device from a dynamic group fails") {
     val group      = genGroupInfo.sample.get
     val deviceT    = genDeviceT.retryUntil(_.deviceId.isDefined).sample.get
     val deviceUuid = createDeviceOk(deviceT)

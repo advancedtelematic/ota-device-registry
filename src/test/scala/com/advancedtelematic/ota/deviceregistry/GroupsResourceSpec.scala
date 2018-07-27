@@ -25,7 +25,7 @@ class GroupsResourceSpec extends FunSuite with ResourceSpec {
   import io.circe.generic.semiauto.deriveDecoder
   private[this] implicit val GroupDecoder = deriveDecoder[Group]
 
-  test("GET all groups lists all groups") {
+  test("gets all existing groups") {
     //TODO: PRO-1182 turn this back into a property when we can delete groups
     val groupNames = Gen.listOfN(10, arbitrary[Group.Name]).sample.get
     groupNames.foreach { groupName =>
@@ -42,13 +42,13 @@ class GroupsResourceSpec extends FunSuite with ResourceSpec {
     }
   }
 
-  test("can list devices with custom pagination limit") {
+  test("lists devices with custom pagination limit") {
     val deviceNumber = 50
     val group        = genGroupInfo.sample.get
     val groupId      = createGroupOk(group.groupName)
 
     val deviceTs             = genConflictFreeDeviceTs(deviceNumber).sample.get
-    val deviceIds: Seq[Uuid] = deviceTs.map(createDeviceOk(_))
+    val deviceIds: Seq[Uuid] = deviceTs.map(createDeviceOk)
 
     deviceIds.foreach(deviceId => addDeviceToGroupOk(groupId, deviceId))
 
@@ -59,14 +59,14 @@ class GroupsResourceSpec extends FunSuite with ResourceSpec {
     }
   }
 
-  test("can list devices with custom pagination limit and offset") {
+  test("lists devices with custom pagination limit and offset") {
     val offset       = 10
     val deviceNumber = 50
     val group        = genGroupInfo.sample.get
     val groupId      = createGroupOk(group.groupName)
 
     val deviceTs             = genConflictFreeDeviceTs(deviceNumber).sample.get
-    val deviceIds: Seq[Uuid] = deviceTs.map(createDeviceOk(_))
+    val deviceIds: Seq[Uuid] = deviceTs.map(createDeviceOk)
 
     deviceIds.foreach(deviceId => addDeviceToGroupOk(groupId, deviceId))
 
@@ -82,7 +82,7 @@ class GroupsResourceSpec extends FunSuite with ResourceSpec {
     }
   }
 
-  test("Get group details gives group id and name.") {
+  test("gets detailed information of a group") {
     val groupName = genGroupName.sample.get
     val groupId   = createGroupOk(groupName)
 
@@ -94,7 +94,7 @@ class GroupsResourceSpec extends FunSuite with ResourceSpec {
     }
   }
 
-  test("Get group details of valid non-existing group fails with 404.") {
+  test("gets detailed information of a non-existing group fails") {
     val groupId = genGroupInfo.sample.get.id
 
     getGroupDetails(groupId) ~> route ~> check {
@@ -102,7 +102,7 @@ class GroupsResourceSpec extends FunSuite with ResourceSpec {
     }
   }
 
-  test("Renaming groups") {
+  test("renames a group") {
     val groupName    = genGroupName.sample.get
     val newGroupName = genGroupName.sample.get
     val groupId      = createGroupOk(groupName)
@@ -118,13 +118,13 @@ class GroupsResourceSpec extends FunSuite with ResourceSpec {
     }
   }
 
-  test("counting devices should fail for non-existent groups") {
+  test("counting devices fails for non-existing groups") {
     countDevicesInGroup(GroupId.generate()) ~> route ~> check {
       status shouldBe NotFound
     }
   }
 
-  test("adding devices to groups") {
+  test("adds devices to groups") {
     val groupName = genGroupName.sample.get
     val deviceId  = createDeviceOk(genDeviceT.sample.get)
     val groupId   = createGroupOk(groupName)
@@ -140,7 +140,7 @@ class GroupsResourceSpec extends FunSuite with ResourceSpec {
     }
   }
 
-  test("rename group to existing group returns bad request") {
+  test("renaming a group to existing group fails") {
     val groupAName = genGroupName.sample.get
     val groupBName = genGroupName.sample.get
     val groupAId   = createGroupOk(groupAName)
@@ -151,7 +151,7 @@ class GroupsResourceSpec extends FunSuite with ResourceSpec {
     }
   }
 
-  test("removing devices from groups") {
+  test("removes devices from a group") {
     val groupName = genGroupName.sample.get
     val deviceId  = createDeviceOk(genDeviceT.sample.get)
     val groupId   = createGroupOk(groupName)

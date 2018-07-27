@@ -9,14 +9,13 @@
 package com.advancedtelematic.ota.deviceregistry
 
 import akka.http.scaladsl.model.HttpRequest
-import akka.http.scaladsl.model.Uri.Query
 import akka.http.scaladsl.model.StatusCodes._
-import com.advancedtelematic.ota.deviceregistry.data.{GroupType, Uuid}
+import akka.http.scaladsl.model.Uri.Query
+import cats.syntax.show._
+import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId._
 import com.advancedtelematic.ota.deviceregistry.data.Group.{GroupExpression, GroupId, Name}
 import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
-import cats.syntax.show._
-import GroupId._
-import io.circe.Json
+import com.advancedtelematic.ota.deviceregistry.data.{GroupType, Uuid}
 
 import scala.concurrent.ExecutionContext
 
@@ -53,19 +52,15 @@ trait GroupRequests {
   def createGroup(groupName: Name, groupType: GroupType = GroupType.static, expression: Option[GroupExpression] = None)(
       implicit ec: ExecutionContext
   ): HttpRequest = {
-    val defaultQuery = Map("groupName" -> groupName.value, "type" -> groupType.toString)
+    val baseQuery = Map("groupName" -> groupName.value, "type" -> groupType.toString)
 
     val query =
-      if (expression.isDefined)
-        defaultQuery + ("expression" -> expression.get.value)
-      else
-        defaultQuery
+      if (expression.isDefined) baseQuery + ("expression" -> expression.get.value) else baseQuery
 
     Post(
       Resource
         .uri(groupsApi)
-        .withQuery(Query(query))
-    )
+        .withQuery(Query(query)))
   }
 
   def createGroupOk(groupName: Name)(implicit ec: ExecutionContext): GroupId =
