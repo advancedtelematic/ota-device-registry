@@ -5,7 +5,7 @@ import com.advancedtelematic.libats.data.PaginationResult
 import com.advancedtelematic.ota.deviceregistry.common.Errors
 import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
 import com.advancedtelematic.ota.deviceregistry.data.{Group, GroupType, Uuid}
-import com.advancedtelematic.ota.deviceregistry.db.{DeviceRepository, GroupInfoRepository, GroupMemberRepository}
+import com.advancedtelematic.ota.deviceregistry.db.{DeviceRepository, GroupMemberRepository, GroupRepository}
 import slick.jdbc.MySQLProfile.api._
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -51,7 +51,7 @@ protected class StaticMembership(implicit db: Database, ec: ExecutionContext) ex
 class GroupMembership(implicit val db: Database, ec: ExecutionContext) {
 
   private def run[T](groupId: GroupId)(fn: (Group, GroupMembershipOperations) => Future[T]): Future[T] =
-    GroupInfoRepository.findById(groupId).flatMap {
+    GroupRepository.findById(groupId).flatMap {
       case g if g.`type` == GroupType.static => fn(g, new StaticMembership())
       case g                                 => fn(g, new DynamicMembership())
     }

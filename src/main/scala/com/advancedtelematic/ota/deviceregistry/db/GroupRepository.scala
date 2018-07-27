@@ -23,7 +23,7 @@ import com.advancedtelematic.libats.slick.db.SlickUUIDKey._
 
 import scala.concurrent.{ExecutionContext, Future}
 
-object GroupInfoRepository extends SlickJsonHelper with ColumnTypes {
+object GroupRepository extends SlickJsonHelper with ColumnTypes {
 
   private[this] val defaultLimit = 50L
 
@@ -41,37 +41,50 @@ object GroupInfoRepository extends SlickJsonHelper with ColumnTypes {
 
   val groupInfos = TableQuery[GroupInfoTable]
 
-  def list(namespace: Namespace, offset: Option[Long], limit: Option[Long])(
-      implicit ec: ExecutionContext
-  ): DBIO[PaginationResult[Group]] =
-    groupInfos
-      .filter(g => g.namespace === namespace)
-      .paginateResult(offset.getOrElse(0L), limit.getOrElse(defaultLimit))
-
-  protected def findByName(groupName: Name, namespace: Namespace): Query[GroupInfoTable, Group, Seq] =
-    groupInfos.filter(r => r.groupName === groupName && r.namespace === namespace)
+  def list(ns: Namespace,
+           offset: Option[Long],
+           limit: Option[Long])(implicit db: Database, ec: ExecutionContext): Future[PaginationResult[Group]] =
+    db.run(listAction(ns, offset, limit))
 
   def findById(id: GroupId)(implicit db: Database, ec: ExecutionContext): Future[Group] =
     db.run(findByIdAction(id))
 
-  def findByIdAction(id: GroupId)(implicit ec: ExecutionContext): DBIO[Group] =
+  def create(id: GroupId, groupName: Name, ns: Namespace, groupType: GroupType, expression: Option[GroupExpression])(
+      implicit db: Database,
+      ec: ExecutionContext
+  ): Future[GroupId] = db.run(createAction(id, groupName, ns, groupType, expression))
+
+  def rename(id: GroupId, newGroupName: Name)(implicit db: Database, ec: ExecutionContext): Future[Unit] =
+    db.run(renameAction(id, newGroupName))
+
+  def getNamespace(id: GroupId)(implicit db: Database, ec: ExecutionContext): Future[Namespace] =
+    db.run(getNamespaceAction(id))
+
+  private[db] def listAction(ns: Namespace, offset: Option[Long], limit: Option[Long])(
+      implicit ec: ExecutionContext
+  ): DBIO[PaginationResult[Group]] =
+    groupInfos
+      .filter(g => g.namespace === ns)
+      .paginateResult(offset.getOrElse(0L), limit.getOrElse(defaultLimit))
+
+  private[db] def findByIdAction(id: GroupId)(implicit ec: ExecutionContext): DBIO[Group] =
     groupInfos
       .filter(r => r.id === id)
       .result
       .failIfNotSingle(Errors.MissingGroup)
 
-  def create(id: GroupId,
-             groupName: Name,
-             namespace: Namespace,
-             groupType: GroupType,
-             expression: Option[GroupExpression])(
+  private[db] def createAction(id: GroupId,
+                               groupName: Name,
+                               ns: Namespace,
+                               groupType: GroupType,
+                               expression: Option[GroupExpression])(
       implicit ec: ExecutionContext
   ): DBIO[GroupId] =
-    (groupInfos += data.Group(id, groupName, namespace, groupType, expression))
+    (groupInfos += data.Group(id, groupName, ns, groupType, expression))
       .handleIntegrityErrors(Errors.ConflictingGroup)
       .map(_ => id)
 
-  def renameGroup(id: GroupId, newGroupName: Name)(implicit ec: ExecutionContext): DBIO[Unit] =
+  private[db] def renameAction(id: GroupId, newGroupName: Name)(implicit ec: ExecutionContext): DBIO[Unit] =
     groupInfos
       .filter(r => r.id === id)
       .map(_.groupName)
@@ -79,9 +92,9 @@ object GroupInfoRepository extends SlickJsonHelper with ColumnTypes {
       .handleIntegrityErrors(Errors.ConflictingDevice)
       .handleSingleUpdateError(Errors.MissingGroup)
 
-  def groupInfoNamespace(groupId: GroupId)(implicit ec: ExecutionContext): DBIO[Namespace] =
+  private[db] def getNamespaceAction(id: GroupId)(implicit ec: ExecutionContext): DBIO[Namespace] =
     groupInfos
-      .filter(_.id === groupId)
+      .filter(_.id === id)
       .map(_.namespace)
       .result
       .failIfNotSingle(Errors.MissingGroup)

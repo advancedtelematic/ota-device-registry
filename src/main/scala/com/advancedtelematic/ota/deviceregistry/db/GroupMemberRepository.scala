@@ -30,7 +30,7 @@ object GroupMemberRepository {
     def deviceUuid = column[Uuid]("device_uuid")
     def deviceFk   = foreignKey("fk_group_members_uuid", deviceUuid, DeviceRepository.devices)(_.uuid)
     def groupFk =
-      foreignKey("fk_group_members_group_id", groupId, GroupInfoRepository.groupInfos)(_.id)
+      foreignKey("fk_group_members_group_id", groupId, GroupRepository.groupInfos)(_.id)
 
     def pk = primaryKey("pk_group_members", (groupId, deviceUuid))
 

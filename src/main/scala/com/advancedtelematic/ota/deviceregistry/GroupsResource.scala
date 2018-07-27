@@ -17,7 +17,7 @@ import com.advancedtelematic.libats.data.DataType.Namespace
 import com.advancedtelematic.ota.deviceregistry.data.Group.{GroupExpression, GroupId, Name}
 import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
 import com.advancedtelematic.ota.deviceregistry.data.{GroupType, Uuid}
-import com.advancedtelematic.ota.deviceregistry.db.GroupInfoRepository
+import com.advancedtelematic.ota.deviceregistry.db.GroupRepository
 import slick.jdbc.MySQLProfile.api._
 import com.advancedtelematic.libats.http.UUIDKeyPath._
 
@@ -39,32 +39,31 @@ class GroupsResource(
     }
 
   private def groupAllowed(groupId: GroupId): Future[Namespace] =
-    db.run(GroupInfoRepository.groupInfoNamespace(groupId))
+    GroupRepository.getNamespace(groupId)
 
   val groupMembership = new GroupMembership()
 
-  def getDevicesInGroup(groupId: GroupId): Route =
+  def getDevicesInGroup(id: GroupId): Route =
     parameters(('offset.as[Long].?, 'limit.as[Long].?)) { (offset, limit) =>
-      complete(groupMembership.listDevices(groupId, offset, limit))
+      complete(groupMembership.listDevices(id, offset, limit))
     }
 
   def listGroups(ns: Namespace): Route =
     parameters(('offset.as[Long].?, 'limit.as[Long].?)) { (offset, limit) =>
-      complete(db.run(GroupInfoRepository.list(ns, offset, limit)))
+      complete(GroupRepository.list(ns, offset, limit))
     }
 
-  def getGroup(groupId: GroupId): Route =
-    complete(db.run(GroupInfoRepository.findByIdAction(groupId)))
+  def getGroup(id: GroupId): Route = complete(GroupRepository.findById(id))
 
   def createGroup(id: GroupId,
                   groupName: Name,
-                  namespace: Namespace,
+                  ns: Namespace,
                   groupType: GroupType,
                   expression: Option[GroupExpression]): Route =
-    complete(StatusCodes.Created -> db.run(GroupInfoRepository.create(id, groupName, namespace, groupType, expression)))
+    complete(StatusCodes.Created -> GroupRepository.create(id, groupName, ns, groupType, expression))
 
-  def renameGroup(groupId: GroupId, newGroupName: Name): Route =
-    complete(db.run(GroupInfoRepository.renameGroup(groupId, newGroupName)))
+  def renameGroup(id: GroupId, newGroupName: Name): Route =
+    complete(GroupRepository.rename(id, newGroupName))
 
   def countDevices(groupId: GroupId): Route =
     complete(groupMembership.countDevices(groupId))
