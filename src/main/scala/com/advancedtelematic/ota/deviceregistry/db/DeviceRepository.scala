@@ -53,49 +53,26 @@ object DeviceRepository extends ColumnTypes {
 
     def pk = primaryKey("uuid", uuid)
   }
-
   // scalastyle:on
+
   val devices = TableQuery[DeviceTable]
 
-  def create(ns: Namespace, device: DeviceT)(implicit ec: ExecutionContext): DBIO[Uuid] = {
-    val uuid: Uuid = device.deviceUuid.getOrElse(Uuid.generate())
+  /* Public methods: to be used by the Resource classes. */
 
-    val dbIO = devices += Device(ns,
-                                 uuid,
-                                 device.deviceName,
-                                 device.deviceId,
-                                 device.deviceType,
-                                 createdAt = Instant.now())
-
-    dbIO
-      .map(_ => uuid)
-      .handleIntegrityErrors(Errors.ConflictingDevice)
-      .transactionally
-  }
+  def create(ns: Namespace, device: DeviceT)(implicit db: Database, ec: ExecutionContext): Future[Uuid] =
+    db.run(createAction(ns, device))
 
   def findUuidFromUniqueDeviceIdOrCreate(ns: Namespace, deviceId: DeviceId, devT: DeviceT)(
-      implicit ec: ExecutionContext
-  ): DBIO[(Boolean, Uuid)] =
-    for {
-      devs <- findByDeviceId(ns, deviceId)
-      (created, uuid) <- devs match {
-        case Seq()  => create(ns, devT).map((true, _))
-        case Seq(d) => DBIO.successful((false, d.uuid))
-        case _      => DBIO.failed(Errors.ConflictingDevice)
-      }
-    } yield (created, uuid)
+      implicit db: Database,
+      ec: ExecutionContext
+  ): Future[(Boolean, Uuid)] = db.run(findUuidFromUniqueDeviceIdOrCreateAction(ns, deviceId, devT))
 
-  def exists(ns: Namespace, uuid: Uuid)(implicit ec: ExecutionContext): DBIO[Device] =
-    devices
-      .filter(d => d.namespace === ns && d.uuid === uuid)
-      .result
-      .headOption
-      .flatMap(_.fold[DBIO[Device]](DBIO.failed(Errors.MissingDevice))(DBIO.successful))
+  def exists(ns: Namespace, uuid: Uuid)(implicit db: Database, ec: ExecutionContext): Future[Device] =
+    db.run(existsAction(ns, uuid))
 
-  def findByDeviceId(ns: Namespace, deviceId: DeviceId)(implicit ec: ExecutionContext): DBIO[Seq[Device]] =
-    devices
-      .filter(d => d.namespace === ns && d.deviceId === deviceId)
-      .result
+  def findByDeviceId(ns: Namespace, deviceId: DeviceId)(implicit db: Database,
+                                                        ec: ExecutionContext): Future[Seq[Device]] =
+    db.run(findByDeviceIdAction(ns, deviceId))
 
   def searchByDeviceIdContains(ns: Namespace,
                                expression: Option[GroupExpression],
@@ -103,15 +80,92 @@ object DeviceRepository extends ColumnTypes {
                                limit: Option[Long])(
       implicit db: Database,
       ec: ExecutionContext
-  ): Future[PaginationResult[Uuid]] = db.run { deviceIdContainsQuery(ns, expression, offset, limit) }
+  ): Future[PaginationResult[Uuid]] = db.run { deviceIdContainsAction(ns, expression, offset, limit) }
 
-  def countByDeviceIdContains(ns: Namespace, expression: Option[GroupExpression])(implicit ec: ExecutionContext) =
-    deviceIdContainsQuery(ns, expression, None, None).map(_.total)
+  def search(ns: Namespace,
+             regEx: Option[String Refined Regex],
+             groupId: Option[GroupId],
+             offset: Option[Long],
+             limit: Option[Long])(implicit db: Database, ec: ExecutionContext): Future[PaginationResult[Device]] =
+    db.run(searchAction(ns, regEx, groupId, offset, limit))
 
-  private def deviceIdContainsQuery(ns: Namespace,
-                                    expression: Option[GroupExpression],
-                                    offset: Option[Long],
-                                    limit: Option[Long])(
+  def searchUngrouped(
+      ns: Namespace,
+      regEx: Option[String Refined Regex],
+      offset: Option[Long],
+      limit: Option[Long]
+  )(implicit db: Database, ec: ExecutionContext): Future[PaginationResult[Device]] =
+    db.run(searchUngroupedAction(ns, regEx, offset, limit))
+
+  def update(ns: Namespace, uuid: Uuid, device: DeviceT)(
+      implicit db: Database,
+      ec: ExecutionContext
+  ): Future[Unit] = db.run(update(ns, uuid, device))
+
+  def findByUuid(uuid: Uuid)(implicit db: Database, ec: ExecutionContext): Future[Device] =
+    db.run(findByUuidAction(uuid))
+
+  def updateLastSeen(uuid: Uuid, when: Instant)(implicit db: Database,
+                                                ec: ExecutionContext): Future[(Boolean, Namespace)] =
+    db.run(updateLastSeenAction(uuid, when))
+
+  def delete(ns: Namespace, uuid: Uuid)(implicit db: Database, ec: ExecutionContext): Future[Unit] =
+    db.run(delete(ns, uuid))
+
+  def deviceNamespace(uuid: Uuid)(implicit db: Database, ec: ExecutionContext): Future[Namespace] =
+    db.run(deviceNamespaceAction(uuid))
+
+  def countActivatedDevices(ns: Namespace, start: Instant, end: Instant)(implicit db: Database): Future[Int] =
+    db.run(countActivatedDevicesAction(ns, start, end))
+
+  def setDeviceStatus(uuid: Uuid, status: DeviceStatus)(implicit db: Database, ec: ExecutionContext): Future[Unit] =
+    db.run(setDeviceStatusAction(uuid, status))
+
+  /* Package private methods: to be used by this and other Repository classes. */
+
+  private[db] def createAction(ns: Namespace, device: DeviceT)(implicit ec: ExecutionContext): DBIO[Uuid] = {
+    val uuid: Uuid = device.deviceUuid.getOrElse(Uuid.generate())
+    val dbIO = devices += Device(ns,
+                                 uuid,
+                                 device.deviceName,
+                                 device.deviceId,
+                                 device.deviceType,
+                                 createdAt = Instant.now())
+    dbIO
+      .map(_ => uuid)
+      .handleIntegrityErrors(Errors.ConflictingDevice)
+      .transactionally
+  }
+
+  private[db] def findUuidFromUniqueDeviceIdOrCreateAction(ns: Namespace, deviceId: DeviceId, devT: DeviceT)(
+      implicit ec: ExecutionContext
+  ): DBIO[(Boolean, Uuid)] =
+    for {
+      devs <- findByDeviceIdAction(ns, deviceId)
+      (created, uuid) <- devs match {
+        case Seq()  => createAction(ns, devT).map((true, _))
+        case Seq(d) => DBIO.successful((false, d.uuid))
+        case _      => DBIO.failed(Errors.ConflictingDevice)
+      }
+    } yield (created, uuid)
+
+  private[db] def existsAction(ns: Namespace, uuid: Uuid)(implicit ec: ExecutionContext): DBIO[Device] =
+    devices
+      .filter(d => d.namespace === ns && d.uuid === uuid)
+      .result
+      .headOption
+      .flatMap(_.fold[DBIO[Device]](DBIO.failed(Errors.MissingDevice))(DBIO.successful))
+
+  private[db] def findByDeviceIdAction(ns: Namespace,
+                                       deviceId: DeviceId)(implicit ec: ExecutionContext): DBIO[Seq[Device]] =
+    devices
+      .filter(d => d.namespace === ns && d.deviceId === deviceId)
+      .result
+
+  private[db] def deviceIdContainsAction(ns: Namespace,
+                                         expression: Option[GroupExpression],
+                                         offset: Option[Long],
+                                         limit: Option[Long])(
       implicit ec: ExecutionContext
   ): DBIO[PaginationResult[Uuid]] =
     if (expression.isEmpty)
@@ -124,11 +178,15 @@ object DeviceRepository extends ColumnTypes {
         .paginateAndSortResult(identity, offset.getOrElse(0L), limit.getOrElse[Long](defaultLimit))
     }
 
-  def search(ns: Namespace,
-             regEx: Option[String Refined Regex],
-             groupId: Option[GroupId],
-             offset: Option[Long],
-             limit: Option[Long])(implicit ec: ExecutionContext): DBIO[PaginationResult[Device]] = {
+  private[db] def countByDeviceIdContainsAction(ns: Namespace,
+                                                expression: Option[GroupExpression])(implicit ec: ExecutionContext) =
+    deviceIdContainsAction(ns, expression, None, None).map(_.total)
+
+  private[db] def searchAction(ns: Namespace,
+                               regEx: Option[String Refined Regex],
+                               groupId: Option[GroupId],
+                               offset: Option[Long],
+                               limit: Option[Long])(implicit ec: ExecutionContext): DBIO[PaginationResult[Device]] = {
     val byNamespace = devices.filter(d => d.namespace === ns)
     val byOptionalRegex = regEx match {
       case Some(re) => byNamespace.filter(d => regex(d.deviceName, re))
@@ -148,7 +206,7 @@ object DeviceRepository extends ColumnTypes {
                                             limit.getOrElse[Long](defaultLimit).min(maxLimit))
   }
 
-  def searchUngrouped(
+  private[db] def searchUngroupedAction(
       ns: Namespace,
       regEx: Option[String Refined Regex],
       offset: Option[Long],
@@ -167,7 +225,7 @@ object DeviceRepository extends ColumnTypes {
                                       limit.getOrElse[Long](defaultLimit).min(maxLimit))
   }
 
-  def update(ns: Namespace, uuid: Uuid, device: DeviceT)(
+  private[db] def update(ns: Namespace, uuid: Uuid, device: DeviceT)(
       implicit ec: ExecutionContext
   ): DBIO[Unit] = {
     val dbIO = devices
@@ -180,14 +238,15 @@ object DeviceRepository extends ColumnTypes {
     dbIO.transactionally
   }
 
-  def findByUuid(uuid: Uuid)(implicit ec: ExecutionContext): DBIO[Device] =
+  private[db] def findByUuidAction(uuid: Uuid)(implicit ec: ExecutionContext): DBIO[Device] =
     devices
       .filter(_.uuid === uuid)
       .result
       .headOption
       .flatMap(_.fold[DBIO[Device]](DBIO.failed(Errors.MissingDevice))(DBIO.successful))
 
-  def updateLastSeen(uuid: Uuid, when: Instant)(implicit ec: ExecutionContext): DBIO[(Boolean, Namespace)] = {
+  private[db] def updateLastSeenAction(uuid: Uuid,
+                                       when: Instant)(implicit ec: ExecutionContext): DBIO[(Boolean, Namespace)] = {
 
     val sometime = Some(when)
 
@@ -208,9 +267,9 @@ object DeviceRepository extends ColumnTypes {
     dbIO.transactionally
   }
 
-  def delete(ns: Namespace, uuid: Uuid)(implicit ec: ExecutionContext): DBIO[Unit] = {
+  private[db] def delete(ns: Namespace, uuid: Uuid)(implicit ec: ExecutionContext): DBIO[Unit] = {
     val dbIO = for {
-      _ <- exists(ns, uuid)
+      _ <- existsAction(ns, uuid)
       _ <- EventJournal.deleteEvents(uuid)
       _ <- GroupMemberRepository.removeGroupMemberAll(uuid)
       _ <- PublicCredentialsRepository.delete(uuid)
@@ -221,14 +280,14 @@ object DeviceRepository extends ColumnTypes {
     dbIO.transactionally
   }
 
-  def deviceNamespace(uuid: Uuid)(implicit ec: ExecutionContext): DBIO[Namespace] =
+  private[db] def deviceNamespaceAction(uuid: Uuid)(implicit ec: ExecutionContext): DBIO[Namespace] =
     devices
       .filter(_.uuid === uuid)
       .map(_.namespace)
       .result
       .failIfNotSingle(Errors.MissingDevice)
 
-  def countActivatedDevices(ns: Namespace, start: Instant, end: Instant): DBIO[Int] =
+  private[db] def countActivatedDevicesAction(ns: Namespace, start: Instant, end: Instant): DBIO[Int] =
     devices
       .filter(_.namespace === ns)
       .map(_.activatedAt.getOrElse(start.minusSeconds(36000)))
@@ -237,7 +296,7 @@ object DeviceRepository extends ColumnTypes {
       .length
       .result
 
-  def setDeviceStatus(uuid: Uuid, status: DeviceStatus)(implicit ec: ExecutionContext): DBIO[Unit] =
+  private[db] def setDeviceStatusAction(uuid: Uuid, status: DeviceStatus)(implicit ec: ExecutionContext): DBIO[Unit] =
     devices
       .filter(_.uuid === uuid)
       .map(_.deviceStatus)

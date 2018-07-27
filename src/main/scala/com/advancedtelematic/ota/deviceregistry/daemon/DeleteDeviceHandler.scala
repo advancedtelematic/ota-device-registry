@@ -25,12 +25,12 @@ class DeleteDeviceHandler(config: Config, db: Database, metrics: MetricRegistry)
     system: ActorSystem
 ) {
 
-  def start(): Unit = {
+  def start()(implicit db: Database): Unit = {
     val listener = system.actorOf(MessageListener.props[DeleteDeviceRequest](system.settings.config, handle, metrics),
                                   "delete-device-handler")
     listener ! Subscribe
   }
 
-  private[this] def handle(message: DeleteDeviceRequest): Future[Done] =
-    db.run(DeviceRepository.delete(message.namespace, message.uuid).map(_ => Done))
+  private[this] def handle(message: DeleteDeviceRequest)(implicit db: Database): Future[Done] =
+    DeviceRepository.delete(message.namespace, message.uuid).map(_ => Done)
 }

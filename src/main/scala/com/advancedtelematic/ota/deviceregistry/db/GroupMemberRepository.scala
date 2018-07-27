@@ -81,7 +81,7 @@ object GroupMemberRepository {
   def listGroupsForDevice(device: Uuid, offset: Option[Long], limit: Option[Long])(
       implicit ec: ExecutionContext
   ): DBIO[PaginationResult[GroupId]] =
-    DeviceRepository.findByUuid(device).flatMap { _ =>
+    DeviceRepository.findByUuidAction(device).flatMap { _ =>
       groupMembers
         .filter(_.deviceUuid === device)
         .map(_.groupId)

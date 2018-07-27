@@ -101,7 +101,7 @@ object SystemInfoRepository extends SlickJsonHelper {
 
   def findByUuid(uuid: Uuid)(implicit ec: ExecutionContext): DBIO[SystemInfoType] = {
     val dbIO = for {
-      _ <- DeviceRepository.findByUuid(uuid)
+      _ <- DeviceRepository.findByUuidAction(uuid)
       p <- systemInfos
         .filter(_.uuid === uuid)
         .result
@@ -113,7 +113,7 @@ object SystemInfoRepository extends SlickJsonHelper {
 
   def create(uuid: Uuid, data: SystemInfoType)(implicit ec: ExecutionContext): DBIO[Unit] =
     for {
-      _ <- DeviceRepository.findByUuid(uuid) // check that the device exists
+      _ <- DeviceRepository.findByUuidAction(uuid) // check that the device exists
       _ <- exists(uuid).asTry.flatMap {
         case Success(_) => DBIO.failed(Errors.ConflictingSystemInfo)
         case Failure(_) => DBIO.successful(())
@@ -124,7 +124,7 @@ object SystemInfoRepository extends SlickJsonHelper {
 
   def update(uuid: Uuid, data: SystemInfoType)(implicit ec: ExecutionContext): DBIO[Unit] =
     for {
-      _ <- DeviceRepository.findByUuid(uuid) // check that the device exists
+      _ <- DeviceRepository.findByUuidAction(uuid) // check that the device exists
       newData = addUniqueIdNrs(data)
       _ <- systemInfos.insertOrUpdate(SystemInfo(uuid, newData))
     } yield ()

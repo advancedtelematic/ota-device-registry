@@ -108,7 +108,7 @@ class DynamicGroupsSpec extends FunSuite with ResourceSpec {
       responseAs[PaginationResult[Uuid]].values should contain(deviceUuid)
     }
 
-    db.run(DeviceRepository.delete(group.namespace, deviceUuid)).futureValue
+    DeviceRepository.delete(group.namespace, deviceUuid).futureValue
 
     listDevicesInGroup(groupId) ~> route ~> check {
       status shouldBe OK

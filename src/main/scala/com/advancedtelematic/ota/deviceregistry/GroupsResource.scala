@@ -14,20 +14,19 @@ import akka.http.scaladsl.server._
 import akka.http.scaladsl.unmarshalling.Unmarshaller
 import com.advancedtelematic.libats.auth.{AuthedNamespaceScope, Scopes}
 import com.advancedtelematic.libats.data.DataType.Namespace
+import com.advancedtelematic.libats.http.UUIDKeyPath._
 import com.advancedtelematic.ota.deviceregistry.data.Group.{GroupExpression, GroupId, Name}
 import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
 import com.advancedtelematic.ota.deviceregistry.data.{GroupType, Uuid}
-import com.advancedtelematic.ota.deviceregistry.db.GroupRepository
+import com.advancedtelematic.ota.deviceregistry.db.{GroupMembership, GroupRepository}
 import slick.jdbc.MySQLProfile.api._
-import com.advancedtelematic.libats.http.UUIDKeyPath._
 
 import scala.concurrent.{ExecutionContext, Future}
 
-class GroupsResource(
-    namespaceExtractor: Directive1[AuthedNamespaceScope],
-    deviceNamespaceAuthorizer: Directive1[Uuid]
-)(implicit ec: ExecutionContext, db: Database)
-    extends Directives {
+class GroupsResource(namespaceExtractor: Directive1[AuthedNamespaceScope], deviceNamespaceAuthorizer: Directive1[Uuid])(
+    implicit db: Database,
+    ec: ExecutionContext
+) extends Directives {
 
   import UuidDirectives._
   import com.advancedtelematic.libats.http.RefinedMarshallingSupport._

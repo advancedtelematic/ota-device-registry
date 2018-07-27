@@ -89,24 +89,25 @@ class DevicesResource(
        'limit.as[Long].?)
     ) {
       case (re, None, groupId, false, offset, limit) =>
-        complete(db.run(DeviceRepository.search(ns, re, groupId, offset, limit)))
+        complete(DeviceRepository.search(ns, re, groupId, offset, limit))
       case (re, None, None, true, offset, limit) =>
-        complete(db.run(DeviceRepository.searchUngrouped(ns, re, offset, limit)))
+        complete(DeviceRepository.searchUngrouped(ns, re, offset, limit))
       case (None, Some(deviceId), None, false, _, _) =>
-        complete(db.run(DeviceRepository.findByDeviceId(ns, DeviceId(deviceId))))
+        complete(DeviceRepository.findByDeviceId(ns, DeviceId(deviceId)))
       case _ =>
         complete((BadRequest, "'regex' and 'deviceId' parameters cannot be used together!"))
     }
 
   def createDevice(ns: Namespace, device: DeviceT): Route = {
-    val f = db
-      .run(DeviceRepository.create(ns, device))
-      .andThen {
-        case scala.util.Success(uuid) =>
-          messageBus.publish(
-            DeviceCreated(ns, uuid, device.deviceName, device.deviceId, device.deviceType, Instant.now())
-          )
-      }
+    val f =
+      DeviceRepository
+        .create(ns, device)
+        .andThen {
+          case scala.util.Success(uuid) =>
+            messageBus.publish(
+              DeviceCreated(ns, uuid, device.deviceName, device.deviceId, device.deviceType, Instant.now())
+            )
+        }
 
     onSuccess(f) { uuid =>
       respondWithHeaders(List(Location(Uri("/devices/" + uuid.show)))) {
@@ -121,10 +122,10 @@ class DevicesResource(
   }
 
   def fetchDevice(uuid: Uuid): Route =
-    complete(db.run(DeviceRepository.findByUuid(uuid)))
+    complete(DeviceRepository.findByUuid(uuid))
 
   def updateDevice(ns: Namespace, uuid: Uuid, device: DeviceT): Route =
-    complete(db.run(DeviceRepository.update(ns, uuid, device)))
+    complete(DeviceRepository.update(ns, uuid, device))
 
   def getGroupsForDevice(uuid: Uuid): Route =
     parameters(('offset.as[Long].?, 'limit.as[Long].?)) { (offset, limit) =>
@@ -151,7 +152,8 @@ class DevicesResource(
   def getActiveDeviceCount(ns: Namespace): Route =
     parameters(('start.as[OffsetDateTime], 'end.as[OffsetDateTime])) { (start, end) =>
       complete(
-        db.run(DeviceRepository.countActivatedDevices(ns, start.toInstant, end.toInstant))
+        DeviceRepository
+          .countActivatedDevices(ns, start.toInstant, end.toInstant)
           .map(ActiveDeviceCount.apply)
       )
     }

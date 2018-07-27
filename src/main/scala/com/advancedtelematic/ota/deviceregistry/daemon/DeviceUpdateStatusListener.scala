@@ -62,7 +62,7 @@ object DeviceUpdateStatusListener {
       _ <- DeviceRepository.setDeviceStatus(device.uuid, status)
     } yield (device, status)
 
-    db.run(f).flatMap {
+    f.flatMap {
       case (device, status) =>
         messageBus
           .publish(DeviceUpdateStatus(device.namespace, device.uuid, status, Instant.now()))

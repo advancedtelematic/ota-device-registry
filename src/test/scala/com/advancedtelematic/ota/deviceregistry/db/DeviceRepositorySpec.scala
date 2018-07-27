@@ -19,6 +19,7 @@ import org.scalatest.time.{Seconds, Span}
 import org.scalatest.{FunSuite, Matchers}
 
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
 
 class DeviceRepositorySpec extends FunSuite with DatabaseSpec with ScalaFutures with Matchers {
 
@@ -31,25 +32,25 @@ class DeviceRepositorySpec extends FunSuite with DatabaseSpec with ScalaFutures 
       second <- DeviceRepository.updateLastSeen(uuid, Instant.now()).map(_._1)
     } yield (first, second)
 
-    whenReady(db.run(setTwice), Timeout(Span(10, Seconds))) {
+    whenReady(setTwice, Timeout(Span(10, Seconds))) {
       case (f, s) =>
-        f shouldBe (true)
-        s shouldBe (false)
+        f shouldBe true
+        s shouldBe false
     }
   }
 
   test("activated_at can be counted") {
 
     val device = genDeviceT.sample.get.copy(deviceId = Some(genDeviceId.sample.get))
-    val createDevice = for {
+    val createDevice: Future[Int] = for {
       uuid <- DeviceRepository.create(Namespaces.defaultNs, device)
       now = Instant.now()
       _     <- DeviceRepository.updateLastSeen(uuid, now)
       count <- DeviceRepository.countActivatedDevices(Namespaces.defaultNs, now, now.plusSeconds(100))
     } yield count
 
-    whenReady(db.run(createDevice), Timeout(Span(10, Seconds))) { count =>
-      count shouldBe (1)
+    whenReady(createDevice, Timeout(Span(10, Seconds))) { count =>
+      count shouldBe 1
     }
   }
 }

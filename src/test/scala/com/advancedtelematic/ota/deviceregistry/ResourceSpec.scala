@@ -56,7 +56,7 @@ trait ResourceSpec
     UuidDirectives.allowExtractor(namespaceExtractor, UuidDirectives.extractUuid, deviceAllowed)
 
   private def deviceAllowed(deviceId: Uuid): Future[Namespace] =
-    db.run(DeviceRepository.deviceNamespace(deviceId))
+    DeviceRepository.deviceNamespace(deviceId)
 
   lazy val messageBus = MessageBus.publisher(system, system.settings.config)
 

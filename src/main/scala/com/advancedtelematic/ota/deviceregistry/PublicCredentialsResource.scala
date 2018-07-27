@@ -41,40 +41,16 @@ class PublicCredentialsResource(
 )(implicit db: Database, mat: ActorMaterializer, ec: ExecutionContext) {
   import PublicCredentialsResource._
   import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
-  lazy val base64Decoder = Base64.getDecoder()
-  lazy val base64Encoder = Base64.getEncoder()
+  lazy val base64Decoder: Base64.Decoder = Base64.getDecoder
+  lazy val base64Encoder: Base64.Encoder = Base64.getEncoder
 
   def fetchPublicCredentials(uuid: Uuid): Route =
     complete(db.run(PublicCredentialsRepository.findByUuid(uuid)).map { creds =>
       FetchPublicCredentials(uuid, creds.typeCredentials, new String(creds.credentials))
     })
 
-  def createDeviceWithPublicCredentials(ns: Namespace, devT: DeviceT): Route = {
-    val act = (devT.deviceId, devT.credentials) match {
-      case (Some(devId), Some(credentials)) => {
-        val cType = devT.credentialsType.getOrElse(CredentialsType.PEM)
-        val dbact = for {
-          (created, uuid) <- DeviceRepository.findUuidFromUniqueDeviceIdOrCreate(ns, devId, devT)
-          _               <- PublicCredentialsRepository.update(uuid, cType, credentials.getBytes)
-        } yield (created, uuid)
-
-        for {
-          (created, uuid) <- db.run(dbact.transactionally)
-          _ <- if (created) {
-            messageBus.publish(
-              DeviceCreated(ns, uuid, devT.deviceName, devT.deviceId, devT.deviceType, Instant.now())
-            )
-          } else { Future.successful(()) }
-          _ <- messageBus.publish(
-            DevicePublicCredentialsSet(ns, uuid, cType, credentials, Instant.now())
-          )
-        } yield uuid
-      }
-      case (None, _) => FastFuture.failed(Errors.RequestNeedsDeviceId)
-      case (_, None) => FastFuture.failed(Errors.RequestNeedsCredentials)
-    }
-    complete(act)
-  }
+  def createDeviceWithPublicCredentials(ns: Namespace, devT: DeviceT): Route =
+    complete(PublicCredentialsRepository.createDeviceWithPublicCredentials(ns, devT, messageBus))
 
   def api: Route =
     (pathPrefix("devices") & authNamespace) { ns =>

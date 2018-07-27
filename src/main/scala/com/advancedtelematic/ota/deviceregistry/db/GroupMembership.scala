@@ -1,11 +1,10 @@
-package com.advancedtelematic.ota.deviceregistry
+package com.advancedtelematic.ota.deviceregistry.db
 
 import akka.http.scaladsl.util.FastFuture
 import com.advancedtelematic.libats.data.PaginationResult
 import com.advancedtelematic.ota.deviceregistry.common.Errors
 import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
 import com.advancedtelematic.ota.deviceregistry.data.{Group, GroupType, Uuid}
-import com.advancedtelematic.ota.deviceregistry.db.{DeviceRepository, GroupMemberRepository, GroupRepository}
 import slick.jdbc.MySQLProfile.api._
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -26,7 +25,7 @@ protected class DynamicMembership(implicit db: Database, ec: ExecutionContext) e
     FastFuture.failed(Errors.CannotAddDeviceToDynamicGroup)
 
   override def countDevices(group: Group): Future[Long] =
-    db.run(DeviceRepository.countByDeviceIdContains(group.namespace, group.expression))
+    db.run(DeviceRepository.countByDeviceIdContainsAction(group.namespace, group.expression))
 
   override def removeGroupMember(group: Group, deviceId: Uuid): Future[Unit] =
     FastFuture.failed(Errors.CannotRemoveDeviceFromDynamicGroup)
