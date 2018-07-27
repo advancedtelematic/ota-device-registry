@@ -57,20 +57,6 @@ object DeviceRepository extends ColumnTypes {
   // scalastyle:on
   val devices = TableQuery[DeviceTable]
 
-  def list(ns: Namespace, offset: Option[Long], limit: Option[Long]): DBIO[Seq[Device]] = {
-    val filteredDevices = devices.filter(_.namespace === ns)
-    (offset, limit) match {
-      case (None, None) =>
-        filteredDevices
-          .sortBy(_.deviceName)
-          .result
-      case _ =>
-        filteredDevices
-          .paginateAndSort(_.deviceName, offset.getOrElse(0), limit.getOrElse(defaultLimit))
-          .result
-    }
-  }
-
   def create(ns: Namespace, device: DeviceT)(implicit ec: ExecutionContext): DBIO[Uuid] = {
     val uuid: Uuid = device.deviceUuid.getOrElse(Uuid.generate())
 

@@ -60,7 +60,8 @@ trait GroupRequests {
     Post(
       Resource
         .uri(groupsApi)
-        .withQuery(Query(query)))
+        .withQuery(Query(query))
+    )
   }
 
   def createGroupOk(groupName: Name)(implicit ec: ExecutionContext): GroupId =

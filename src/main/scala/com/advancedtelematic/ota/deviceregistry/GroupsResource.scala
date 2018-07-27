@@ -75,7 +75,8 @@ class GroupsResource(
   def removeDeviceFromGroup(groupId: GroupId, deviceId: Uuid): Route =
     complete(groupMembership.removeGroupMember(groupId, deviceId))
 
-  implicit val groupTypeParamUnmarshaller: Unmarshaller[String, GroupType] = Unmarshaller.strict[String, GroupType](GroupType.withName)
+  implicit val groupTypeParamUnmarshaller: Unmarshaller[String, GroupType] =
+    Unmarshaller.strict[String, GroupType](GroupType.withName)
 
   val route: Route =
     (pathPrefix("device_groups") & namespaceExtractor) { ns =>
