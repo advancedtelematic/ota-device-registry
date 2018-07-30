@@ -193,7 +193,7 @@ class DevicesResource(
           listPackagesOnDevice(uuid)
         } ~
         path("events") {
-          import DevicesResource.{EventPayloadDecoder}
+          import DevicesResource.EventPayloadDecoder
           (post & pathEnd) {
             extractLog { log =>
               entity(as[List[EventPayload]]) { xs =>

@@ -157,8 +157,8 @@ object DeviceRepository extends ColumnTypes {
   ): DBIO[Unit] = {
     val dbIO = devices
       .filter(_.uuid === uuid)
-      .map(r => (r.deviceName, r.deviceId, r.deviceType))
-      .update((device.deviceName, device.deviceId, device.deviceType))
+      .map(r => r.deviceName)
+      .update(device.deviceName)
       .handleIntegrityErrors(Errors.ConflictingDevice)
       .handleSingleUpdateError(Errors.MissingDevice)
 
