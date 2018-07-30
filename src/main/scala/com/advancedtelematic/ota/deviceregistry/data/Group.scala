@@ -10,6 +10,9 @@ package com.advancedtelematic.ota.deviceregistry.data
 
 import java.util.UUID
 
+import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
+import slick.jdbc.MySQLProfile.api._
+
 import com.advancedtelematic.libats.data.DataType.Namespace
 import com.advancedtelematic.libats.data.UUIDKey.{UUIDKey, UUIDKeyObj}
 import com.advancedtelematic.ota.deviceregistry.data.Group._
@@ -27,6 +30,8 @@ object GroupType extends Enumeration {
   type GroupType = Value
 
   val static, dynamic = Value
+
+  implicit val GroupTypeMapper = MappedColumnType.base[GroupType, String](gt => gt.toString, s => GroupType.withName(s))
 
   implicit val JsonEncoder = Encoder.enumEncoder(GroupType)
   implicit val JsonDecoder = Decoder.enumDecoder(GroupType)

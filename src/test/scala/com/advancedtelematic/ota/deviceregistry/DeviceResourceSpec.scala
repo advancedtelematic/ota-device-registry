@@ -352,6 +352,15 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
     }
   }
 
+  property("searching a device by 'regex' and 'deviceId' fails") {
+    val deviceT = genDeviceT.retryUntil(_.deviceId.isDefined).sample.get
+    val _: Uuid = createDeviceOk(deviceT)
+
+    fetchByDeviceId(deviceT.deviceId.get, Some("")) ~> route ~> check {
+      status shouldBe BadRequest
+    }
+  }
+
   property("can list devices by group ID") {
     val limit                = 30
     val offset               = 10
@@ -581,4 +590,28 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
         }
     }
   }
+
+  property("getting the groups of a device returns the correct static groups") {
+    val groupName1 = genGroupName.sample.get
+    val groupName2 = genGroupName.sample.get
+    val groupId1   = createGroupOk(groupName1)
+    val groupId2   = createGroupOk(groupName2)
+    val deviceUuid = createDeviceOk(genDeviceT.sample.get)
+
+    addDeviceToGroup(groupId1, deviceUuid) ~> route ~> check {
+      status shouldBe OK
+    }
+    addDeviceToGroup(groupId2, deviceUuid) ~> route ~> check {
+      status shouldBe OK
+    }
+
+    getGroupsOfDevice(deviceUuid) ~> route ~> check {
+      status shouldBe OK
+      val groups = responseAs[PaginationResult[GroupId]]
+      groups.total should be(2)
+      groups.values should contain(groupId1)
+      groups.values should contain(groupId2)
+    }
+  }
+
 }

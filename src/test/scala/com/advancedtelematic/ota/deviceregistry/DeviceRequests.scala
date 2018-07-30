@@ -10,8 +10,8 @@ package com.advancedtelematic.ota.deviceregistry
 
 import java.time.OffsetDateTime
 
-import akka.http.scaladsl.model.{HttpRequest, StatusCodes, Uri}
 import akka.http.scaladsl.model.Uri.{Path, Query}
+import akka.http.scaladsl.model.{HttpRequest, StatusCodes, Uri}
 import akka.http.scaladsl.server.Route
 import cats.syntax.show._
 import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
@@ -55,8 +55,11 @@ trait DeviceRequests { self: ResourceSpec =>
         .withQuery(Query("regex" -> regex, "offset" -> offset.toString, "limit" -> limit.toString))
     )
 
-  def fetchByDeviceId(deviceId: Device.DeviceId): HttpRequest =
-    Get(Resource.uri(api).withQuery(Query("deviceId" -> deviceId.show)))
+  def fetchByDeviceId(deviceId: Device.DeviceId, regex: Option[String] = None): HttpRequest = {
+    val baseParams                  = Map("deviceId"                             -> deviceId.show)
+    val params: Map[String, String] = if (regex.isDefined) baseParams + ("regex" -> regex.get) else baseParams
+    Get(Resource.uri(api).withQuery(Query(params)))
+  }
 
   def fetchByGroupId(groupId: GroupId, offset: Long = 0, limit: Long = 50): HttpRequest =
     Get(
@@ -149,4 +152,7 @@ trait DeviceRequests { self: ResourceSpec =>
 
   def getEvents(deviceUuid: Uuid): HttpRequest =
     Get(Resource.uri(api, deviceUuid.show, "events"))
+
+  def getGroupsOfDevice(deviceUuid: Uuid): HttpRequest = Get(Resource.uri(api, deviceUuid.show, "groups"))
+
 }

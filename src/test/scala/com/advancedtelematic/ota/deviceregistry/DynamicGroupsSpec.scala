@@ -1,16 +1,16 @@
 package com.advancedtelematic.ota.deviceregistry
 
 import akka.http.scaladsl.model.StatusCodes._
+import cats.syntax.show._
 import com.advancedtelematic.libats.data.PaginationResult
 import com.advancedtelematic.ota.deviceregistry.data.Group.{GroupExpression, ValidExpression}
 import com.advancedtelematic.ota.deviceregistry.data.{Group, GroupType, Uuid}
-import com.advancedtelematic.ota.deviceregistry.db.DeviceRepository
+import com.advancedtelematic.ota.deviceregistry.db.{DeviceRepository, GroupInfoRepository}
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
 import org.scalatest.FunSuite
 import org.scalatest.concurrent.ScalaFutures._
 import eu.timepit.refined.refineV
 import cats.syntax.either._
-import com.advancedtelematic.ota.deviceregistry.data.Device.DeviceId
 import eu.timepit.refined.api.Refined
 import Group._
 
@@ -21,9 +21,9 @@ class DynamicGroupsSpec extends FunSuite with ResourceSpec {
 
   private[this] implicit val GroupDecoder = deriveDecoder[Group]
 
-  implicit class DeviceIdToExpression(value: DeviceId) {
+  implicit class DeviceIdToExpression(value: String) {
     def toValidExp: GroupExpression =
-      refineV[ValidExpression](value.underlying).valueOr(err => throw new IllegalArgumentException(err))
+      refineV[ValidExpression](value).valueOr(err => throw new IllegalArgumentException(err))
   }
 
   test("dynamic group gets created.") {
@@ -35,7 +35,7 @@ class DynamicGroupsSpec extends FunSuite with ResourceSpec {
     val group      = genGroupInfo.sample.get
     val deviceT    = genDeviceT.retryUntil(_.deviceId.isDefined).sample.get
     val deviceUuid = createDeviceOk(deviceT)
-    val groupId    = createDynamicGroupOk(group.groupName, deviceT.deviceId.get.toValidExp)
+    val groupId    = createDynamicGroupOk(group.groupName, deviceT.deviceId.get.show.toValidExp)
 
     listDevicesInGroup(groupId) ~> route ~> check {
       status shouldBe OK
@@ -69,7 +69,7 @@ class DynamicGroupsSpec extends FunSuite with ResourceSpec {
     val group      = genGroupInfo.sample.get
     val deviceT    = genDeviceT.retryUntil(_.deviceId.isDefined).sample.get
     val deviceUuid = createDeviceOk(deviceT)
-    val groupId    = createDynamicGroupOk(group.groupName, deviceT.deviceId.get.toValidExp)
+    val groupId    = createDynamicGroupOk(group.groupName, deviceT.deviceId.get.show.toValidExp)
 
     addDeviceToGroup(groupId, deviceUuid) ~> route ~> check {
       status shouldBe BadRequest
@@ -80,7 +80,7 @@ class DynamicGroupsSpec extends FunSuite with ResourceSpec {
     val group   = genGroupInfo.sample.get
     val deviceT = genDeviceT.retryUntil(_.deviceId.isDefined).sample.get
     val _       = createDeviceOk(deviceT)
-    val groupId = createDynamicGroupOk(group.groupName, deviceT.deviceId.get.toValidExp)
+    val groupId = createDynamicGroupOk(group.groupName, deviceT.deviceId.get.show.toValidExp)
 
     countDevicesInGroup(groupId) ~> route ~> check {
       status shouldBe OK
@@ -92,7 +92,7 @@ class DynamicGroupsSpec extends FunSuite with ResourceSpec {
     val group      = genGroupInfo.sample.get
     val deviceT    = genDeviceT.retryUntil(_.deviceId.isDefined).sample.get
     val deviceUuid = createDeviceOk(deviceT)
-    val groupId    = createDynamicGroupOk(group.groupName, deviceT.deviceId.get.toValidExp)
+    val groupId    = createDynamicGroupOk(group.groupName, deviceT.deviceId.get.show.toValidExp)
     removeDeviceFromGroup(groupId, deviceUuid) ~> route ~> check {
       status shouldBe BadRequest
     }
@@ -102,7 +102,7 @@ class DynamicGroupsSpec extends FunSuite with ResourceSpec {
     val group      = genGroupInfo.sample.get
     val deviceT    = genDeviceT.retryUntil(_.deviceId.isDefined).sample.get
     val deviceUuid = createDeviceOk(deviceT)
-    val groupId    = createDynamicGroupOk(group.groupName, deviceT.deviceId.get.toValidExp)
+    val groupId    = createDynamicGroupOk(group.groupName, deviceT.deviceId.get.show.toValidExp)
     listDevicesInGroup(groupId) ~> route ~> check {
       status shouldBe OK
       responseAs[PaginationResult[Uuid]].values should contain(deviceUuid)
@@ -115,4 +115,33 @@ class DynamicGroupsSpec extends FunSuite with ResourceSpec {
       responseAs[PaginationResult[Uuid]].values should be(empty)
     }
   }
+
+  test("getting the groups of a device returns the correct dynamic groups") {
+    val groupName1 = genGroupName.sample.get
+    val groupName2 = genGroupName.sample.get
+    val deviceT = genDeviceT
+      .retryUntil(d => d.deviceId.isDefined && d.deviceId.get.show.length > 9)
+      .sample
+      .get
+    val deviceId   = deviceT.deviceId.get
+    val deviceUuid = createDeviceOk(deviceT)
+    val exp1       = deviceId.show.substring(0, 5).toValidExp // To test "starts with"
+    val groupId1   = createDynamicGroupOk(groupName1, exp1)
+    val exp2       = deviceId.show.substring(2, 10).toValidExp // To test "contains"
+    val groupId2   = createDynamicGroupOk(groupName2, exp2)
+
+    println(
+      s"++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ ${deviceId.show} |||| $groupId1 ++++ $exp1 ++++ $groupId2 ++++ $exp2"
+    )
+
+    getGroupsOfDevice(deviceUuid) ~> route ~> check {
+      status shouldBe OK
+      val groups = responseAs[PaginationResult[GroupId]]
+      groups.values.foreach(GroupInfoRepository.findById(_).onComplete(g => println(g.get.expression)))
+      groups.total should be(2)
+      groups.values should contain(groupId1)
+      groups.values should contain(groupId2)
+    }
+  }
+
 }

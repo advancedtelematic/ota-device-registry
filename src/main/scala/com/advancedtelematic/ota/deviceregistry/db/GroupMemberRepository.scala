@@ -10,13 +10,14 @@ package com.advancedtelematic.ota.deviceregistry.db
 
 import com.advancedtelematic.libats.data.PaginationResult
 import com.advancedtelematic.libats.slick.db.SlickExtensions._
+import com.advancedtelematic.libats.slick.db.SlickUUIDKey._
 import com.advancedtelematic.ota.deviceregistry.common.Errors
 import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
-import com.advancedtelematic.ota.deviceregistry.data.Uuid
+import com.advancedtelematic.ota.deviceregistry.data.{GroupType, Uuid}
 import slick.jdbc.MySQLProfile.api._
 import slick.lifted.Tag
-import com.advancedtelematic.libats.slick.db.SlickUUIDKey._
-import scala.concurrent.{ExecutionContext, Future}
+
+import scala.concurrent.ExecutionContext
 
 object GroupMemberRepository {
 
@@ -78,15 +79,26 @@ object GroupMemberRepository {
   def countDevicesInGroup(groupId: GroupId)(implicit ec: ExecutionContext): DBIO[Long] =
     listDevicesInGroupAction(groupId, None, None).map(_.total)
 
-  def listGroupsForDevice(device: Uuid, offset: Option[Long], limit: Option[Long])(
+  def listGroupsForDevice(deviceUuid: Uuid, offset: Option[Long], limit: Option[Long])(
       implicit ec: ExecutionContext
-  ): DBIO[PaginationResult[GroupId]] =
-    DeviceRepository.findByUuid(device).flatMap { _ =>
-      groupMembers
-        .filter(_.deviceUuid === device)
-        .map(_.groupId)
-        .paginateResult(offset.getOrElse(0L), limit.getOrElse(50L))
-    }
+  ): DBIO[PaginationResult[GroupId]] = {
+
+    val staticGroupIds = groupMembers
+      .filter(_.deviceUuid === deviceUuid)
+      .map(_.groupId)
+
+    val dynamicGroupIds = for {
+      d <- DeviceRepository.devices if d.uuid === deviceUuid
+      g <- GroupInfoRepository.groupInfos
+      if g.`type` === GroupType.dynamic && d.deviceId
+        .mappedTo[String]
+        .like("%".bind ++ g.expression.mappedTo[String] ++ "%")
+    } yield g.id
+
+    staticGroupIds
+      .union(dynamicGroupIds)
+      .paginateResult(offset.getOrElse(0L), limit.getOrElse(50L))
+  }
 
   def removeDeviceFromAllGroups(deviceUuid: Uuid)(implicit ec: ExecutionContext): DBIO[Int] =
     groupMembers
