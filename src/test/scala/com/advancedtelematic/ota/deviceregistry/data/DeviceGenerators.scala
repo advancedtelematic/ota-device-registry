@@ -43,7 +43,7 @@ trait DeviceGenerators {
     for {
       uuid       <- arbitrary[Uuid]
       name       <- deviceNameGen
-      deviceId   <- Gen.option(deviceIdGen)
+      deviceId   <- deviceIdGen.map(Some.apply)
       deviceType <- genDeviceType
       lastSeen   <- Gen.option(genInstant)
       activated  <- Gen.option(genInstant)
@@ -54,7 +54,7 @@ trait DeviceGenerators {
   def genDeviceTWith(deviceNameGen: Gen[DeviceName], deviceIdGen: Gen[DeviceId]): Gen[DeviceT] =
     for {
       name       <- deviceNameGen
-      deviceId   <- Gen.option(deviceIdGen)
+      deviceId   <- deviceIdGen.map(Some.apply)
       deviceUuid <- Gen.option(UuidGenerator.genUuid)
       deviceType <- genDeviceType
     } yield DeviceT(name, deviceUuid, deviceId, deviceType)

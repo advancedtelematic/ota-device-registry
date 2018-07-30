@@ -47,6 +47,8 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
   implicit override val patienceConfig =
     PatienceConfig(timeout = Span(5, Seconds), interval = Span(15, Millis))
 
+  implicit def noShrink[T]: Shrink[T] = Shrink.shrinkAny
+
   def isRecent(time: Option[Instant]): Boolean = time match {
     case Some(t) => t.isAfter(Instant.now.minus(3, ChronoUnit.MINUTES))
     case None    => false
@@ -99,31 +101,15 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
         val uuid: Uuid = createDeviceOk(d1)
 
         updateDevice(uuid, d2) ~> route ~> check {
-          val updateStatus = status
-
-          d1.deviceId match {
-            case Some(deviceId) =>
-              fetchByDeviceId(deviceId) ~> route ~> check {
-                status match {
-                  case OK =>
-                    responseAs[Seq[Device]].headOption match {
-                      case Some(_) => updateStatus shouldBe Conflict
-                      case None =>
-                        updateStatus shouldBe OK
-
-                        fetchDevice(uuid) ~> route ~> check {
-                          status shouldBe OK
-                          val devicePost: Device = responseAs[Device]
-                          devicePost.uuid shouldBe uuid
-                          devicePost.deviceId shouldBe d2.deviceId
-                          devicePost.deviceType shouldBe d2.deviceType
-                          devicePost.lastSeen shouldBe None
-                        }
-                    }
-                  case _ => assert(false, "unexpected status code: " + status)
-                }
-              }
-            case None => updateStatus shouldBe OK
+          status shouldBe OK
+          fetchDevice(uuid) ~> route ~> check {
+            status shouldBe OK
+            val devicePost: Device = responseAs[Device]
+            devicePost.uuid shouldBe uuid
+            devicePost.deviceId shouldBe d1.deviceId
+            devicePost.deviceType shouldBe d1.deviceType
+            devicePost.lastSeen shouldBe None
+            devicePost.deviceName shouldBe d2.deviceName
           }
         }
     }
@@ -234,8 +220,8 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
           fetchDevice(uuid) ~> route ~> check {
             status shouldBe OK
             val updatedDevice: Device = responseAs[Device]
-            updatedDevice.deviceId shouldBe d2.deviceId
-            updatedDevice.deviceType shouldBe d2.deviceType
+            updatedDevice.deviceId shouldBe d1.deviceId
+            updatedDevice.deviceType shouldBe d1.deviceType
             updatedDevice.lastSeen shouldBe None
           }
         }
@@ -268,22 +254,6 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
 
         updateDevice(uuid1, d1.copy(deviceName = d2.deviceName)) ~> route ~> check {
           status shouldBe Conflict
-        }
-    }
-  }
-
-  property("PUT request with same deviceId fails with conflict.") {
-    forAll(genConflictFreeDeviceTs(2)) {
-      case Seq(d1, d2) =>
-        val deviceId    = arbitrary[DeviceId].suchThat(_ != d1.deviceId).sample.get
-        val uuid1: Uuid = createDeviceOk(d1)
-        val uuid2: Uuid = createDeviceOk(d2.copy(deviceId = Some(deviceId)))
-
-        updateDevice(uuid1, d1.copy(deviceId = Some(deviceId))) ~> route ~> check {
-          d2.deviceId match {
-            case Some(_) => status shouldBe Conflict
-            case None    => ()
-          }
         }
     }
   }
@@ -525,7 +495,6 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
     }
   }
 
-  implicit def noShrink[T]: Shrink[T] = Shrink.shrinkAny
   new DeleteDeviceHandler(system.settings.config, db, MetricsSupport.metricRegistry).start()
 
   property("DELETE device removes it from its group") {
