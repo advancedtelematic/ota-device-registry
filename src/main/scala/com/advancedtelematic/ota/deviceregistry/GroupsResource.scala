@@ -33,13 +33,16 @@ class GroupsResource(
   import com.advancedtelematic.libats.http.RefinedMarshallingSupport._
   import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
 
-  private val allowGroupPath =
+  private val GroupIdPath = {
+    def groupAllowed(groupId: GroupId): Future[Namespace] = db.run(GroupInfoRepository.groupInfoNamespace(groupId))
+
     pathPrefix(GroupId.Path).flatMap { groupId =>
       allowExtractor(namespaceExtractor, provide(groupId), groupAllowed)
     }
+  }
 
-  private def groupAllowed(groupId: GroupId): Future[Namespace] =
-    db.run(GroupInfoRepository.groupInfoNamespace(groupId))
+  implicit val groupTypeParamUnmarshaller: Unmarshaller[String, GroupType] =
+    Unmarshaller.strict[String, GroupType](GroupType.withName)
 
   val groupMembership = new GroupMembership()
 
@@ -61,7 +64,7 @@ class GroupsResource(
                   namespace: Namespace,
                   groupType: GroupType,
                   expression: Option[GroupExpression]): Route =
-    complete(StatusCodes.Created -> db.run(GroupInfoRepository.create(id, groupName, namespace, groupType, expression)))
+    complete(StatusCodes.Created -> groupMembership.create(id, groupName, namespace, groupType, expression))
 
   def renameGroup(groupId: GroupId, newGroupName: Name): Route =
     complete(db.run(GroupInfoRepository.renameGroup(groupId, newGroupName)))
@@ -75,9 +78,6 @@ class GroupsResource(
   def removeDeviceFromGroup(groupId: GroupId, deviceId: Uuid): Route =
     complete(groupMembership.removeGroupMember(groupId, deviceId))
 
-  implicit val groupTypeParamUnmarshaller: Unmarshaller[String, GroupType] =
-    Unmarshaller.strict[String, GroupType](GroupType.withName)
-
   val route: Route =
     (pathPrefix("device_groups") & namespaceExtractor) { ns =>
       val scope = Scopes.devices(ns)
@@ -89,18 +89,22 @@ class GroupsResource(
       (scope.get & pathEnd) {
         listGroups(ns.namespace)
       } ~
-      (scope.get & allowGroupPath & pathEndOrSingleSlash) { groupId =>
-        getGroup(groupId)
-      } ~
-      (scope.get & allowGroupPath & path("devices")) { groupId =>
-        getDevicesInGroup(groupId)
-      } ~
-      allowGroupPath { groupId =>
-        (scope.post & pathPrefix("devices") & deviceNamespaceAuthorizer) { deviceId =>
-          addDeviceToGroup(groupId, deviceId)
+      GroupIdPath { groupId =>
+        (scope.get & pathEndOrSingleSlash) {
+          getGroup(groupId)
         } ~
-        (scope.delete & pathPrefix("devices") & deviceNamespaceAuthorizer) { deviceId =>
-          removeDeviceFromGroup(groupId, deviceId)
+        pathPrefix("devices") {
+          scope.get {
+            getDevicesInGroup(groupId)
+          } ~
+          deviceNamespaceAuthorizer { deviceId =>
+            scope.post {
+              addDeviceToGroup(groupId, deviceId)
+            } ~
+            scope.delete {
+              removeDeviceFromGroup(groupId, deviceId)
+            }
+          }
         } ~
         (scope.put & path("rename") & parameter('groupName.as[Name])) { groupName =>
           renameGroup(groupId, groupName)

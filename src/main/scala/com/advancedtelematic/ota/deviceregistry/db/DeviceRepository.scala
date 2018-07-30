@@ -103,7 +103,7 @@ object DeviceRepository extends ColumnTypes {
                                limit: Option[Long])(
       implicit db: Database,
       ec: ExecutionContext
-  ): Future[PaginationResult[Uuid]] = db.run { deviceIdContainsQuery(ns, expression, offset, limit) }
+  ): DBIO[PaginationResult[Uuid]] = deviceIdContainsQuery(ns, expression, offset, limit)
 
   def countByDeviceIdContains(ns: Namespace, expression: Option[GroupExpression])(implicit ec: ExecutionContext) =
     deviceIdContainsQuery(ns, expression, None, None).map(_.total)

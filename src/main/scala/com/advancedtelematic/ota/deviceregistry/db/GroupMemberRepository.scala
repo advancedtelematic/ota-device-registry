@@ -64,8 +64,8 @@ object GroupMemberRepository {
   def listDevicesInGroup(groupId: GroupId, offset: Option[Long], limit: Option[Long])(
       implicit db: Database,
       ec: ExecutionContext
-  ): Future[PaginationResult[Uuid]] =
-    db.run(listDevicesInGroupAction(groupId, offset, limit))
+  ): DBIO[PaginationResult[Uuid]] =
+    listDevicesInGroupAction(groupId, offset, limit)
 
   def listDevicesInGroupAction(groupId: GroupId, offset: Option[Long], limit: Option[Long])(
       implicit ec: ExecutionContext
