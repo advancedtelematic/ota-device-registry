@@ -19,7 +19,7 @@ import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
 import com.advancedtelematic.ota.deviceregistry.data.{GroupType, Uuid}
 import com.advancedtelematic.ota.deviceregistry.db.GroupInfoRepository
 import slick.jdbc.MySQLProfile.api._
-import com.advancedtelematic.libats.http.UUIDKeyPath._
+import com.advancedtelematic.libats.http.UUIDKeyAkka._
 
 import scala.concurrent.{ExecutionContext, Future}
 

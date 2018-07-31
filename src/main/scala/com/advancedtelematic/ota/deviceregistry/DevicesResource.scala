@@ -9,7 +9,6 @@
 package com.advancedtelematic.ota.deviceregistry
 
 import java.time.{Instant, OffsetDateTime}
-import java.util.UUID
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.model.{StatusCodes, Uri}
@@ -21,7 +20,6 @@ import cats.syntax.show._
 import com.advancedtelematic.libats.auth.{AuthedNamespaceScope, Scopes}
 import com.advancedtelematic.libats.data.DataType.Namespace
 import com.advancedtelematic.libats.messaging.MessageBusPublisher
-import com.advancedtelematic.libats.messaging_datatype.MessageLike
 import com.advancedtelematic.ota.deviceregistry.data.{DeviceT, Event, EventType, PackageId, Uuid}
 import com.advancedtelematic.ota.deviceregistry.data.Device.{ActiveDeviceCount, DeviceId}
 import com.advancedtelematic.ota.deviceregistry.db.{
@@ -37,6 +35,7 @@ import eu.timepit.refined.api.Refined
 import eu.timepit.refined.string.Regex
 import io.circe.{Encoder, Json, KeyEncoder}
 import slick.jdbc.MySQLProfile.api._
+import com.advancedtelematic.libats.http.UUIDKeyAkka._
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -75,9 +74,7 @@ class DevicesResource(
 
   val eventJournal = new EventJournal(db)
 
-  implicit val groupIdUnmarshaller = Unmarshaller.strict[String, GroupId] { str =>
-    GroupId(UUID.fromString(str))
-  }
+  implicit val groupIdUnmarshaller = GroupId.unmarshaller
 
   def searchDevice(ns: Namespace): Route =
     parameters(
