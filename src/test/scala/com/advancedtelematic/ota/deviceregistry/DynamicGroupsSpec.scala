@@ -119,28 +119,52 @@ class DynamicGroupsSpec extends FunSuite with ResourceSpec {
   test("getting the groups of a device returns the correct dynamic groups") {
     val groupName1 = genGroupName.sample.get
     val groupName2 = genGroupName.sample.get
+
     val deviceT = genDeviceT
       .retryUntil(d => d.deviceId.isDefined && d.deviceId.get.show.length > 9)
       .sample
       .get
     val deviceId   = deviceT.deviceId.get
     val deviceUuid = createDeviceOk(deviceT)
-    val exp1       = deviceId.show.substring(0, 5).toValidExp // To test "starts with"
-    val groupId1   = createDynamicGroupOk(groupName1, exp1)
-    val exp2       = deviceId.show.substring(2, 10).toValidExp // To test "contains"
-    val groupId2   = createDynamicGroupOk(groupName2, exp2)
 
-    println(
-      s"++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ ${deviceId.show} |||| $groupId1 ++++ $exp1 ++++ $groupId2 ++++ $exp2"
-    )
+    val expression1 = deviceId.show.substring(0, 5).toValidExp // To test "starts with"
+    val groupId1    = createDynamicGroupOk(groupName1, expression1)
+    val expression2 = deviceId.show.substring(2, 10).toValidExp // To test "contains"
+    val groupId2    = createDynamicGroupOk(groupName2, expression2)
 
     getGroupsOfDevice(deviceUuid) ~> route ~> check {
       status shouldBe OK
       val groups = responseAs[PaginationResult[GroupId]]
-      groups.values.foreach(GroupInfoRepository.findById(_).onComplete(g => println(g.get.expression)))
       groups.total should be(2)
       groups.values should contain(groupId1)
       groups.values should contain(groupId2)
+    }
+  }
+
+  test("getting the groups of a device returns the correct groups (dynamic and static)") {
+    val deviceT = genDeviceT
+      .retryUntil(d => d.deviceId.isDefined && d.deviceId.get.show.length > 4)
+      .sample
+      .get
+    val deviceId   = deviceT.deviceId.get
+    val deviceUuid = createDeviceOk(deviceT)
+
+    // Add the device to a static group
+    val staticGroup   = genGroupName.sample.get
+    val staticGroupId = createGroupOk(staticGroup)
+    addDeviceToGroupOk(staticGroupId, deviceUuid)
+
+    // Make the device show up for a dynamic group
+    val dynamicGroup   = genGroupName.sample.get
+    val expression     = deviceId.show.substring(1, 5).toValidExp
+    val dynamicGroupId = createDynamicGroupOk(dynamicGroup, expression)
+
+    getGroupsOfDevice(deviceUuid) ~> route ~> check {
+      status shouldBe OK
+      val groups = responseAs[PaginationResult[GroupId]]
+      groups.total should be(2)
+      groups.values should contain(staticGroupId)
+      groups.values should contain(dynamicGroupId)
     }
   }
 

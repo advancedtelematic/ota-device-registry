@@ -125,18 +125,18 @@ class GroupsResourceSpec extends FunSuite with ResourceSpec {
   }
 
   test("adds devices to groups") {
-    val groupName = genGroupName.sample.get
-    val deviceId  = createDeviceOk(genDeviceT.sample.get)
-    val groupId   = createGroupOk(groupName)
+    val groupName  = genGroupName.sample.get
+    val groupId    = createGroupOk(groupName)
+    val deviceUuid = createDeviceOk(genDeviceT.sample.get)
 
-    addDeviceToGroup(groupId, deviceId) ~> route ~> check {
+    addDeviceToGroup(groupId, deviceUuid) ~> route ~> check {
       status shouldBe OK
     }
 
     listDevicesInGroup(groupId) ~> route ~> check {
       status shouldBe OK
       val devices = responseAs[PaginationResult[Uuid]]
-      devices.values.contains(deviceId) shouldBe true
+      devices.values.contains(deviceUuid) shouldBe true
     }
   }
 

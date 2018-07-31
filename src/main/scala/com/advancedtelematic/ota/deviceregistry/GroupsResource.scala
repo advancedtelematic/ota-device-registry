@@ -72,8 +72,8 @@ class GroupsResource(
   def countDevices(groupId: GroupId): Route =
     complete(groupMembership.countDevices(groupId))
 
-  def addDeviceToGroup(groupId: GroupId, deviceId: Uuid): Route =
-    complete(groupMembership.addGroupMember(groupId, deviceId))
+  def addDeviceToGroup(groupId: GroupId, deviceUuid: Uuid): Route =
+    complete(groupMembership.addGroupMember(groupId, deviceUuid))
 
   def removeDeviceFromGroup(groupId: GroupId, deviceId: Uuid): Route =
     complete(groupMembership.removeGroupMember(groupId, deviceId))
@@ -97,12 +97,12 @@ class GroupsResource(
           scope.get {
             getDevicesInGroup(groupId)
           } ~
-          deviceNamespaceAuthorizer { deviceId =>
+          deviceNamespaceAuthorizer { deviceUuid =>
             scope.post {
-              addDeviceToGroup(groupId, deviceId)
+              addDeviceToGroup(groupId, deviceUuid)
             } ~
             scope.delete {
-              removeDeviceFromGroup(groupId, deviceId)
+              removeDeviceFromGroup(groupId, deviceUuid)
             }
           }
         } ~

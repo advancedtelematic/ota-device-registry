@@ -259,6 +259,27 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
     }
   }
 
+  property("PUT request with same deviceId fails with conflict.") {
+    forAll(genConflictFreeDeviceTs(2)) {
+      case Seq(d1, d2) =>
+        val deviceId    = arbitrary[DeviceId].suchThat(deviceIdsAreDifferent(_, d1.deviceId)).sample.get
+        val uuid1: Uuid = createDeviceOk(d1)
+        val _: Uuid     = createDeviceOk(d2.copy(deviceId = Some(deviceId)))
+
+        updateDevice(uuid1, d1.copy(deviceId = Some(deviceId))) ~> route ~> check {
+          d2.deviceId match {
+            case Some(_) => status shouldBe Conflict
+            case None    => ()
+          }
+        }
+    }
+
+    def deviceIdsAreDifferent(id: DeviceId, maybeId: Option[DeviceId]) = maybeId match {
+      case Some(otherId) => id != otherId
+      case None          => true
+    }
+  }
+
   private[this] implicit val InstalledPackageDecoderInstance = {
     import com.advancedtelematic.libats.codecs.CirceCodecs._
     io.circe.generic.semiauto.deriveDecoder[InstalledPackage]

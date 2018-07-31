@@ -76,11 +76,11 @@ trait GroupRequests {
       responseAs[GroupId]
     }
 
-  def addDeviceToGroup(groupId: GroupId, deviceId: Uuid)(implicit ec: ExecutionContext): HttpRequest =
-    Post(Resource.uri(groupsApi, groupId.show, "devices", deviceId.underlying.value))
+  def addDeviceToGroup(groupId: GroupId, deviceUuid: Uuid)(implicit ec: ExecutionContext): HttpRequest =
+    Post(Resource.uri(groupsApi, groupId.show, "devices", deviceUuid.show))
 
-  def addDeviceToGroupOk(groupId: GroupId, deviceId: Uuid)(implicit ec: ExecutionContext): Unit =
-    addDeviceToGroup(groupId, deviceId) ~> route ~> check {
+  def addDeviceToGroupOk(groupId: GroupId, deviceUuid: Uuid)(implicit ec: ExecutionContext): Unit =
+    addDeviceToGroup(groupId, deviceUuid) ~> route ~> check {
       status shouldBe OK
     }
 

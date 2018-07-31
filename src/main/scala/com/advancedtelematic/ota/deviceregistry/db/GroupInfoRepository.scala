@@ -48,9 +48,6 @@ object GroupInfoRepository extends SlickJsonHelper with ColumnTypes {
       .filter(g => g.namespace === namespace)
       .paginateResult(offset.getOrElse(0L), limit.getOrElse(defaultLimit))
 
-  protected def findByName(groupName: Name, namespace: Namespace): Query[GroupInfoTable, Group, Seq] =
-    groupInfos.filter(r => r.groupName === groupName && r.namespace === namespace)
-
   def findById(id: GroupId)(implicit db: Database, ec: ExecutionContext): Future[Group] =
     db.run(findByIdAction(id))
 
