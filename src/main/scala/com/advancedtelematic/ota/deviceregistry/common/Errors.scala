@@ -32,12 +32,15 @@ object Errors {
     val CannotAddDeviceToDynamicGroup      = ErrorCode("cannot_add_device_to_dynamic_group")
     val CannotRemoveDeviceFromDynamicGroup = ErrorCode("cannot_remove_device_from_dynamic_group")
     val InvalidGroupExpressionForGroupType = ErrorCode("invalid_group_expression_for_group_type")
+    val InvalidGroupExpression = ErrorCode("invalid_group_expression")
   }
+
+  def InvalidGroupExpression(err: String) = RawError(Codes.InvalidGroupExpression, StatusCodes.BadRequest, s"Invalid group expression: $err")
 
   def InvalidGroupExpressionForGroupType(groupType: GroupType, expression: Option[GroupExpression]) =
     RawError(Codes.InvalidGroupExpressionForGroupType,
              StatusCodes.BadRequest,
-             s"Invalid group expression ${expression} for group type ${groupType}")
+             s"Invalid group expression $expression for group type $groupType")
 
   val MissingDevice = RawError(Codes.MissingDevice, StatusCodes.NotFound, "device doesn't exist")
   val ConflictingDevice =

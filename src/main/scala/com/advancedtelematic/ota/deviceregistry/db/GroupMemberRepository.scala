@@ -8,17 +8,17 @@
 
 package com.advancedtelematic.ota.deviceregistry.db
 
+import cats.syntax.either._
 import com.advancedtelematic.libats.data.DataType.Namespace
 import com.advancedtelematic.libats.data.PaginationResult
 import com.advancedtelematic.libats.slick.db.SlickExtensions._
 import com.advancedtelematic.libats.slick.db.SlickUUIDKey._
 import com.advancedtelematic.ota.deviceregistry.common.Errors
 import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
-import com.advancedtelematic.ota.deviceregistry.data.{Device, GroupType, Uuid}
+import com.advancedtelematic.ota.deviceregistry.data.{Device, GroupExpAST, GroupType, Uuid}
 import slick.jdbc.MySQLProfile.api._
 import slick.lifted.Tag
 import com.advancedtelematic.libats.slick.db.SlickAnyVal._
-import com.advancedtelematic.ota.deviceregistry.data.Device.DeviceId
 
 import scala.concurrent.ExecutionContext
 
@@ -90,25 +90,25 @@ object GroupMemberRepository {
       .delete
       .map(_ => ())
 
-  def addDeviceToDynamicGroups(namespace: Namespace, uuid: Uuid, deviceId: Option[DeviceId])(
+  def addDeviceToDynamicGroups(namespace: Namespace, uuid: Uuid, device: Device)(
       implicit ec: ExecutionContext
   ): DBIO[Unit] =
-    dynamicGroupsForDevice(namespace, deviceId)
+    dynamicGroupsForDevice(namespace, device)
       .flatMap { groups =>
         DBIO.sequence(groups.map(gid => GroupMemberRepository.addGroupMember(gid, uuid)))
       }
       .map(_ => ())
 
-  private def dynamicGroupsForDevice(namespace: Namespace,
-                                     deviceId: Option[DeviceId])(implicit ec: ExecutionContext): DBIO[Seq[GroupId]] = {
-    val dynamicGroups =
+  private def dynamicGroupsForDevice(namespace: Namespace, device: Device)(implicit ec: ExecutionContext): DBIO[Seq[GroupId]] = {
+    val dynamicGroupIds =
       GroupInfoRepository.groupInfos.filter { g =>
         (g.`type` === GroupType.dynamic) && (g.namespace === namespace)
       }
 
-    dynamicGroups.result.map {
+    dynamicGroupIds.result.map {
       _.filter { g =>
-        deviceId.exists(_.underlying.contains(g.expression.get))
+        val compiledExp = GroupExpAST.compileToScala(g.expression.get).get
+        compiledExp(device)
       }.map(_.id)
     }
   }
@@ -119,5 +119,5 @@ object GroupMemberRepository {
     groupMembers
       .filter(_.deviceUuid === deviceUuid)
       .map(_.groupId)
-      .paginateResult(offset.getOrElse(0L), limit.getOrElse(50L))
+      .paginateResult(offset.getOrElse(0L), limit.getOrElse(defaultLimit))
 }

@@ -73,8 +73,6 @@ trait GroupRequests {
 
   def createDynamicGroupOk(groupName: Name, expression: GroupExpression)(implicit ec: ExecutionContext): GroupId =
     createGroup(groupName, GroupType.dynamic, Some(expression)) ~> route ~> check {
-      println(responseAs[Json].spaces2)
-
       status shouldBe Created
       responseAs[GroupId]
     }

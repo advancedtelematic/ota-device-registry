@@ -19,12 +19,13 @@ import com.advancedtelematic.libats.slick.db.SlickUUIDKey._
 import com.advancedtelematic.ota.deviceregistry.common.Errors
 import com.advancedtelematic.ota.deviceregistry.data.DeviceStatus.DeviceStatus
 import com.advancedtelematic.ota.deviceregistry.data.Group.{GroupExpression, GroupId}
-import com.advancedtelematic.ota.deviceregistry.data.{Device, DeviceStatus, DeviceT, Uuid}
+import com.advancedtelematic.ota.deviceregistry.data._
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.string.Regex
 import slick.jdbc.MySQLProfile.api._
 
 import scala.concurrent.ExecutionContext
+import scala.util.{Failure, Success}
 
 object DeviceRepository extends ColumnTypes {
   val defaultLimit = 50
@@ -60,16 +61,17 @@ object DeviceRepository extends ColumnTypes {
   def create(ns: Namespace, device: DeviceT)(implicit ec: ExecutionContext): DBIO[Uuid] = {
     val uuid: Uuid = device.deviceUuid.getOrElse(Uuid.generate())
 
-    val dbIO = devices += Device(ns,
-                                 uuid,
-                                 device.deviceName,
-                                 device.deviceId,
-                                 device.deviceType,
-                                 createdAt = Instant.now())
+    val dbDevice = Device(ns,
+      uuid,
+      device.deviceName,
+      device.deviceId,
+      device.deviceType,
+      createdAt = Instant.now())
 
+    val dbIO = devices += dbDevice
     dbIO
       .handleIntegrityErrors(Errors.ConflictingDevice)
-      .andThen { GroupMemberRepository.addDeviceToDynamicGroups(ns, uuid, device.deviceId) }
+      .andThen { GroupMemberRepository.addDeviceToDynamicGroups(ns, uuid, dbDevice) }
       .map(_ => uuid)
       .transactionally
   }
@@ -101,16 +103,17 @@ object DeviceRepository extends ColumnTypes {
   def searchByDeviceIdContains(ns: Namespace, expression: GroupExpression)(
       implicit db: Database,
       ec: ExecutionContext
-  ): DBIO[Seq[Uuid]] = deviceIdContainsQuery(ns, expression)
-
-  private def deviceIdContainsQuery(ns: Namespace, expression: GroupExpression)(
-      implicit ec: ExecutionContext
-  ): DBIO[Seq[Uuid]] =
-    devices
-      .filter(d => d.namespace === ns || d.namespace === ns)
-      .filter(_.deviceId.mappedTo[String].like("%" + expression.value + "%"))
-      .map(_.uuid)
-      .result
+  ): DBIO[Seq[Uuid]] = {
+    GroupExpAST(expression) match {
+      case Failure(err) => DBIO.failed(err)
+      case Success(filter) =>
+        devices
+          .filter(_.namespace === ns)
+          .filter(filter)
+          .map(_.uuid)
+          .result
+    }
+  }
 
   def search(ns: Namespace,
              regEx: Option[String Refined Regex],
@@ -170,7 +173,10 @@ object DeviceRepository extends ColumnTypes {
         GroupMemberRepository.deleteDynamicGroupsForDevice(ns, uuid)
       }
       .andThen {
-        GroupMemberRepository.addDeviceToDynamicGroups(ns, uuid, device.deviceId)
+        DeviceRepository.findByUuid(uuid)
+      }
+      .flatMap { device =>
+        GroupMemberRepository.addDeviceToDynamicGroups(ns, uuid, device)
       }
       .transactionally
   }
