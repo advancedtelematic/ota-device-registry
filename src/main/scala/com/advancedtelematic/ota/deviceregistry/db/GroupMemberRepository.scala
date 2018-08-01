@@ -8,6 +8,7 @@
 
 package com.advancedtelematic.ota.deviceregistry.db
 
+import com.advancedtelematic.libats.data.DataType.Namespace
 import com.advancedtelematic.libats.data.PaginationResult
 import com.advancedtelematic.libats.slick.db.SlickExtensions._
 import com.advancedtelematic.libats.slick.db.SlickUUIDKey._
@@ -16,6 +17,7 @@ import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
 import com.advancedtelematic.ota.deviceregistry.data.{GroupType, Uuid}
 import slick.jdbc.MySQLProfile.api._
 import slick.lifted.Tag
+import com.advancedtelematic.libats.slick.db.SlickAnyVal._
 
 import scala.concurrent.ExecutionContext
 
@@ -79,7 +81,7 @@ object GroupMemberRepository {
   def countDevicesInGroup(groupId: GroupId)(implicit ec: ExecutionContext): DBIO[Long] =
     listDevicesInGroupAction(groupId, None, None).map(_.total)
 
-  def listGroupsForDevice(deviceUuid: Uuid, offset: Option[Long], limit: Option[Long])(
+  def listGroupsForDevice(namespace: Namespace, deviceUuid: Uuid, offset: Option[Long], limit: Option[Long])(
       implicit ec: ExecutionContext
   ): DBIO[PaginationResult[GroupId]] = {
 
@@ -90,7 +92,7 @@ object GroupMemberRepository {
     val dynamicGroupIds = for {
       d <- DeviceRepository.devices if d.uuid === deviceUuid
       g <- GroupInfoRepository.groupInfos
-      if g.`type` === GroupType.dynamic && d.deviceId
+      if (g.`type` === GroupType.dynamic) && (d.namespace === namespace) && d.deviceId
         .mappedTo[String]
         .like("%".bind ++ g.expression.mappedTo[String] ++ "%")
     } yield g.id

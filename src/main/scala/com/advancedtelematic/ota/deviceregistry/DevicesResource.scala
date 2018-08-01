@@ -123,9 +123,9 @@ class DevicesResource(
   def updateDevice(ns: Namespace, uuid: Uuid, device: DeviceT): Route =
     complete(db.run(DeviceRepository.update(ns, uuid, device)))
 
-  def getGroupsForDevice(uuid: Uuid): Route =
+  def getGroupsForDevice(ns: Namespace, uuid: Uuid): Route =
     parameters(('offset.as[Long].?, 'limit.as[Long].?)) { (offset, limit) =>
-      complete(db.run(GroupMemberRepository.listGroupsForDevice(uuid, offset, limit)))
+      complete(db.run(GroupMemberRepository.listGroupsForDevice(ns, uuid, offset, limit)))
     }
 
   def updateInstalledSoftware(device: Uuid): Route =
@@ -188,7 +188,7 @@ class DevicesResource(
           fetchDevice(uuid)
         } ~
         (scope.get & path("groups") & pathEnd) {
-          getGroupsForDevice(uuid)
+          getGroupsForDevice(ns.namespace, uuid)
         } ~
         (path("packages") & scope.get) {
           listPackagesOnDevice(uuid)
