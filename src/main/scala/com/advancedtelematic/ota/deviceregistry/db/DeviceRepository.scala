@@ -118,7 +118,7 @@ object DeviceRepository extends ColumnTypes {
       DBIO.successful(PaginationResult(0, 0, 0, Seq.empty))
     else {
       devices
-        .filter(_.namespace === ns)
+        .filter(d => d.namespace === ns || d.namespace === ns)
         .filter(_.deviceId.mappedTo[String].like("%" + expression.get.value + "%"))
         .map(_.uuid)
         .paginateAndSortResult(identity, offset.getOrElse(0L), limit.getOrElse[Long](defaultLimit))

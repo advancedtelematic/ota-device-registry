@@ -17,7 +17,8 @@ lazy val `ota-device-registry` =
         library.scalaTest  % Test,
         library.akkaHttpTestKit % Test,
         library.circeTesting % Test
-      )
+      ),
+      libraryDependencies += "org.tpolecat" %% "atto-core" % "0.6.2"
     )
     .settings(libraryDependencies ++= library.libAts)
     .settings(dependencyOverrides += "com.typesafe.akka" %% "akka-stream-kafka" % "0.18")
