@@ -14,10 +14,11 @@ import com.advancedtelematic.libats.slick.db.SlickExtensions._
 import com.advancedtelematic.libats.slick.db.SlickUUIDKey._
 import com.advancedtelematic.ota.deviceregistry.common.Errors
 import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
-import com.advancedtelematic.ota.deviceregistry.data.{GroupType, Uuid}
+import com.advancedtelematic.ota.deviceregistry.data.{Device, GroupType, Uuid}
 import slick.jdbc.MySQLProfile.api._
 import slick.lifted.Tag
 import com.advancedtelematic.libats.slick.db.SlickAnyVal._
+import com.advancedtelematic.ota.deviceregistry.data.Device.DeviceId
 
 import scala.concurrent.ExecutionContext
 
@@ -59,9 +60,9 @@ object GroupMemberRepository {
       .delete
       .handleSingleUpdateError(Errors.MissingGroup)
 
-  def removeGroupMemberAll(deviceId: Uuid)(implicit ec: ExecutionContext): DBIO[Int] =
+  def removeGroupMemberAll(deviceUuid: Uuid)(implicit ec: ExecutionContext): DBIO[Int] =
     groupMembers
-      .filter(r => r.deviceUuid === deviceId)
+      .filter(r => r.deviceUuid === deviceUuid)
       .delete
 
   def listDevicesInGroup(groupId: GroupId, offset: Option[Long], limit: Option[Long])(
@@ -81,29 +82,42 @@ object GroupMemberRepository {
   def countDevicesInGroup(groupId: GroupId)(implicit ec: ExecutionContext): DBIO[Long] =
     listDevicesInGroupAction(groupId, None, None).map(_.total)
 
-  def listGroupsForDevice(namespace: Namespace, deviceUuid: Uuid, offset: Option[Long], limit: Option[Long])(
+  def deleteDynamicGroupsForDevice(namespace: Namespace, deviceUuid: Uuid)(
       implicit ec: ExecutionContext
-  ): DBIO[PaginationResult[GroupId]] = {
+  ): DBIO[Unit] =
+    groupMembers
+      .filter(_.groupId.in(GroupInfoRepository.groupInfos.filter(_.`type` === GroupType.dynamic).map(_.id)))
+      .delete
+      .map(_ => ())
 
-    val staticGroupIds = groupMembers
-      .filter(_.deviceUuid === deviceUuid)
-      .map(_.groupId)
+  def addDeviceToDynamicGroups(namespace: Namespace, uuid: Uuid, deviceId: Option[DeviceId])(
+      implicit ec: ExecutionContext
+  ): DBIO[Unit] =
+    dynamicGroupsForDevice(namespace, deviceId)
+      .flatMap { groups =>
+        DBIO.sequence(groups.map(gid => GroupMemberRepository.addGroupMember(gid, uuid)))
+      }
+      .map(_ => ())
 
-    val dynamicGroupIds = for {
-      d <- DeviceRepository.devices if d.uuid === deviceUuid
-      g <- GroupInfoRepository.groupInfos
-      if (g.`type` === GroupType.dynamic) && (d.namespace === namespace) && d.deviceId
-        .mappedTo[String]
-        .like("%".bind ++ g.expression.mappedTo[String] ++ "%")
-    } yield g.id
+  private def dynamicGroupsForDevice(namespace: Namespace,
+                                     deviceId: Option[DeviceId])(implicit ec: ExecutionContext): DBIO[Seq[GroupId]] = {
+    val dynamicGroups =
+      GroupInfoRepository.groupInfos.filter { g =>
+        (g.`type` === GroupType.dynamic) && (g.namespace === namespace)
+      }
 
-    staticGroupIds
-      .union(dynamicGroupIds)
-      .paginateResult(offset.getOrElse(0L), limit.getOrElse(50L))
+    dynamicGroups.result.map {
+      _.filter { g =>
+        deviceId.exists(_.underlying.contains(g.expression.get))
+      }.map(_.id)
+    }
   }
 
-  def removeDeviceFromAllGroups(deviceUuid: Uuid)(implicit ec: ExecutionContext): DBIO[Int] =
+  def listGroupsForDevice(namespace: Namespace, deviceUuid: Uuid, offset: Option[Long], limit: Option[Long])(
+      implicit ec: ExecutionContext
+  ): DBIO[PaginationResult[GroupId]] =
     groupMembers
       .filter(_.deviceUuid === deviceUuid)
-      .delete
+      .map(_.groupId)
+      .paginateResult(offset.getOrElse(0L), limit.getOrElse(50L))
 }

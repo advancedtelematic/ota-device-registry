@@ -68,8 +68,9 @@ object DeviceRepository extends ColumnTypes {
                                  createdAt = Instant.now())
 
     dbIO
-      .map(_ => uuid)
       .handleIntegrityErrors(Errors.ConflictingDevice)
+      .andThen { GroupMemberRepository.addDeviceToDynamicGroups(ns, uuid, device.deviceId) }
+      .map(_ => uuid)
       .transactionally
   }
 
@@ -97,32 +98,19 @@ object DeviceRepository extends ColumnTypes {
       .filter(d => d.namespace === ns && d.deviceId === deviceId)
       .result
 
-  def searchByDeviceIdContains(ns: Namespace,
-                               expression: Option[GroupExpression],
-                               offset: Option[Long],
-                               limit: Option[Long])(
+  def searchByDeviceIdContains(ns: Namespace, expression: GroupExpression)(
       implicit db: Database,
       ec: ExecutionContext
-  ): DBIO[PaginationResult[Uuid]] = deviceIdContainsQuery(ns, expression, offset, limit)
+  ): DBIO[Seq[Uuid]] = deviceIdContainsQuery(ns, expression)
 
-  def countByDeviceIdContains(ns: Namespace, expression: Option[GroupExpression])(implicit ec: ExecutionContext) =
-    deviceIdContainsQuery(ns, expression, None, None).map(_.total)
-
-  private def deviceIdContainsQuery(ns: Namespace,
-                                    expression: Option[GroupExpression],
-                                    offset: Option[Long],
-                                    limit: Option[Long])(
+  private def deviceIdContainsQuery(ns: Namespace, expression: GroupExpression)(
       implicit ec: ExecutionContext
-  ): DBIO[PaginationResult[Uuid]] =
-    if (expression.isEmpty)
-      DBIO.successful(PaginationResult(0, 0, 0, Seq.empty))
-    else {
-      devices
-        .filter(d => d.namespace === ns || d.namespace === ns)
-        .filter(_.deviceId.mappedTo[String].like("%" + expression.get.value + "%"))
-        .map(_.uuid)
-        .paginateAndSortResult(identity, offset.getOrElse(0L), limit.getOrElse[Long](defaultLimit))
-    }
+  ): DBIO[Seq[Uuid]] =
+    devices
+      .filter(d => d.namespace === ns || d.namespace === ns)
+      .filter(_.deviceId.mappedTo[String].like("%" + expression.value + "%"))
+      .map(_.uuid)
+      .result
 
   def search(ns: Namespace,
              regEx: Option[String Refined Regex],
@@ -177,7 +165,14 @@ object DeviceRepository extends ColumnTypes {
       .handleIntegrityErrors(Errors.ConflictingDevice)
       .handleSingleUpdateError(Errors.MissingDevice)
 
-    dbIO.transactionally
+    dbIO
+      .andThen {
+        GroupMemberRepository.deleteDynamicGroupsForDevice(ns, uuid)
+      }
+      .andThen {
+        GroupMemberRepository.addDeviceToDynamicGroups(ns, uuid, device.deviceId)
+      }
+      .transactionally
   }
 
   def findByUuid(uuid: Uuid)(implicit ec: ExecutionContext): DBIO[Device] =

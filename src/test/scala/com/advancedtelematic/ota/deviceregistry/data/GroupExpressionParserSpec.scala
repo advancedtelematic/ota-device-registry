@@ -36,37 +36,49 @@ class GroupExpressionParserSpec extends FunSuite with Matchers {
 
   test("parses multiple or expressions with parens") {
     runParser("(deviceid contains bananas1) or deviceid contains oranges or deviceid contains melons") shouldBe
-      Or(NonEmptyList.of(DeviceContains("bananas1"), DeviceContains("oranges"), DeviceContains("melons")))
+    Or(NonEmptyList.of(DeviceContains("bananas1"), DeviceContains("oranges"), DeviceContains("melons")))
   }
 
   test("parses multiple or expressions with nested parens") {
     runParser("(deviceid contains bananas) or ((deviceid contains oranges) or deviceid contains melons)") shouldBe
-    Or(NonEmptyList.of(DeviceContains("bananas"), Or(NonEmptyList.of(DeviceContains("oranges"), DeviceContains("melons")))))
+    Or(
+      NonEmptyList.of(DeviceContains("bananas"),
+                      Or(NonEmptyList.of(DeviceContains("oranges"), DeviceContains("melons"))))
+    )
   }
 
   test("parses multiple or expressions") {
     runParser("deviceid contains something0 or deviceid contains other0 or deviceid contains other1") shouldBe
-      Or(NonEmptyList.of(DeviceContains("something0"), DeviceContains("other0"), DeviceContains("other1")))
+    Or(NonEmptyList.of(DeviceContains("something0"), DeviceContains("other0"), DeviceContains("other1")))
   }
 
   test("parses and expression") {
     runParser("(deviceid contains something0) and (deviceid contains other0)") shouldBe
-      And(NonEmptyList.of(DeviceContains("something0"), DeviceContains("other0")))
+    And(NonEmptyList.of(DeviceContains("something0"), DeviceContains("other0")))
   }
 
   test("parses and/or expression") {
     runParser("deviceid contains bananas and (deviceid contains oranges or deviceid contains melons)")
-    And(NonEmptyList.of(DeviceContains("bananas"), Or(NonEmptyList.of(DeviceContains("oranges"), DeviceContains("melons")))))
+    And(
+      NonEmptyList.of(DeviceContains("bananas"),
+                      Or(NonEmptyList.of(DeviceContains("oranges"), DeviceContains("melons"))))
+    )
   }
 
   test("parses and/or expression without parens") {
     runParser("deviceid contains bananas and deviceid contains oranges or deviceid contains melons") shouldBe
-      Or(NonEmptyList.of(And(NonEmptyList.of(DeviceContains("bananas"), DeviceContains("oranges"))), DeviceContains("melons")))
+    Or(
+      NonEmptyList.of(And(NonEmptyList.of(DeviceContains("bananas"), DeviceContains("oranges"))),
+                      DeviceContains("melons"))
+    )
   }
 
   test("parses nested expressions when using parens") {
     runParser("(deviceid contains something0) and ((deviceid contains other0) or (deviceid contains melons))") shouldBe
-      And(NonEmptyList.of(DeviceContains("something0"), Or(NonEmptyList.of(DeviceContains("other0"), DeviceContains("melons")))))
+    And(
+      NonEmptyList.of(DeviceContains("something0"),
+                      Or(NonEmptyList.of(DeviceContains("other0"), DeviceContains("melons"))))
+    )
   }
 }
 
@@ -135,10 +147,14 @@ class GroupExpressionRunSpec extends FunSuite with Matchers with DatabaseSpec wi
   }
 
   test("matches all expressions when using and") {
-    runGroupExpression(s"((deviceid contains A) and (deviceid contains B)) and (deviceid contains C)") shouldBe Seq(device0.deviceUuid.get)
+    runGroupExpression(s"((deviceid contains A) and (deviceid contains B)) and (deviceid contains C)") shouldBe Seq(
+      device0.deviceUuid.get
+    )
   }
 
   test("matches all expressions when using and without parens") {
-    runGroupExpression(s"deviceid contains A and deviceid contains B and (deviceid contains C)") shouldBe Seq(device0.deviceUuid.get)
+    runGroupExpression(s"deviceid contains A and deviceid contains B and (deviceid contains C)") shouldBe Seq(
+      device0.deviceUuid.get
+    )
   }
 }

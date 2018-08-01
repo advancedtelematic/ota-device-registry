@@ -82,6 +82,11 @@ trait DeviceRequests { self: ResourceSpec =>
   def updateDevice(uuid: Uuid, device: DeviceT)(implicit ec: ExecutionContext): HttpRequest =
     Put(Resource.uri(api, uuid.show), device)
 
+  def updateDeviceOk(uuid: Uuid, device: DeviceT)(implicit ec: ExecutionContext): Unit =
+    updateDevice(uuid, device) ~> route ~> check {
+      status shouldBe OK
+    }
+
   def createDevice(device: DeviceT)(implicit ec: ExecutionContext): HttpRequest =
     Post(Resource.uri(api), device)
 

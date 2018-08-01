@@ -4,7 +4,7 @@ import akka.http.scaladsl.util.FastFuture
 import com.advancedtelematic.libats.data.DataType.Namespace
 import com.advancedtelematic.libats.data.PaginationResult
 import com.advancedtelematic.ota.deviceregistry.common.Errors
-import com.advancedtelematic.ota.deviceregistry.data.Group.{GroupExpression, GroupId}
+import com.advancedtelematic.ota.deviceregistry.data.Group.{GroupExpression, GroupId, Name}
 import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
 import com.advancedtelematic.ota.deviceregistry.data.{Group, GroupType, Uuid}
 import com.advancedtelematic.ota.deviceregistry.db.{DeviceRepository, GroupInfoRepository, GroupMemberRepository}
@@ -13,22 +13,33 @@ import slick.jdbc.MySQLProfile.api._
 import scala.concurrent.{ExecutionContext, Future}
 
 protected trait GroupMembershipOperations {
-  def listDevices(group: Group, offset: Option[Long], limit: Option[Long]): Future[PaginationResult[Uuid]]
   def addMember(groupId: GroupId, deviceId: Uuid): Future[Unit]
-  def countDevices(group: Group): Future[Long]
   def removeMember(group: Group, deviceId: Uuid): Future[Unit]
 }
 
 protected class DynamicMembership(implicit db: Database, ec: ExecutionContext) extends GroupMembershipOperations {
 
-  override def listDevices(group: Group, offset: Option[Long], limit: Option[Long]): Future[PaginationResult[Uuid]] =
-    db.run(DeviceRepository.searchByDeviceIdContains(group.namespace, group.expression, offset, limit))
+  def create(
+      groupId: GroupId,
+      name: Name,
+      namespace: Namespace,
+      expression: GroupExpression
+  ): Future[GroupId] = db.run {
+    GroupInfoRepository
+      .create(groupId, name, namespace, GroupType.dynamic, Some(expression))
+      .andThen {
+        DeviceRepository.searchByDeviceIdContains(namespace, expression).flatMap { devices =>
+          DBIO.sequence(devices.map { d =>
+            GroupMemberRepository.addGroupMember(groupId, d)
+          })
+        }
+      }
+      .map(_ => groupId)
+      .transactionally
+  }
 
   override def addMember(groupId: GroupId, deviceId: Uuid): Future[Unit] =
     FastFuture.failed(Errors.CannotAddDeviceToDynamicGroup)
-
-  override def countDevices(group: Group): Future[Long] =
-    db.run(DeviceRepository.countByDeviceIdContains(group.namespace, group.expression))
 
   override def removeMember(group: Group, deviceId: Uuid): Future[Unit] =
     FastFuture.failed(Errors.CannotRemoveDeviceFromDynamicGroup)
@@ -36,16 +47,19 @@ protected class DynamicMembership(implicit db: Database, ec: ExecutionContext) e
 
 protected class StaticMembership(implicit db: Database, ec: ExecutionContext) extends GroupMembershipOperations {
 
-  override def listDevices(group: Group, offset: Option[Long], limit: Option[Long]): Future[PaginationResult[Uuid]] =
-    db.run(GroupMemberRepository.listDevicesInGroup(group.id, offset, limit))
-
   override def addMember(groupId: GroupId, deviceId: Uuid): Future[Unit] =
     db.run(GroupMemberRepository.addGroupMember(groupId, deviceId)).map(_ => ())
 
-  override def countDevices(group: Group): Future[Long] = db.run(GroupMemberRepository.countDevicesInGroup(group.id))
-
   override def removeMember(group: Group, deviceId: Uuid): Future[Unit] =
     db.run(GroupMemberRepository.removeGroupMember(group.id, deviceId))
+
+  def create(
+      groupId: GroupId,
+      name: Name,
+      namespace: Namespace
+  ): Future[GroupId] = db.run {
+    GroupInfoRepository.create(groupId, name, namespace, GroupType.static, expression = None)
+  }
 }
 
 class GroupMembership(implicit val db: Database, ec: ExecutionContext) {
@@ -60,23 +74,23 @@ class GroupMembership(implicit val db: Database, ec: ExecutionContext) {
              name: Group.Name,
              namespace: Namespace,
              groupType: GroupType,
-             expression: Option[GroupExpression]) = db.run {
-    GroupInfoRepository.create(groupId, name, namespace, groupType, expression)
-  }
+             expression: Option[GroupExpression]) =
+    (groupType, expression) match {
+      case (GroupType.static, None)       => new StaticMembership().create(groupId, name, namespace)
+      case (GroupType.static, exp)        => FastFuture.failed(Errors.InvalidGroupExpressionForGroupType(groupType, exp))
+      case (GroupType.dynamic, None)      => FastFuture.failed(Errors.InvalidGroupExpressionForGroupType(groupType, None))
+      case (GroupType.dynamic, Some(exp)) => new DynamicMembership().create(groupId, name, namespace, exp)
+    }
 
   def listDevices(groupId: GroupId, offset: Option[Long], limit: Option[Long]): Future[PaginationResult[Uuid]] =
-    runGroupOperation(groupId) { (g, m) =>
-      m.listDevices(g, offset, limit)
-    }
+    db.run(GroupMemberRepository.listDevicesInGroup(groupId, offset, limit))
 
   def addGroupMember(groupId: GroupId, deviceId: Uuid)(implicit ec: ExecutionContext): Future[Unit] =
     runGroupOperation(groupId) { (g, m) =>
       m.addMember(g.id, deviceId)
     }
 
-  def countDevices(groupId: GroupId): Future[Long] = runGroupOperation(groupId) { (g, m) =>
-    m.countDevices(g)
-  }
+  def countDevices(groupId: GroupId): Future[Long] = db.run(GroupMemberRepository.countDevicesInGroup(groupId))
 
   def removeGroupMember(groupId: GroupId, deviceId: Uuid): Future[Unit] = runGroupOperation(groupId) { (g, m) =>
     m.removeMember(g, deviceId)

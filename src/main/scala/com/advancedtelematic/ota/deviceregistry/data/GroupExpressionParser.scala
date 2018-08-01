@@ -9,11 +9,11 @@ import slick.lifted.Rep
 import slick.jdbc.MySQLProfile.api._
 import com.advancedtelematic.libats.slick.db.SlickExtensions._
 import com.advancedtelematic.libats.slick.db.SlickAnyVal._
-import com.advancedtelematic.ota.deviceregistry.data.GroupExpAST.{GroupExpression, And, Or, DeviceContains}
+import com.advancedtelematic.ota.deviceregistry.data.GroupExpAST.{And, DeviceContains, GroupExpression, Or}
 
 object GroupExpAST {
   sealed trait GroupExpression
-  case class DeviceContains(word: String) extends GroupExpression
+  case class DeviceContains(word: String)             extends GroupExpression
   case class Or(cond: NonEmptyList[GroupExpression])  extends GroupExpression
   case class And(cond: NonEmptyList[GroupExpression]) extends GroupExpression
 
@@ -24,14 +24,14 @@ object GroupExpAST {
 
     case Or(conds) =>
       val cc = conds.map(eval)
-      cc.reduceLeft { (a, b) =>
-        (d: DeviceTable) => a(d) || b(d)
+      cc.reduceLeft { (a, b) => (d: DeviceTable) =>
+        a(d) || b(d)
       }
     case And(conds) =>
       val cc = conds.map(eval)
 
-      cc.reduceLeft { (a, b) =>
-        (d: DeviceTable) => a(d) && b(d)
+      cc.reduceLeft { (a, b) => (d: DeviceTable) =>
+        a(d) && b(d)
       }
   }
 }

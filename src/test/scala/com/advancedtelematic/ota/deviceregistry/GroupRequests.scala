@@ -16,6 +16,7 @@ import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId._
 import com.advancedtelematic.ota.deviceregistry.data.Group.{GroupExpression, GroupId, Name}
 import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
 import com.advancedtelematic.ota.deviceregistry.data.{GroupType, Uuid}
+import io.circe.Json
 
 import scala.concurrent.ExecutionContext
 
@@ -72,6 +73,8 @@ trait GroupRequests {
 
   def createDynamicGroupOk(groupName: Name, expression: GroupExpression)(implicit ec: ExecutionContext): GroupId =
     createGroup(groupName, GroupType.dynamic, Some(expression)) ~> route ~> check {
+      println(responseAs[Json].spaces2)
+
       status shouldBe Created
       responseAs[GroupId]
     }

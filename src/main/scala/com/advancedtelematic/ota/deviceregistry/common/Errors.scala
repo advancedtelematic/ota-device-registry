@@ -11,6 +11,8 @@ package com.advancedtelematic.ota.deviceregistry.common
 import com.advancedtelematic.libats.data.ErrorCode
 import com.advancedtelematic.libats.http.Errors.{EntityAlreadyExists, MissingEntity, RawError}
 import com.advancedtelematic.ota.deviceregistry.data.Group
+import com.advancedtelematic.ota.deviceregistry.data.Group.GroupExpression
+import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
 import com.advancedtelematic.ota.deviceregistry.db.GroupMemberRepository.GroupMember
 import com.advancedtelematic.ota.deviceregistry.db.PublicCredentialsRepository.DevicePublicCredentials
 import com.advancedtelematic.ota.deviceregistry.db.SystemInfoRepository.SystemInfo
@@ -29,7 +31,13 @@ object Errors {
     val RequestNeedsCredentials            = ErrorCode("request_needs_credentials")
     val CannotAddDeviceToDynamicGroup      = ErrorCode("cannot_add_device_to_dynamic_group")
     val CannotRemoveDeviceFromDynamicGroup = ErrorCode("cannot_remove_device_from_dynamic_group")
+    val InvalidGroupExpressionForGroupType = ErrorCode("invalid_group_expression_for_group_type")
   }
+
+  def InvalidGroupExpressionForGroupType(groupType: GroupType, expression: Option[GroupExpression]) =
+    RawError(Codes.InvalidGroupExpressionForGroupType,
+             StatusCodes.BadRequest,
+             s"Invalid group expression ${expression} for group type ${groupType}")
 
   val MissingDevice = RawError(Codes.MissingDevice, StatusCodes.NotFound, "device doesn't exist")
   val ConflictingDevice =
