@@ -34,7 +34,7 @@ class DynamicGroupsResourceSpec extends FunSuite with ResourceSpec {
 
   test("device gets added to dynamic group") {
     val group      = genGroupInfo.sample.get
-    val deviceT    = genDeviceT.retryUntil(_.deviceId.isDefined).sample.get
+    val deviceT    = genDeviceT.sample.get
     val deviceUuid = createDeviceOk(deviceT)
     val groupId    = createDynamicGroupOk(group.groupName, deviceT.deviceId.get.toValidExp)
 
@@ -59,7 +59,7 @@ class DynamicGroupsResourceSpec extends FunSuite with ResourceSpec {
 
   test("dynamic group with invalid expression is not created") {
     val group      = genGroupInfo.sample.get
-    val deviceT    = genDeviceT.retryUntil(_.deviceId.isDefined).sample.get
+    val deviceT    = genDeviceT.sample.get
     val deviceUuid = createDeviceOk(deviceT)
     createGroup(group.groupName, GroupType.dynamic, Some(Refined.unsafeApply(""))) ~> route ~> check {
       status shouldBe BadRequest
@@ -68,7 +68,7 @@ class DynamicGroupsResourceSpec extends FunSuite with ResourceSpec {
 
   test("manually adding a device to dynamic group fails") {
     val group      = genGroupInfo.sample.get
-    val deviceT    = genDeviceT.retryUntil(_.deviceId.isDefined).sample.get
+    val deviceT    = genDeviceT.sample.get
     val deviceUuid = createDeviceOk(deviceT)
     val groupId    = createDynamicGroupOk(group.groupName, deviceT.deviceId.get.toValidExp)
 
@@ -79,7 +79,7 @@ class DynamicGroupsResourceSpec extends FunSuite with ResourceSpec {
 
   test("counts devices for dynamic group") {
     val group   = genGroupInfo.sample.get
-    val deviceT = genDeviceT.retryUntil(_.deviceId.isDefined).sample.get
+    val deviceT = genDeviceT.sample.get
     val _       = createDeviceOk(deviceT)
     val groupId = createDynamicGroupOk(group.groupName, deviceT.deviceId.get.toValidExp)
 
@@ -91,7 +91,7 @@ class DynamicGroupsResourceSpec extends FunSuite with ResourceSpec {
 
   test("removing a device from a dynamic group fails") {
     val group      = genGroupInfo.sample.get
-    val deviceT    = genDeviceT.retryUntil(_.deviceId.isDefined).sample.get
+    val deviceT    = genDeviceT.sample.get
     val deviceUuid = createDeviceOk(deviceT)
     val groupId    = createDynamicGroupOk(group.groupName, deviceT.deviceId.get.toValidExp)
     removeDeviceFromGroup(groupId, deviceUuid) ~> route ~> check {
@@ -101,7 +101,7 @@ class DynamicGroupsResourceSpec extends FunSuite with ResourceSpec {
 
   test("deleting a device causes it to be removed from dynamic group") {
     val group      = genGroupInfo.sample.get
-    val deviceT    = genDeviceT.retryUntil(_.deviceId.isDefined).sample.get
+    val deviceT    = genDeviceT.sample.get
     val deviceUuid = createDeviceOk(deviceT)
     val groupId    = createDynamicGroupOk(group.groupName, deviceT.deviceId.get.toValidExp)
     listDevicesInGroup(groupId) ~> route ~> check {
@@ -121,10 +121,7 @@ class DynamicGroupsResourceSpec extends FunSuite with ResourceSpec {
     val groupName1 = genGroupName.sample.get
     val groupName2 = genGroupName.sample.get
 
-    val deviceT = genDeviceT
-      .retryUntil(d => d.deviceId.isDefined && d.deviceId.get.show.length > 9)
-      .sample
-      .get
+    val deviceT = genDeviceT.sample.get.copy(deviceName = Refined.unsafeApply("ABCDEFGHIJ"))
     val deviceId   = deviceT.deviceId.get
     val deviceUuid = createDeviceOk(deviceT)
 
@@ -146,10 +143,7 @@ class DynamicGroupsResourceSpec extends FunSuite with ResourceSpec {
     val groupName1 = genGroupName.sample.get
     val groupName2 = genGroupName.sample.get
 
-    val deviceT = genDeviceT
-      .retryUntil(d => d.deviceId.isDefined && d.deviceId.get.show.length > 9)
-      .sample
-      .get
+    val deviceT = genDeviceT.sample.get.copy(deviceName = Refined.unsafeApply("ABCDEFGHIJ"))
     val deviceId   = deviceT.deviceId.get
     val deviceUuid = createDeviceOk(deviceT)
 
@@ -167,10 +161,7 @@ class DynamicGroupsResourceSpec extends FunSuite with ResourceSpec {
   }
 
   test("getting the groups of a device returns the correct groups (dynamic and static)") {
-    val deviceT = genDeviceT
-      .retryUntil(d => d.deviceId.isDefined && d.deviceId.get.show.length > 4)
-      .sample
-      .get
+    val deviceT = genDeviceT.sample.get.copy(deviceName = Refined.unsafeApply("ABCDE"))
     val deviceId   = deviceT.deviceId.get
     val deviceUuid = createDeviceOk(deviceT)
 
