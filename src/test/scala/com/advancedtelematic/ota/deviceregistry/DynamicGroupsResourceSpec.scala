@@ -15,7 +15,7 @@ import eu.timepit.refined.api.Refined
 import Group._
 import com.advancedtelematic.ota.deviceregistry.data.Device.DeviceId
 
-class DynamicGroupsSpec extends FunSuite with ResourceSpec {
+class DynamicGroupsResourceSpec extends FunSuite with ResourceSpec {
 
   import com.advancedtelematic.libats.codecs.CirceCodecs._
   import io.circe.generic.semiauto.deriveDecoder
@@ -139,6 +139,30 @@ class DynamicGroupsSpec extends FunSuite with ResourceSpec {
       groups.total should be(2)
       groups.values should contain(groupId1)
       groups.values should contain(groupId2)
+    }
+  }
+
+  test("getting the groups of a device using two 'contains' returns the correct dynamic groups") {
+    val groupName1 = genGroupName.sample.get
+    val groupName2 = genGroupName.sample.get
+
+    val deviceT = genDeviceT
+      .retryUntil(d => d.deviceId.isDefined && d.deviceId.get.show.length > 9)
+      .sample
+      .get
+    val deviceId   = deviceT.deviceId.get
+    val deviceUuid = createDeviceOk(deviceT)
+
+    val expression1: GroupExpression = Refined.unsafeApply(s"deviceid contains ${deviceId.show.substring(0, 3)} and deviceid contains ${deviceId.show.substring(6, 9)}")
+    val groupId1    = createDynamicGroupOk(groupName1, expression1)
+    val expression2: GroupExpression = Refined.unsafeApply(s"deviceid contains 0empty0")
+    val _    = createDynamicGroupOk(groupName2, expression2)
+
+    getGroupsOfDevice(deviceUuid) ~> route ~> check {
+      status shouldBe OK
+      val groups = responseAs[PaginationResult[GroupId]]
+      groups.total shouldBe 1
+      groups.values should contain(groupId1)
     }
   }
 

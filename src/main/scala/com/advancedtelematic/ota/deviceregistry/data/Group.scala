@@ -56,9 +56,17 @@ object Group {
   type GroupExpression = Refined[String, ValidExpression]
 
   implicit val validGroupExpression: Validate.Plain[String, ValidExpression] =
-    Validate.fromPredicate(
-      expression => expression.length > 1 && expression.length <= 200,
-      expression => s"group expression ($expression) must be between 1 and 200 characters.",
+    Validate.fromPartial(
+      expression => {
+        if (expression.length < 1 || expression.length > 200)
+          throw new IllegalArgumentException("The expression is too small or too big.")
+
+        GroupExpressionParser.parse(expression) match {
+          case Left(err) => throw err
+          case Right(_)  => expression
+        }
+      },
+       "group expression",
       ValidExpression()
     )
 
