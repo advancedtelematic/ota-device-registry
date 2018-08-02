@@ -192,31 +192,4 @@ class DynamicGroupsResourceSpec extends FunSuite with ResourceSpec {
       groups.values should contain(dynamicGroupId)
     }
   }
-
-  test("renaming a device id should remove it from dynamic group") {
-    val deviceT    = genDeviceT.retryUntil(d => d.deviceId.isDefined && d.deviceId.get.show.length > 4).sample.get
-    val deviceId   = deviceT.deviceId.get
-    val deviceUuid = createDeviceOk(deviceT)
-
-    val dynamicGroup   = genGroupName.sample.get
-    val expression: GroupExpression = Refined.unsafeApply(s"deviceid contains ${deviceId.show.substring(1, 5)}")
-    val dynamicGroupId = createDynamicGroupOk(dynamicGroup, expression)
-
-    getGroupsOfDevice(deviceUuid) ~> route ~> check {
-      status shouldBe OK
-      val groups = responseAs[PaginationResult[GroupId]]
-      groups.total shouldBe 1
-      groups.values should contain(dynamicGroupId)
-    }
-
-    updateDeviceOk(deviceUuid, deviceT.copy(deviceId = None))
-
-    getGroupsOfDevice(deviceUuid) ~> route ~> check {
-      status shouldBe OK
-      val groups = responseAs[PaginationResult[GroupId]]
-      groups.total shouldBe 0
-    }
-
-  }
-
 }

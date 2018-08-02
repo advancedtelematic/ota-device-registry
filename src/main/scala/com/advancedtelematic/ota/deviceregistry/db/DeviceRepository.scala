@@ -156,28 +156,15 @@ object DeviceRepository extends ColumnTypes {
                                       limit.getOrElse[Long](defaultLimit).min(maxLimit))
   }
 
-  def update(ns: Namespace, uuid: Uuid, device: DeviceT)(
+  def updateDeviceName(ns: Namespace, uuid: Uuid, deviceName: DeviceName)(
       implicit ec: ExecutionContext
-  ): DBIO[Unit] = {
-    val dbIO = devices
+  ): DBIO[Unit] =
+    devices
       .filter(_.uuid === uuid)
       .map(r => r.deviceName)
-      .update(device.deviceName)
+      .update(deviceName)
       .handleIntegrityErrors(Errors.ConflictingDevice)
       .handleSingleUpdateError(Errors.MissingDevice)
-
-    dbIO
-      .andThen {
-        GroupMemberRepository.deleteDynamicGroupsForDevice(ns, uuid)
-      }
-      .andThen {
-        DeviceRepository.findByUuid(uuid)
-      }
-      .flatMap { device =>
-        GroupMemberRepository.addDeviceToDynamicGroups(ns, uuid, device)
-      }
-      .transactionally
-  }
 
   def findByUuid(uuid: Uuid)(implicit ec: ExecutionContext): DBIO[Device] =
     devices

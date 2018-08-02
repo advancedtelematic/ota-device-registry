@@ -121,7 +121,7 @@ class DevicesResource(
     complete(db.run(DeviceRepository.findByUuid(uuid)))
 
   def updateDevice(ns: Namespace, uuid: Uuid, device: DeviceT): Route =
-    complete(db.run(DeviceRepository.update(ns, uuid, device)))
+    complete(db.run(DeviceRepository.updateDeviceName(ns, uuid, device.deviceName)))
 
   def getGroupsForDevice(ns: Namespace, uuid: Uuid): Route =
     parameters(('offset.as[Long].?, 'limit.as[Long].?)) { (offset, limit) =>
