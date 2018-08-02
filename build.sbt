@@ -106,7 +106,7 @@ lazy val dockerSettings = Seq(
 
 lazy val scalafmtSettings =
   Seq(
-    scalafmtOnCompile := true,
+    scalafmtOnCompile := false,
     scalafmtOnCompile.in(Sbt) := false,
     scalafmtVersion := "1.3.0"
   )
