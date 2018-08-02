@@ -104,15 +104,13 @@ object DeviceRepository extends ColumnTypes {
       implicit db: Database,
       ec: ExecutionContext
   ): DBIO[Seq[Uuid]] = {
-    GroupExpAST(expression) match {
-      case Failure(err) => DBIO.failed(err)
-      case Success(filter) =>
-        devices
-          .filter(_.namespace === ns)
-          .filter(filter)
-          .map(_.uuid)
-          .result
-    }
+    val filter = GroupExpressionAST.compileToSlick(expression)
+
+    devices
+      .filter(_.namespace === ns)
+      .filter(filter)
+      .map(_.uuid)
+      .result
   }
 
   def search(ns: Namespace,

@@ -10,35 +10,35 @@ import slick.jdbc.MySQLProfile.api._
 import com.advancedtelematic.libats.slick.db.SlickExtensions._
 import com.advancedtelematic.libats.slick.db.SlickAnyVal._
 import com.advancedtelematic.ota.deviceregistry.data.Group.GroupExpression
-import com.advancedtelematic.ota.deviceregistry.data.GroupExpAST.{And, DeviceContains, GroupExp, Or}
+import com.advancedtelematic.ota.deviceregistry.data.GroupExpressionAST.{
+  And,
+  DeviceContains,
+  Expression,
+  Or
+}
 import cats.syntax.either._
 import com.advancedtelematic.ota.deviceregistry.common.Errors
 
-import scala.util.Try
+object GroupExpressionAST {
+  sealed trait Expression
+  case class DeviceContains(word: String) extends Expression
+  case class Or(cond: NonEmptyList[Expression])  extends Expression
+  case class And(cond: NonEmptyList[Expression]) extends Expression
 
-object GroupExpAST {
-  sealed trait GroupExp
-  case class DeviceContains(word: String) extends GroupExp
-  case class Or(cond: NonEmptyList[GroupExp])  extends GroupExp
-  case class And(cond: NonEmptyList[GroupExp]) extends GroupExp
+  def compileToSlick(groupExpression: GroupExpression): DeviceTable => Rep[Boolean] =
+    compileString(groupExpression.value, eval)
 
-  def apply(refinedExpression: GroupExpression): Try[DeviceTable => Rep[Boolean]] = {
-    GroupExpressionParser.parser.parse(refinedExpression.value).done.either
-      .leftMap(Errors.InvalidGroupExpression)
-      .map(eval)
-      .toTry
-  }
+  def compileToScala(groupExpression: GroupExpression): Device => Boolean =
+    compileString(groupExpression.value, evalToScala)
 
-  def compileToScala(refinedExpression: GroupExpression): Try[Device => Boolean] = {
-    GroupExpressionParser.parser.parse(refinedExpression.value).done.either
-      .leftMap(Errors.InvalidGroupExpression)
-      .map(evalToScala)
-      .toTry
-  }
+  private def compileString[T](str: String, fn: Expression => T): T =
+    GroupExpressionParser.parse(str)
+      .map(fn).right.get
 
-  def evalToScala(exp: GroupExp): Device => Boolean = exp match {
-    case DeviceContains(word) =>  (d: Device) =>
-      d.deviceId.exists(_.underlying.contains(word))
+  private def evalToScala(exp: Expression): Device => Boolean = exp match {
+    case DeviceContains(word) =>
+      (d: Device) =>
+        d.deviceId.exists(_.underlying.contains(word))
 
     case Or(conds) =>
       val evaledConds = conds.map(evalToScala)
@@ -54,7 +54,7 @@ object GroupExpAST {
       }
   }
 
-  def eval(exp: GroupExp): DeviceTable => Rep[Boolean] = exp match {
+  def eval(exp: Expression): DeviceTable => Rep[Boolean] = exp match {
     case DeviceContains(word) =>
       (d: DeviceTable) =>
         d.deviceId.mappedTo[String].like("%" + word + "%")
@@ -74,15 +74,18 @@ object GroupExpAST {
 }
 
 object GroupExpressionParser {
-  lazy val expression: Parser[GroupExp] = or | and | leftExpression
+  def parse(str: String) =
+    parser.parse(str).done.either.leftMap(Errors.InvalidGroupExpression)
 
-  lazy val leftExpression: Parser[GroupExp] = deviceIdContains | brackets
+  lazy val expression: Parser[Expression] = or | and | leftExpression
 
-  lazy val brackets: Parser[GroupExp] = parens(expression)
+  lazy val leftExpression: Parser[Expression] = deviceIdContains | brackets
 
-  lazy val parser: Parser[GroupExp] = expression <~ endOfInput
+  lazy val brackets: Parser[Expression] = parens(expression)
 
-  lazy val deviceIdContains: Parser[GroupExp] = for {
+  lazy val parser: Parser[Expression] = expression <~ endOfInput
+
+  lazy val deviceIdContains: Parser[Expression] = for {
     _ <- string("deviceid")
     _ <- skipWhitespace
     _ <- string("contains")
@@ -90,13 +93,13 @@ object GroupExpressionParser {
     b <- takeWhile1(_.isLetterOrDigit)
   } yield DeviceContains(b)
 
-  lazy val and: Parser[GroupExp] = for {
+  lazy val and: Parser[Expression] = for {
     a <- leftExpression
     _ <- skipWhitespace
     b <- many1(token(string("and")) ~> token(leftExpression))
   } yield And(a :: b)
 
-  lazy val or: Parser[GroupExp] = for {
+  lazy val or: Parser[Expression] = for {
     a <- and | leftExpression
     _ <- skipWhitespace
     b <- many1(token(string("or")) ~> token(leftExpression))

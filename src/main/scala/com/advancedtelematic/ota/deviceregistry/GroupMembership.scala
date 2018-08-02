@@ -80,6 +80,7 @@ class GroupMembership(implicit val db: Database, ec: ExecutionContext) {
       case (GroupType.static, exp)        => FastFuture.failed(Errors.InvalidGroupExpressionForGroupType(groupType, exp))
       case (GroupType.dynamic, None)      => FastFuture.failed(Errors.InvalidGroupExpressionForGroupType(groupType, None))
       case (GroupType.dynamic, Some(exp)) => new DynamicMembership().create(groupId, name, namespace, exp)
+      case (_, _) => throw new IllegalArgumentException(s"(groupType, expression) = ($groupType, $expression)")
     }
 
   def listDevices(groupId: GroupId, offset: Option[Long], limit: Option[Long]): Future[PaginationResult[Uuid]] =

@@ -7,7 +7,7 @@ import cats.data.NonEmptyList
 import cats.implicits._
 import com.advancedtelematic.libats.data.DataType.Namespace
 import com.advancedtelematic.libats.test.DatabaseSpec
-import com.advancedtelematic.ota.deviceregistry.data.GroupExpAST.{And, DeviceContains, Or}
+import com.advancedtelematic.ota.deviceregistry.data.GroupExpressionAST.{And, DeviceContains, Or}
 import com.advancedtelematic.ota.deviceregistry.data.Device.DeviceId
 import com.advancedtelematic.ota.deviceregistry.db.DeviceRepository
 import com.advancedtelematic.ota.deviceregistry.db.DeviceRepository.DeviceTable
@@ -122,8 +122,7 @@ class GroupExpressionRunSpec extends FunSuite with Matchers with DatabaseSpec wi
 
   def runGroupExpression(strExp: String) = {
     val f = GroupExpressionParser.parser.parse(strExp).done.either.right.get
-    println(s"evaluated: $f")
-    val gexp = GroupExpAST.eval(f)
+    val gexp = GroupExpressionAST.eval(f)
     runQuery(gexp).futureValue
   }
 
