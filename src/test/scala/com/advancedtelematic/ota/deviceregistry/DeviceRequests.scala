@@ -18,7 +18,6 @@ import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
 import com.advancedtelematic.ota.deviceregistry.data.{Device, DeviceT, PackageId, Uuid}
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
 import io.circe.Json
-
 import scala.concurrent.ExecutionContext
 
 /**
@@ -94,7 +93,7 @@ trait DeviceRequests { self: ResourceSpec =>
     createDevice(device) ~> route ~> check {
       status shouldBe Created
       responseAs[Uuid]
-    }
+  }
 
   def deleteDevice(uuid: Uuid)(implicit ec: ExecutionContext): HttpRequest =
     Delete(Resource.uri(api, uuid.show))

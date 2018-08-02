@@ -16,10 +16,11 @@ import com.advancedtelematic.libats.auth.{AuthedNamespaceScope, Scopes}
 import com.advancedtelematic.libats.data.DataType.Namespace
 import com.advancedtelematic.ota.deviceregistry.data.Group.{GroupExpression, GroupId, Name}
 import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
-import com.advancedtelematic.ota.deviceregistry.data.{GroupType, Uuid}
+import com.advancedtelematic.ota.deviceregistry.data.{Group, GroupType, Uuid}
 import com.advancedtelematic.ota.deviceregistry.db.GroupInfoRepository
 import slick.jdbc.MySQLProfile.api._
 import com.advancedtelematic.libats.http.UUIDKeyAkka._
+import io.circe.{Decoder, Encoder}
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -59,12 +60,11 @@ class GroupsResource(
   def getGroup(groupId: GroupId): Route =
     complete(db.run(GroupInfoRepository.findByIdAction(groupId)))
 
-  def createGroup(id: GroupId,
-                  groupName: Name,
+  def createGroup(groupName: Name,
                   namespace: Namespace,
                   groupType: GroupType,
                   expression: Option[GroupExpression]): Route =
-    complete(StatusCodes.Created -> groupMembership.create(id, groupName, namespace, groupType, expression))
+    complete(StatusCodes.Created -> groupMembership.create(groupName, namespace, groupType, expression))
 
   def renameGroup(groupId: GroupId, newGroupName: Name): Route =
     complete(db.run(GroupInfoRepository.renameGroup(groupId, newGroupName)))
@@ -81,10 +81,8 @@ class GroupsResource(
   val route: Route =
     (pathPrefix("device_groups") & namespaceExtractor) { ns =>
       val scope = Scopes.devices(ns)
-      (scope.post & parameter('groupName.as[Name]) & parameter('type.as[GroupType]) & parameter(
-        'expression.as[GroupExpression].?
-      ) & pathEnd) { (groupName, `type`, expression) =>
-        createGroup(GroupId.generate(), groupName, ns.namespace, `type`, expression)
+      (scope.post & entity(as[CreateGroup]) & pathEnd) { req =>
+        createGroup(req.name, ns.namespace, req.`type`, req.expression)
       } ~
       (scope.get & pathEnd) {
         listGroups(ns.namespace)
@@ -114,4 +112,16 @@ class GroupsResource(
         }
       }
     }
+}
+
+case class CreateGroup(name: Group.Name, `type`: GroupType, expression: Option[GroupExpression])
+
+object CreateGroup {
+  import GroupType._
+  import com.advancedtelematic.circe.CirceInstances._
+  import com.advancedtelematic.libats.codecs.CirceRefined._
+  import io.circe.generic.semiauto._
+
+  implicit val createGroupEncoder: Encoder[CreateGroup] = deriveEncoder
+  implicit val createGroupDecoder: Decoder[CreateGroup] = deriveDecoder
 }

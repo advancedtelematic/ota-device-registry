@@ -53,16 +53,8 @@ trait GroupRequests {
   def createGroup(groupName: Name, groupType: GroupType = GroupType.static, expression: Option[GroupExpression] = None)(
       implicit ec: ExecutionContext
   ): HttpRequest = {
-    val baseQuery = Map("groupName" -> groupName.value, "type" -> groupType.toString)
-
-    val query =
-      if (expression.isDefined) baseQuery + ("expression" -> expression.get.value) else baseQuery
-
-    Post(
-      Resource
-        .uri(groupsApi)
-        .withQuery(Query(query))
-    )
+    val req = CreateGroup(groupName, groupType, expression)
+    Post(Resource.uri(groupsApi), req)
   }
 
   def createGroupOk(groupName: Name)(implicit ec: ExecutionContext): GroupId =

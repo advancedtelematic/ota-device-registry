@@ -70,16 +70,15 @@ class GroupMembership(implicit val db: Database, ec: ExecutionContext) {
       case g                                 => fn(g, new DynamicMembership())
     }
 
-  def create(groupId: GroupId,
-             name: Group.Name,
+  def create(name: Group.Name,
              namespace: Namespace,
              groupType: GroupType,
              expression: Option[GroupExpression]) =
     (groupType, expression) match {
-      case (GroupType.static, None)       => new StaticMembership().create(groupId, name, namespace)
+      case (GroupType.static, None)       => new StaticMembership().create(GroupId.generate(), name, namespace)
+      case (GroupType.dynamic, Some(exp)) => new DynamicMembership().create(GroupId.generate(), name, namespace, exp)
       case (GroupType.static, exp)        => FastFuture.failed(Errors.InvalidGroupExpressionForGroupType(groupType, exp))
       case (GroupType.dynamic, None)      => FastFuture.failed(Errors.InvalidGroupExpressionForGroupType(groupType, None))
-      case (GroupType.dynamic, Some(exp)) => new DynamicMembership().create(groupId, name, namespace, exp)
       case (_, _) => throw new IllegalArgumentException(s"(groupType, expression) = ($groupType, $expression)")
     }
 

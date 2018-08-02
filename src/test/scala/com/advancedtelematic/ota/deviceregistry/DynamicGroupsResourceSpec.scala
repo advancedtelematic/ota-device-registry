@@ -94,6 +94,7 @@ class DynamicGroupsResourceSpec extends FunSuite with ResourceSpec {
     val deviceT    = genDeviceT.sample.get
     val deviceUuid = createDeviceOk(deviceT)
     val groupId    = createDynamicGroupOk(group.groupName, deviceT.deviceId.get.toValidExp)
+
     removeDeviceFromGroup(groupId, deviceUuid) ~> route ~> check {
       status shouldBe BadRequest
     }
@@ -121,7 +122,7 @@ class DynamicGroupsResourceSpec extends FunSuite with ResourceSpec {
     val groupName1 = genGroupName.sample.get
     val groupName2 = genGroupName.sample.get
 
-    val deviceT = genDeviceT.sample.get.copy(deviceName = Refined.unsafeApply("ABCDEFGHIJ"))
+    val deviceT = genDeviceT.sample.get.copy(deviceName = Refined.unsafeApply("12347890800808"))
     val deviceId   = deviceT.deviceId.get
     val deviceUuid = createDeviceOk(deviceT)
 
