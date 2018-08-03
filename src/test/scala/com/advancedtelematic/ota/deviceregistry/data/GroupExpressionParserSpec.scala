@@ -1,19 +1,19 @@
 package com.advancedtelematic.ota.deviceregistry.data
 
-import org.scalatest.{FunSuite, Matchers}
-import atto._
-import Atto._
+import atto.Atto._
 import cats.data.NonEmptyList
 import cats.implicits._
 import com.advancedtelematic.libats.data.DataType.Namespace
+import com.advancedtelematic.libats.slick.db.SlickAnyVal._
 import com.advancedtelematic.libats.test.DatabaseSpec
-import com.advancedtelematic.ota.deviceregistry.data.GroupExpressionAST.{And, DeviceContains, Or}
 import com.advancedtelematic.ota.deviceregistry.data.Device.DeviceId
+import com.advancedtelematic.ota.deviceregistry.data.GroupExpressionAST.{And, DeviceContains, Or}
 import com.advancedtelematic.ota.deviceregistry.db.DeviceRepository
 import com.advancedtelematic.ota.deviceregistry.db.DeviceRepository.DeviceTable
 import org.scalatest.concurrent.ScalaFutures
+import org.scalatest.time.{Millis, Span}
+import org.scalatest.{FunSuite, Matchers}
 import slick.jdbc.MySQLProfile.api._
-import com.advancedtelematic.libats.slick.db.SlickAnyVal._
 
 class GroupExpressionParserSpec extends FunSuite with Matchers {
 
@@ -87,6 +87,7 @@ class GroupExpressionRunSpec extends FunSuite with Matchers with DatabaseSpec wi
   val ns = Namespace("group-exp")
 
   import scala.concurrent.ExecutionContext.Implicits.global
+  override implicit def patienceConfig: PatienceConfig = PatienceConfig(timeout = Span(300, Millis), interval = Span(30, Millis))
 
   val device0 =
     DeviceGenerators.genDeviceT
