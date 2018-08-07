@@ -20,7 +20,6 @@ import cats.syntax.show._
 import com.advancedtelematic.libats.auth.{AuthedNamespaceScope, Scopes}
 import com.advancedtelematic.libats.data.DataType.Namespace
 import com.advancedtelematic.libats.messaging.MessageBusPublisher
-import com.advancedtelematic.libats.messaging_datatype.MessageLike
 import com.advancedtelematic.ota.deviceregistry.data.{DeviceT, Event, EventType, PackageId, Uuid}
 import com.advancedtelematic.ota.deviceregistry.data.Device.{ActiveDeviceCount, DeviceId}
 import com.advancedtelematic.ota.deviceregistry.db.{
@@ -31,10 +30,12 @@ import com.advancedtelematic.ota.deviceregistry.db.{
 }
 import com.advancedtelematic.ota.deviceregistry.messages.{DeleteDeviceRequest, DeviceCreated, DeviceEventMessage}
 import com.advancedtelematic.ota.deviceregistry.DevicesResource.EventPayload
+import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.string.Regex
 import io.circe.{Encoder, Json, KeyEncoder}
 import slick.jdbc.MySQLProfile.api._
+import com.advancedtelematic.libats.http.UUIDKeyAkka._
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -73,17 +74,19 @@ class DevicesResource(
 
   val eventJournal = new EventJournal(db)
 
+  implicit val groupIdUnmarshaller = GroupId.unmarshaller
+
   def searchDevice(ns: Namespace): Route =
     parameters(
       ('regex.as[String Refined Regex].?,
        'deviceId.as[String].?, // TODO: Use refined
-       'groupId.as[String Refined Uuid.Valid].?,
+       'groupId.as[GroupId].?,
        'ungrouped ? false,
        'offset.as[Long].?,
        'limit.as[Long].?)
     ) {
       case (re, None, groupId, false, offset, limit) =>
-        complete(db.run(DeviceRepository.search(ns, re, groupId.map(Uuid(_)), offset, limit)))
+        complete(db.run(DeviceRepository.search(ns, re, groupId, offset, limit)))
       case (re, None, None, true, offset, limit) =>
         complete(db.run(DeviceRepository.searchUngrouped(ns, re, offset, limit)))
       case (None, Some(deviceId), None, false, _, _) =>
@@ -110,9 +113,7 @@ class DevicesResource(
   }
 
   def deleteDevice(ns: Namespace, uuid: Uuid): Route = {
-    val f = messageBus.publish(
-      DeleteDeviceRequest(ns, uuid, Instant.now())
-    )
+    val f = messageBus.publish(DeleteDeviceRequest(ns, uuid, Instant.now()))
     onSuccess(f) { complete(StatusCodes.Accepted) }
   }
 
@@ -120,11 +121,11 @@ class DevicesResource(
     complete(db.run(DeviceRepository.findByUuid(uuid)))
 
   def updateDevice(ns: Namespace, uuid: Uuid, device: DeviceT): Route =
-    complete(db.run(DeviceRepository.update(ns, uuid, device)))
+    complete(db.run(DeviceRepository.updateDeviceName(ns, uuid, device.deviceName)))
 
-  def getGroupsForDevice(uuid: Uuid): Route =
+  def getGroupsForDevice(ns: Namespace, uuid: Uuid): Route =
     parameters(('offset.as[Long].?, 'limit.as[Long].?)) { (offset, limit) =>
-      complete(db.run(GroupMemberRepository.listGroupsForDevice(uuid, offset, limit)))
+      complete(db.run(GroupMemberRepository.listGroupsForDevice(ns, uuid, offset, limit)))
     }
 
   def updateInstalledSoftware(device: Uuid): Route =
@@ -187,7 +188,7 @@ class DevicesResource(
           fetchDevice(uuid)
         } ~
         (scope.get & path("groups") & pathEnd) {
-          getGroupsForDevice(uuid)
+          getGroupsForDevice(ns.namespace, uuid)
         } ~
         (path("packages") & scope.get) {
           listPackagesOnDevice(uuid)

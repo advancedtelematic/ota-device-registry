@@ -10,14 +10,14 @@ package com.advancedtelematic.ota.deviceregistry
 
 import java.time.OffsetDateTime
 
-import akka.http.scaladsl.model.{HttpRequest, StatusCodes, Uri}
 import akka.http.scaladsl.model.Uri.{Path, Query}
+import akka.http.scaladsl.model.{HttpRequest, StatusCodes, Uri}
 import akka.http.scaladsl.server.Route
 import cats.syntax.show._
+import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
 import com.advancedtelematic.ota.deviceregistry.data.{Device, DeviceT, PackageId, Uuid}
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
 import io.circe.Json
-
 import scala.concurrent.ExecutionContext
 
 /**
@@ -54,10 +54,13 @@ trait DeviceRequests { self: ResourceSpec =>
         .withQuery(Query("regex" -> regex, "offset" -> offset.toString, "limit" -> limit.toString))
     )
 
-  def fetchByDeviceId(deviceId: Device.DeviceId): HttpRequest =
-    Get(Resource.uri(api).withQuery(Query("deviceId" -> deviceId.show)))
+  def fetchByDeviceId(deviceId: Device.DeviceId, regex: Option[String] = None): HttpRequest = {
+    val baseParams                  = Map("deviceId"                             -> deviceId.show)
+    val params: Map[String, String] = if (regex.isDefined) baseParams + ("regex" -> regex.get) else baseParams
+    Get(Resource.uri(api).withQuery(Query(params)))
+  }
 
-  def fetchByGroupId(groupId: Uuid, offset: Long = 0, limit: Long = 50): HttpRequest =
+  def fetchByGroupId(groupId: GroupId, offset: Long = 0, limit: Long = 50): HttpRequest =
     Get(
       Resource
         .uri(api)
@@ -78,6 +81,11 @@ trait DeviceRequests { self: ResourceSpec =>
   def updateDevice(uuid: Uuid, device: DeviceT)(implicit ec: ExecutionContext): HttpRequest =
     Put(Resource.uri(api, uuid.show), device)
 
+  def updateDeviceOk(uuid: Uuid, device: DeviceT)(implicit ec: ExecutionContext): Unit =
+    updateDevice(uuid, device) ~> route ~> check {
+      status shouldBe OK
+    }
+
   def createDevice(device: DeviceT)(implicit ec: ExecutionContext): HttpRequest =
     Post(Resource.uri(api), device)
 
@@ -85,7 +93,7 @@ trait DeviceRequests { self: ResourceSpec =>
     createDevice(device) ~> route ~> check {
       status shouldBe Created
       responseAs[Uuid]
-    }
+  }
 
   def deleteDevice(uuid: Uuid)(implicit ec: ExecutionContext): HttpRequest =
     Delete(Resource.uri(api, uuid.show))
@@ -148,4 +156,7 @@ trait DeviceRequests { self: ResourceSpec =>
 
   def getEvents(deviceUuid: Uuid): HttpRequest =
     Get(Resource.uri(api, deviceUuid.show, "events"))
+
+  def getGroupsOfDevice(deviceUuid: Uuid): HttpRequest = Get(Resource.uri(api, deviceUuid.show, "groups"))
+
 }

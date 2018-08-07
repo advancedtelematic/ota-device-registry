@@ -10,26 +10,29 @@ package com.advancedtelematic.ota.deviceregistry.db
 
 import java.time.Instant
 
-import com.advancedtelematic.libats.data.PaginationResult
 import com.advancedtelematic.libats.data.DataType.Namespace
+import com.advancedtelematic.libats.data.PaginationResult
 import com.advancedtelematic.libats.slick.codecs.SlickRefined._
 import com.advancedtelematic.libats.slick.db.Operators.regex
 import com.advancedtelematic.libats.slick.db.SlickExtensions._
+import com.advancedtelematic.libats.slick.db.SlickUUIDKey._
 import com.advancedtelematic.ota.deviceregistry.common.Errors
-import com.advancedtelematic.ota.deviceregistry.data.{Device, DeviceStatus, DeviceT, Uuid}
 import com.advancedtelematic.ota.deviceregistry.data.DeviceStatus.DeviceStatus
+import com.advancedtelematic.ota.deviceregistry.data.Group.{GroupExpression, GroupId}
+import com.advancedtelematic.ota.deviceregistry.data._
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.string.Regex
 import slick.jdbc.MySQLProfile.api._
 
 import scala.concurrent.ExecutionContext
+import scala.util.{Failure, Success}
 
 object DeviceRepository extends ColumnTypes {
   val defaultLimit = 50
   val maxLimit     = 1000
 
-  import com.advancedtelematic.libats.slick.db.SlickAnyVal._
   import Device._
+  import com.advancedtelematic.libats.slick.db.SlickAnyVal._
 
   private[this] implicit val DeviceStatusColumnType =
     MappedColumnType.base[DeviceStatus.Value, String](_.toString, DeviceStatus.withName)
@@ -55,33 +58,21 @@ object DeviceRepository extends ColumnTypes {
   // scalastyle:on
   val devices = TableQuery[DeviceTable]
 
-  def list(ns: Namespace, offset: Option[Long], limit: Option[Long]): DBIO[Seq[Device]] = {
-    val filteredDevices = devices.filter(_.namespace === ns)
-    (offset, limit) match {
-      case (None, None) =>
-        filteredDevices
-          .sortBy(_.deviceName)
-          .result
-      case _ =>
-        filteredDevices
-          .paginateAndSort(_.deviceName, offset.getOrElse(0), limit.getOrElse(defaultLimit))
-          .result
-    }
-  }
-
   def create(ns: Namespace, device: DeviceT)(implicit ec: ExecutionContext): DBIO[Uuid] = {
     val uuid: Uuid = device.deviceUuid.getOrElse(Uuid.generate())
 
-    val dbIO = devices += Device(ns,
-                                 uuid,
-                                 device.deviceName,
-                                 device.deviceId,
-                                 device.deviceType,
-                                 createdAt = Instant.now())
+    val dbDevice = Device(ns,
+      uuid,
+      device.deviceName,
+      device.deviceId,
+      device.deviceType,
+      createdAt = Instant.now())
 
+    val dbIO = devices += dbDevice
     dbIO
-      .map(_ => uuid)
       .handleIntegrityErrors(Errors.ConflictingDevice)
+      .andThen { GroupMemberRepository.addDeviceToDynamicGroups(ns, uuid, dbDevice) }
+      .map(_ => uuid)
       .transactionally
   }
 
@@ -109,9 +100,22 @@ object DeviceRepository extends ColumnTypes {
       .filter(d => d.namespace === ns && d.deviceId === deviceId)
       .result
 
+  def searchByDeviceIdContains(ns: Namespace, expression: GroupExpression)(
+      implicit db: Database,
+      ec: ExecutionContext
+  ): DBIO[Seq[Uuid]] = {
+    val filter = GroupExpressionAST.compileToSlick(expression)
+
+    devices
+      .filter(_.namespace === ns)
+      .filter(filter)
+      .map(_.uuid)
+      .result
+  }
+
   def search(ns: Namespace,
              regEx: Option[String Refined Regex],
-             groupId: Option[Uuid],
+             groupId: Option[GroupId],
              offset: Option[Long],
              limit: Option[Long])(implicit ec: ExecutionContext): DBIO[PaginationResult[Device]] = {
     val byNamespace = devices.filter(d => d.namespace === ns)
@@ -152,18 +156,15 @@ object DeviceRepository extends ColumnTypes {
                                       limit.getOrElse[Long](defaultLimit).min(maxLimit))
   }
 
-  def update(ns: Namespace, uuid: Uuid, device: DeviceT)(
+  def updateDeviceName(ns: Namespace, uuid: Uuid, deviceName: DeviceName)(
       implicit ec: ExecutionContext
-  ): DBIO[Unit] = {
-    val dbIO = devices
+  ): DBIO[Unit] =
+    devices
       .filter(_.uuid === uuid)
       .map(r => r.deviceName)
-      .update(device.deviceName)
+      .update(deviceName)
       .handleIntegrityErrors(Errors.ConflictingDevice)
       .handleSingleUpdateError(Errors.MissingDevice)
-
-    dbIO.transactionally
-  }
 
   def findByUuid(uuid: Uuid)(implicit ec: ExecutionContext): DBIO[Device] =
     devices

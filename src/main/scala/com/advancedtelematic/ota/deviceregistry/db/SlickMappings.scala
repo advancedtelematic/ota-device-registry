@@ -8,10 +8,13 @@
 
 package com.advancedtelematic.ota.deviceregistry.db
 
-import com.advancedtelematic.ota.deviceregistry.data.CredentialsType
+import com.advancedtelematic.libats.slick.codecs.SlickEnumMapper
+import com.advancedtelematic.ota.deviceregistry.data.{CredentialsType, GroupType}
 import slick.jdbc.MySQLProfile.api._
 
 object SlickMappings {
+
+  implicit val grouTypeMapper = SlickEnumMapper.enumMapper(GroupType)
 
   implicit val enumMapperCredentialsType =
     MappedColumnType.base[CredentialsType.CredentialsType, String](

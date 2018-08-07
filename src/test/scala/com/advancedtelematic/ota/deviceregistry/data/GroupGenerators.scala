@@ -9,6 +9,7 @@
 package com.advancedtelematic.ota.deviceregistry.data
 
 import com.advancedtelematic.libats.data.DataType.Namespace
+import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
 import eu.timepit.refined.api.Refined
 import org.scalacheck.{Arbitrary, Gen}
 
@@ -24,7 +25,7 @@ trait GroupGenerators {
   def genGroupInfo: Gen[Group] =
     for {
       name <- genGroupName
-    } yield Group(Uuid.generate(), name, defaultNs)
+    } yield Group(GroupId.generate(), name, defaultNs, GroupType.static, None)
 
   implicit lazy val arbGroupName: Arbitrary[Group.Name] = Arbitrary(genGroupName)
   implicit lazy val arbGroupInfo: Arbitrary[Group]      = Arbitrary(genGroupInfo)

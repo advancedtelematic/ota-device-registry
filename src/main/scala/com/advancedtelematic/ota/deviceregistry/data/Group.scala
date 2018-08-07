@@ -8,15 +8,41 @@
 
 package com.advancedtelematic.ota.deviceregistry.data
 
-import com.advancedtelematic.libats.data.DataType.Namespace
-import com.advancedtelematic.ota.deviceregistry.data.Group._
-import eu.timepit.refined.api.{Refined, Validate}
+import java.util.UUID
 
-case class Group(id: Uuid, groupName: Name, namespace: Namespace)
+import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
+import slick.jdbc.MySQLProfile.api._
+
+import com.advancedtelematic.libats.data.DataType.Namespace
+import com.advancedtelematic.libats.data.UUIDKey.{UUIDKey, UUIDKeyObj}
+import com.advancedtelematic.ota.deviceregistry.data.Group._
+import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
+import eu.timepit.refined.api.{Refined, Validate}
+import io.circe.{Decoder, Encoder}
+
+case class Group(id: GroupId,
+                 groupName: Name,
+                 namespace: Namespace,
+                 groupType: GroupType,
+                 expression: Option[GroupExpression] = None)
+
+object GroupType extends Enumeration {
+  type GroupType = Value
+
+  val static, dynamic = Value
+
+  implicit val GroupTypeMapper = MappedColumnType.base[GroupType, String](gt => gt.toString, s => GroupType.withName(s))
+
+  implicit val JsonEncoder = Encoder.enumEncoder(GroupType)
+  implicit val JsonDecoder = Decoder.enumDecoder(GroupType)
+}
 
 object Group {
-  case class ValidName()
 
+  final case class GroupId(uuid: UUID) extends UUIDKey
+  object GroupId                       extends UUIDKeyObj[GroupId]
+
+  case class ValidName()
   type Name = Refined[String, ValidName]
 
   implicit val validGroupName: Validate.Plain[String, ValidName] =
@@ -24,6 +50,24 @@ object Group {
       name => name.length > 1 && name.length <= 100,
       name => s"($name should be between two and a hundred alphanumeric characters long.)",
       ValidName()
+    )
+
+  case class ValidExpression()
+  type GroupExpression = Refined[String, ValidExpression]
+
+  implicit val validGroupExpression: Validate.Plain[String, ValidExpression] =
+    Validate.fromPartial(
+      expression => {
+        if (expression.length < 1 || expression.length > 200)
+          throw new IllegalArgumentException("The expression is too small or too big.")
+
+        GroupExpressionParser.parse(expression) match {
+          case Left(err) => throw err
+          case Right(_)  => expression
+        }
+      },
+       "group expression",
+      ValidExpression()
     )
 
   implicit val EncoderInstance = {

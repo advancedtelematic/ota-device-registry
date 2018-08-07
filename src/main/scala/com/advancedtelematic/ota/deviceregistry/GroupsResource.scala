@@ -11,12 +11,16 @@ package com.advancedtelematic.ota.deviceregistry
 import akka.http.scaladsl.marshalling.Marshaller._
 import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.server._
+import akka.http.scaladsl.unmarshalling.Unmarshaller
 import com.advancedtelematic.libats.auth.{AuthedNamespaceScope, Scopes}
 import com.advancedtelematic.libats.data.DataType.Namespace
-import com.advancedtelematic.ota.deviceregistry.data.Group.Name
-import com.advancedtelematic.ota.deviceregistry.data.Uuid
-import com.advancedtelematic.ota.deviceregistry.db.{GroupInfoRepository, GroupMemberRepository}
+import com.advancedtelematic.ota.deviceregistry.data.Group.{GroupExpression, GroupId, Name}
+import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
+import com.advancedtelematic.ota.deviceregistry.data.{Group, GroupType, Uuid}
+import com.advancedtelematic.ota.deviceregistry.db.GroupInfoRepository
 import slick.jdbc.MySQLProfile.api._
+import com.advancedtelematic.libats.http.UUIDKeyAkka._
+import io.circe.{Decoder, Encoder}
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -30,14 +34,22 @@ class GroupsResource(
   import com.advancedtelematic.libats.http.RefinedMarshallingSupport._
   import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
 
-  private val extractGroupId = allowExtractor(namespaceExtractor, extractUuid, groupAllowed)
+  private val GroupIdPath = {
+    def groupAllowed(groupId: GroupId): Future[Namespace] = db.run(GroupInfoRepository.groupInfoNamespace(groupId))
 
-  private def groupAllowed(groupId: Uuid): Future[Namespace] =
-    db.run(GroupInfoRepository.groupInfoNamespace(groupId))
+    pathPrefix(GroupId.Path).flatMap { groupId =>
+      allowExtractor(namespaceExtractor, provide(groupId), groupAllowed)
+    }
+  }
 
-  def getDevicesInGroup(groupId: Uuid): Route =
+  implicit val groupTypeParamUnmarshaller: Unmarshaller[String, GroupType] =
+    Unmarshaller.strict[String, GroupType](GroupType.withName)
+
+  val groupMembership = new GroupMembership()
+
+  def getDevicesInGroup(groupId: GroupId): Route =
     parameters(('offset.as[Long].?, 'limit.as[Long].?)) { (offset, limit) =>
-      complete(db.run(GroupMemberRepository.listDevicesInGroup(groupId, offset, limit)))
+      complete(groupMembership.listDevices(groupId, offset, limit))
     }
 
   def listGroups(ns: Namespace): Route =
@@ -45,45 +57,52 @@ class GroupsResource(
       complete(db.run(GroupInfoRepository.list(ns, offset, limit)))
     }
 
-  def getGroup(groupId: Uuid): Route =
-    complete(db.run(GroupInfoRepository.findById(groupId)))
+  def getGroup(groupId: GroupId): Route =
+    complete(db.run(GroupInfoRepository.findByIdAction(groupId)))
 
-  def createGroup(id: Uuid, groupName: Name, namespace: Namespace): Route =
-    complete(StatusCodes.Created -> db.run(GroupInfoRepository.create(id, groupName, namespace)))
+  def createGroup(groupName: Name,
+                  namespace: Namespace,
+                  groupType: GroupType,
+                  expression: Option[GroupExpression]): Route =
+    complete(StatusCodes.Created -> groupMembership.create(groupName, namespace, groupType, expression))
 
-  def renameGroup(groupId: Uuid, newGroupName: Name): Route =
+  def renameGroup(groupId: GroupId, newGroupName: Name): Route =
     complete(db.run(GroupInfoRepository.renameGroup(groupId, newGroupName)))
 
-  def countDevices(groupId: Uuid): Route =
-    complete(db.run(GroupMemberRepository.countDevicesInGroup(groupId)))
+  def countDevices(groupId: GroupId): Route =
+    complete(groupMembership.countDevices(groupId))
 
-  def addDeviceToGroup(groupId: Uuid, deviceId: Uuid): Route =
-    complete(db.run(GroupMemberRepository.addGroupMember(groupId, deviceId)))
+  def addDeviceToGroup(groupId: GroupId, deviceUuid: Uuid): Route =
+    complete(groupMembership.addGroupMember(groupId, deviceUuid))
 
-  def removeDeviceFromGroup(groupId: Uuid, deviceId: Uuid): Route =
-    complete(db.run(GroupMemberRepository.removeGroupMember(groupId, deviceId)))
+  def removeDeviceFromGroup(groupId: GroupId, deviceId: Uuid): Route =
+    complete(groupMembership.removeGroupMember(groupId, deviceId))
 
   val route: Route =
     (pathPrefix("device_groups") & namespaceExtractor) { ns =>
       val scope = Scopes.devices(ns)
-      (scope.post & parameter('groupName.as[Name]) & pathEnd) { groupName =>
-        createGroup(Uuid.generate(), groupName, ns.namespace)
+      (scope.post & entity(as[CreateGroup]) & pathEnd) { req =>
+        createGroup(req.name, ns.namespace, req.groupType, req.expression)
       } ~
       (scope.get & pathEnd) {
         listGroups(ns.namespace)
       } ~
-      (scope.get & extractGroupId & pathEndOrSingleSlash) { groupId =>
-        getGroup(groupId)
-      } ~
-      (scope.get & extractGroupId & path("devices")) { groupId =>
-        getDevicesInGroup(groupId)
-      } ~
-      extractGroupId { groupId =>
-        (scope.post & pathPrefix("devices") & deviceNamespaceAuthorizer) { deviceId =>
-          addDeviceToGroup(groupId, deviceId)
+      GroupIdPath { groupId =>
+        (scope.get & pathEndOrSingleSlash) {
+          getGroup(groupId)
         } ~
-        (scope.delete & pathPrefix("devices") & deviceNamespaceAuthorizer) { deviceId =>
-          removeDeviceFromGroup(groupId, deviceId)
+        pathPrefix("devices") {
+          scope.get {
+            getDevicesInGroup(groupId)
+          } ~
+          deviceNamespaceAuthorizer { deviceUuid =>
+            scope.post {
+              addDeviceToGroup(groupId, deviceUuid)
+            } ~
+            scope.delete {
+              removeDeviceFromGroup(groupId, deviceUuid)
+            }
+          }
         } ~
         (scope.put & path("rename") & parameter('groupName.as[Name])) { groupName =>
           renameGroup(groupId, groupName)
@@ -93,4 +112,16 @@ class GroupsResource(
         }
       }
     }
+}
+
+case class CreateGroup(name: Group.Name, groupType: GroupType, expression: Option[GroupExpression])
+
+object CreateGroup {
+  import GroupType._
+  import com.advancedtelematic.circe.CirceInstances._
+  import com.advancedtelematic.libats.codecs.CirceRefined._
+  import io.circe.generic.semiauto._
+
+  implicit val createGroupEncoder: Encoder[CreateGroup] = deriveEncoder
+  implicit val createGroupDecoder: Decoder[CreateGroup] = deriveDecoder
 }

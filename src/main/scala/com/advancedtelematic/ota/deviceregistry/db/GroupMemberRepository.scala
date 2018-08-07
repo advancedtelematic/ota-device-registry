@@ -8,12 +8,22 @@
 
 package com.advancedtelematic.ota.deviceregistry.db
 
+import cats.syntax.either._
+import com.advancedtelematic.libats.data.DataType.Namespace
 import com.advancedtelematic.libats.data.PaginationResult
 import com.advancedtelematic.libats.slick.db.SlickExtensions._
+import com.advancedtelematic.libats.slick.db.SlickUUIDKey._
 import com.advancedtelematic.ota.deviceregistry.common.Errors
-import com.advancedtelematic.ota.deviceregistry.data.Uuid
+import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
+import com.advancedtelematic.ota.deviceregistry.data.{
+  Device,
+  GroupExpressionAST,
+  GroupType,
+  Uuid
+}
 import slick.jdbc.MySQLProfile.api._
 import slick.lifted.Tag
+import com.advancedtelematic.libats.slick.db.SlickAnyVal._
 
 import scala.concurrent.ExecutionContext
 
@@ -21,20 +31,18 @@ object GroupMemberRepository {
 
   private[this] val defaultLimit = 50L
 
-  final case class GroupMember(groupId: Uuid, deviceUuid: Uuid)
+  final case class GroupMember(groupId: GroupId, deviceUuid: Uuid)
 
   // scalastyle:off
-  class GroupMembersTable(tag: Tag) extends Table[GroupMember](tag, "GroupMembers") {
-    def groupId    = column[Uuid]("group_id")
+  class GroupMembersTable(tag: Tag)
+      extends Table[GroupMember](tag, "GroupMembers") {
+    def groupId    = column[GroupId]("group_id")
     def deviceUuid = column[Uuid]("device_uuid")
-    def deviceFk   = foreignKey("fk_group_members_uuid", deviceUuid, DeviceRepository.devices)(_.uuid)
-    def groupFk =
-      foreignKey("fk_group_members_group_id", groupId, GroupInfoRepository.groupInfos)(_.id)
 
     def pk = primaryKey("pk_group_members", (groupId, deviceUuid))
 
     def * =
-      (groupId, deviceUuid).shaped <>
+      (groupId, deviceUuid) <>
       ((GroupMember.apply _).tupled, GroupMember.unapply)
   }
   // scalastyle:on
@@ -42,25 +50,37 @@ object GroupMemberRepository {
   val groupMembers = TableQuery[GroupMembersTable]
 
   //this method assumes that groupId and deviceId belong to the same namespace
-  def addGroupMember(groupId: Uuid, deviceId: Uuid)(implicit ec: ExecutionContext): DBIO[Int] =
+  def addGroupMember(groupId: GroupId,
+                     deviceId: Uuid)(implicit ec: ExecutionContext): DBIO[Int] =
     (groupMembers += GroupMember(groupId, deviceId))
       .handleIntegrityErrors(Errors.MemberAlreadyExists)
 
-  def addOrUpdateGroupMember(groupId: Uuid, deviceId: Uuid)(implicit ec: ExecutionContext): DBIO[Int] =
-    groupMembers.insertOrUpdate(GroupMember(groupId, deviceId))
-
-  def removeGroupMember(groupId: Uuid, deviceId: Uuid)(implicit ec: ExecutionContext): DBIO[Unit] =
+  def removeGroupMember(groupId: GroupId, deviceId: Uuid)(
+      implicit ec: ExecutionContext
+  ): DBIO[Unit] =
     groupMembers
       .filter(r => r.groupId === groupId && r.deviceUuid === deviceId)
       .delete
       .handleSingleUpdateError(Errors.MissingGroup)
 
-  def removeGroupMemberAll(deviceId: Uuid)(implicit ec: ExecutionContext): DBIO[Int] =
+  def removeGroupMemberAll(
+      deviceUuid: Uuid
+  )(implicit ec: ExecutionContext): DBIO[Int] =
     groupMembers
-      .filter(r => r.deviceUuid === deviceId)
+      .filter(r => r.deviceUuid === deviceUuid)
       .delete
 
-  def listDevicesInGroup(groupId: Uuid, offset: Option[Long], limit: Option[Long])(
+  def listDevicesInGroup(groupId: GroupId,
+                         offset: Option[Long],
+                         limit: Option[Long])(
+      implicit db: Database,
+      ec: ExecutionContext
+  ): DBIO[PaginationResult[Uuid]] =
+    listDevicesInGroupAction(groupId, offset, limit)
+
+  def listDevicesInGroupAction(groupId: GroupId,
+                               offset: Option[Long],
+                               limit: Option[Long])(
       implicit ec: ExecutionContext
   ): DBIO[PaginationResult[Uuid]] =
     groupMembers
@@ -68,21 +88,39 @@ object GroupMemberRepository {
       .map(_.deviceUuid)
       .paginateResult(offset.getOrElse(0L), limit.getOrElse(defaultLimit))
 
-  def countDevicesInGroup(groupId: Uuid)(implicit ec: ExecutionContext): DBIO[Long] =
-    listDevicesInGroup(groupId, None, None).map(_.total)
+  def countDevicesInGroup(
+      groupId: GroupId
+  )(implicit ec: ExecutionContext): DBIO[Long] =
+    listDevicesInGroupAction(groupId, None, None).map(_.total)
 
-  def listGroupsForDevice(device: Uuid, offset: Option[Long], limit: Option[Long])(
+  def deleteDynamicGroupsForDevice(namespace: Namespace, deviceUuid: Uuid)(
       implicit ec: ExecutionContext
-  ): DBIO[PaginationResult[Uuid]] =
-    DeviceRepository.findByUuid(device).flatMap { _ =>
-      groupMembers
-        .filter(_.deviceUuid === device)
-        .map(_.groupId)
-        .paginateResult(offset.getOrElse(0L), limit.getOrElse(50L))
-    }
+  ): DBIO[Unit] =
+    groupMembers
+      .filter { _.groupId.in(GroupInfoRepository.groupInfos.filter(_.groupType === GroupType.dynamic).map(_.id)) }
+      .delete
+      .map(_ => ())
 
-  def removeDeviceFromAllGroups(deviceUuid: Uuid)(implicit ec: ExecutionContext): DBIO[Int] =
+  def addDeviceToDynamicGroups(namespace: Namespace, uuid: Uuid, device: Device)(implicit ec: ExecutionContext): DBIO[Unit] = {
+    val dynamicGroupIds =
+      GroupInfoRepository.groupInfos
+        .filter { g => (g.groupType === GroupType.dynamic) && (g.namespace === namespace) }
+        .result.map {
+        _.filter { group =>
+          val compiledExp = GroupExpressionAST.compileToScala(group.expression.get)
+          compiledExp.apply(device)
+        }
+      }
+
+    dynamicGroupIds.flatMap { groups =>
+      DBIO.sequence(groups.map(group => GroupMemberRepository.addGroupMember(group.id, uuid)))
+    }.map(_ => ())
+  }
+
+  def listGroupsForDevice(namespace: Namespace, deviceUuid: Uuid, offset: Option[Long], limit: Option[Long])
+                         (implicit ec: ExecutionContext): DBIO[PaginationResult[GroupId]] =
     groupMembers
       .filter(_.deviceUuid === deviceUuid)
-      .delete
+      .map(_.groupId)
+      .paginateResult(offset.getOrElse(0L), limit.getOrElse(defaultLimit))
 }
