@@ -82,7 +82,7 @@ class GroupsResource(
     (pathPrefix("device_groups") & namespaceExtractor) { ns =>
       val scope = Scopes.devices(ns)
       (scope.post & entity(as[CreateGroup]) & pathEnd) { req =>
-        createGroup(req.name, ns.namespace, req.`type`, req.expression)
+        createGroup(req.name, ns.namespace, req.groupType, req.expression)
       } ~
       (scope.get & pathEnd) {
         listGroups(ns.namespace)
@@ -114,7 +114,7 @@ class GroupsResource(
     }
 }
 
-case class CreateGroup(name: Group.Name, `type`: GroupType, expression: Option[GroupExpression])
+case class CreateGroup(name: Group.Name, groupType: GroupType, expression: Option[GroupExpression])
 
 object CreateGroup {
   import GroupType._

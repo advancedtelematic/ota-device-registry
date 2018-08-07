@@ -66,7 +66,7 @@ class GroupMembership(implicit val db: Database, ec: ExecutionContext) {
 
   private def runGroupOperation[T](groupId: GroupId)(fn: (Group, GroupMembershipOperations) => Future[T]): Future[T] =
     GroupInfoRepository.findById(groupId).flatMap {
-      case g if g.`type` == GroupType.static => fn(g, new StaticMembership())
+      case g if g.groupType == GroupType.static => fn(g, new StaticMembership())
       case g                                 => fn(g, new DynamicMembership())
     }
 

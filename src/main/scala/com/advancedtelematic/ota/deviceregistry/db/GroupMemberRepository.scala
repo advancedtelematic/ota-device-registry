@@ -97,14 +97,14 @@ object GroupMemberRepository {
       implicit ec: ExecutionContext
   ): DBIO[Unit] =
     groupMembers
-      .filter { _.groupId.in(GroupInfoRepository.groupInfos.filter(_.`type` === GroupType.dynamic).map(_.id)) }
+      .filter { _.groupId.in(GroupInfoRepository.groupInfos.filter(_.groupType === GroupType.dynamic).map(_.id)) }
       .delete
       .map(_ => ())
 
   def addDeviceToDynamicGroups(namespace: Namespace, uuid: Uuid, device: Device)(implicit ec: ExecutionContext): DBIO[Unit] = {
     val dynamicGroupIds =
       GroupInfoRepository.groupInfos
-        .filter { g => (g.`type` === GroupType.dynamic) && (g.namespace === namespace) }
+        .filter { g => (g.groupType === GroupType.dynamic) && (g.namespace === namespace) }
         .result.map {
         _.filter { group =>
           val compiledExp = GroupExpressionAST.compileToScala(group.expression.get)

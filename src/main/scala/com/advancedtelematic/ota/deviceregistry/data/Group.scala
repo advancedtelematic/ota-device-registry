@@ -23,7 +23,7 @@ import io.circe.{Decoder, Encoder}
 case class Group(id: GroupId,
                  groupName: Name,
                  namespace: Namespace,
-                 `type`: GroupType,
+                 groupType: GroupType,
                  expression: Option[GroupExpression] = None)
 
 object GroupType extends Enumeration {

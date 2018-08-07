@@ -32,10 +32,10 @@ object GroupInfoRepository extends SlickJsonHelper with ColumnTypes {
     def id         = column[GroupId]("id", O.PrimaryKey)
     def groupName  = column[Name]("group_name")
     def namespace  = column[Namespace]("namespace")
-    def `type`     = column[GroupType]("type")
+    def groupType     = column[GroupType]("type")
     def expression = column[Option[GroupExpression]]("expression")
 
-    def * = (id, groupName, namespace, `type`, expression) <> ((Group.apply _).tupled, Group.unapply)
+    def * = (id, groupName, namespace, groupType, expression) <> ((Group.apply _).tupled, Group.unapply)
   }
   // scalastyle:on
 
