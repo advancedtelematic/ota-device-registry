@@ -38,14 +38,6 @@ object GroupMemberRepository {
       extends Table[GroupMember](tag, "GroupMembers") {
     def groupId    = column[GroupId]("group_id")
     def deviceUuid = column[Uuid]("device_uuid")
-    def deviceFk =
-      foreignKey("fk_group_members_uuid", deviceUuid, DeviceRepository.devices)(
-        _.uuid
-      )
-    def groupFk =
-      foreignKey("fk_group_members_group_id",
-                 groupId,
-                 GroupInfoRepository.groupInfos)(_.id)
 
     def pk = primaryKey("pk_group_members", (groupId, deviceUuid))
 
@@ -62,11 +54,6 @@ object GroupMemberRepository {
                      deviceId: Uuid)(implicit ec: ExecutionContext): DBIO[Int] =
     (groupMembers += GroupMember(groupId, deviceId))
       .handleIntegrityErrors(Errors.MemberAlreadyExists)
-
-  def addOrUpdateGroupMember(groupId: GroupId, deviceId: Uuid)(
-      implicit ec: ExecutionContext
-  ): DBIO[Int] =
-    groupMembers.insertOrUpdate(GroupMember(groupId, deviceId))
 
   def removeGroupMember(groupId: GroupId, deviceId: Uuid)(
       implicit ec: ExecutionContext
