@@ -9,12 +9,14 @@
 package com.advancedtelematic.ota.deviceregistry.db
 
 import java.time.Instant
-import java.util.UUID
 
-import com.advancedtelematic.ota.deviceregistry.data.{Event, EventType, Uuid}
+import com.advancedtelematic.libats.messaging_datatype.DataType.{Event, EventType}
+import com.advancedtelematic.ota.deviceregistry.data.Uuid
 import com.advancedtelematic.libats.slick.db.SlickExtensions.javaInstantMapping
-import io.circe.{Json, JsonObject}
+import io.circe.Json
 import slick.jdbc.MySQLProfile.api._
+import com.advancedtelematic.libats.messaging_datatype.DataType.{DeviceId => DeviceUUID}
+import eu.timepit.refined.refineV
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -33,10 +35,16 @@ object EventJournal {
     def receivedAt       = column[Instant]("received_at")
 
     private def fromEvent(e: Event) =
-      Some(e.deviceUuid, e.eventId, e.eventType.id, e.eventType.version, e.deviceTime, e.receivedAt, e.payload)
+      Some((Uuid(refineV[Uuid.Valid](e.deviceUuid.uuid.toString).right.get),
+           e.eventId,
+           e.eventType.id,
+           e.eventType.version,
+           e.deviceTime,
+           e.receivedAt,
+           e.payload))
 
     private def toEvent(x: (Uuid, String, String, Int, Instant, Instant, Json)): Event =
-      Event(x._1, x._2, EventType(x._3, x._4), x._5, x._6, x._7)
+      Event(DeviceUUID(x._1.toJava), x._2, EventType(x._3, x._4), x._5, x._6, x._7)
     override def * =
       (deviceUuid, eventId, eventTypeId, eventTypeVersion, deviceTime, receivedAt, event).shaped <> (toEvent _, fromEvent _)
   }
