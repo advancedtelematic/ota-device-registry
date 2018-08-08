@@ -80,6 +80,16 @@ class GroupExpressionParserSpec extends FunSuite with Matchers {
                       Or(NonEmptyList.of(DeviceContains("other0"), DeviceContains("melons"))))
     )
   }
+
+  test("parses boolean expressions without parenthesis") {
+    runParser("deviceid contains eo7zOnogw or deviceid contains Ku05MCxEE6GQ2iKh and deviceid contains ySqlJlu") shouldBe
+      Or(NonEmptyList.of(
+        DeviceContains("eo7zOnogw"),
+        And(
+          NonEmptyList.of(DeviceContains("Ku05MCxEE6GQ2iKh"), DeviceContains("ySqlJlu"))
+        )
+      ))
+  }
 }
 
 class GroupExpressionRunSpec extends FunSuite with Matchers with DatabaseSpec with ScalaFutures {

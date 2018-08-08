@@ -102,6 +102,6 @@ object GroupExpressionParser {
   lazy val or: Parser[Expression] = for {
     a <- and | leftExpression
     _ <- skipWhitespace
-    b <- many1(token(string("or")) ~> token(leftExpression))
+    b <- many1(token(string("or")) ~> token(and | leftExpression))
   } yield Or(a :: b)
 }
