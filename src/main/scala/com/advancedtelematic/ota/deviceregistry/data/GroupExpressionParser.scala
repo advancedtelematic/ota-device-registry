@@ -90,7 +90,7 @@ object GroupExpressionParser {
     _ <- skipWhitespace
     _ <- string("contains")
     _ <- skipWhitespace
-    b <- takeWhile1(_.isLetterOrDigit)
+    b <- takeWhile1(c => c.isLetterOrDigit || c == '-')
   } yield DeviceContains(b)
 
   lazy val and: Parser[Expression] = for {
@@ -102,6 +102,6 @@ object GroupExpressionParser {
   lazy val or: Parser[Expression] = for {
     a <- and | leftExpression
     _ <- skipWhitespace
-    b <- many1(token(string("or")) ~> token(leftExpression))
+    b <- many1(token(string("or")) ~> token(and | leftExpression))
   } yield Or(a :: b)
 }
