@@ -14,23 +14,25 @@ import java.util.UUID
 
 import akka.http.scaladsl.model.StatusCodes
 import com.advancedtelematic.libats.http.monitoring.MetricsSupport
+import com.advancedtelematic.libats.messaging_datatype.DataType.EventType
 import com.advancedtelematic.ota.deviceregistry.daemon.DeviceEventListener
-import com.advancedtelematic.ota.deviceregistry.data.{DeviceT, EventType}
-import com.advancedtelematic.ota.deviceregistry.messages.DeviceEventMessage
+import com.advancedtelematic.ota.deviceregistry.data.DeviceT
 import com.advancedtelematic.ota.deviceregistry.EventJournalSpec.EventPayload
 import io.circe.{Decoder, Json}
 import io.circe.testing.ArbitraryInstances
 import org.scalacheck.{Arbitrary, Gen, Shrink}
 import org.scalatest.concurrent.{Eventually, ScalaFutures}
+import com.advancedtelematic.libats.messaging_datatype.MessageCodecs._
+import com.advancedtelematic.libats.codecs.CirceCodecs._
+import io.circe.generic.semiauto._
 
 object EventJournalSpec {
-  import io.circe.java8.time.{decodeInstant, encodeInstant}
   private[EventJournalSpec] final case class EventPayload(id: UUID,
                                                           deviceTime: Instant,
                                                           eventType: EventType,
                                                           event: Json)
 
-  private[EventJournalSpec] implicit val EventPayloadEncoder = io.circe.generic.semiauto.deriveEncoder[EventPayload]
+  private[EventJournalSpec] implicit val EventPayloadEncoder = deriveEncoder[EventPayload]
 
   private[EventJournalSpec] implicit val EventPayloadFromResponse: Decoder[EventPayload] =
     Decoder.instance { c =>
@@ -51,7 +53,7 @@ class EventJournalSpec extends ResourcePropSpec with ScalaFutures with Eventuall
 
   private[this] val InstantGen: Gen[Instant] = Gen
     .chooseNum(0, 2 * 365 * 24 * 60)
-    .map(x => Instant.now.minus(x, ChronoUnit.MINUTES))
+    .map(x => Instant.now.minus(x, ChronoUnit.MINUTES).truncatedTo(ChronoUnit.SECONDS))
 
   private[this] val EventTypeGen: Gen[EventType] =
     for {
@@ -90,7 +92,7 @@ class EventJournalSpec extends ResourcePropSpec with ScalaFutures with Eventuall
           val messages = responseAs[List[EventPayload]]
 
           messages.length should equal(events.length)
-          messages should contain theSameElementsAs (events)
+          messages should contain theSameElementsAs events
         }
       }
     }

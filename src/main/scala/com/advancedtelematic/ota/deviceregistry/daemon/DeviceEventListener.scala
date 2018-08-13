@@ -12,8 +12,8 @@ import akka.Done
 import akka.actor.ActorSystem
 import com.advancedtelematic.libats.messaging.MessageListener
 import com.advancedtelematic.libats.messaging.daemon.MessageBusListenerActor.Subscribe
+import com.advancedtelematic.libats.messaging_datatype.Messages.DeviceEventMessage
 import com.advancedtelematic.ota.deviceregistry.db.EventJournal
-import com.advancedtelematic.ota.deviceregistry.messages.DeviceEventMessage
 import com.codahale.metrics.MetricRegistry
 import com.typesafe.config.Config
 import slick.jdbc.MySQLProfile.api._

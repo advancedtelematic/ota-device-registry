@@ -20,24 +20,24 @@ import cats.syntax.show._
 import com.advancedtelematic.libats.auth.{AuthedNamespaceScope, Scopes}
 import com.advancedtelematic.libats.data.DataType.Namespace
 import com.advancedtelematic.libats.messaging.MessageBusPublisher
-import com.advancedtelematic.ota.deviceregistry.data.{DeviceT, Event, EventType, PackageId, Uuid}
+import com.advancedtelematic.ota.deviceregistry.data.{DeviceT, PackageId, Uuid}
 import com.advancedtelematic.ota.deviceregistry.data.Device.{ActiveDeviceCount, DeviceId}
-import com.advancedtelematic.ota.deviceregistry.db.{
-  DeviceRepository,
-  EventJournal,
-  GroupMemberRepository,
-  InstalledPackages
-}
-import com.advancedtelematic.ota.deviceregistry.messages.{DeleteDeviceRequest, DeviceCreated, DeviceEventMessage}
+import com.advancedtelematic.ota.deviceregistry.db.{DeviceRepository, EventJournal, GroupMemberRepository, InstalledPackages}
+import com.advancedtelematic.ota.deviceregistry.messages.{DeleteDeviceRequest, DeviceCreated}
 import com.advancedtelematic.ota.deviceregistry.DevicesResource.EventPayload
 import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.string.Regex
-import io.circe.{Encoder, Json, KeyEncoder}
+import io.circe.{Json, KeyEncoder}
 import slick.jdbc.MySQLProfile.api._
 import com.advancedtelematic.libats.http.UUIDKeyAkka._
 
 import scala.concurrent.{ExecutionContext, Future}
+import com.advancedtelematic.libats.messaging_datatype.DataType.{Event, EventType, DeviceId => DeviceUUID}
+import com.advancedtelematic.libats.messaging_datatype.Messages.DeviceEventMessage
+import com.advancedtelematic.libats.messaging_datatype.MessageCodecs._
+
+
 
 object DevicesResource {
   import io.circe.Decoder
@@ -51,10 +51,9 @@ object DevicesResource {
         eventType  <- c.get[EventType]("eventType")
         payload    <- c.get[Json]("event")
       } yield
-        (deviceUuid: Uuid, receivedAt: Instant) => Event(deviceUuid, id, eventType, deviceTime, receivedAt, payload)
-
+        (deviceUuid: Uuid, receivedAt: Instant) =>
+          Event(DeviceUUID(deviceUuid.toJava), id, eventType, deviceTime, receivedAt, payload)
     }
-
 }
 
 class DevicesResource(
