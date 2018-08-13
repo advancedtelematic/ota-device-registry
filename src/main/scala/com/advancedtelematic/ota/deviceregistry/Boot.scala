@@ -14,27 +14,20 @@ import akka.http.scaladsl.server.{Directive1, Directives, Route}
 import akka.stream.ActorMaterializer
 import com.advancedtelematic.libats.auth.{AuthedNamespaceScope, NamespaceDirectives}
 import com.advancedtelematic.libats.data.DataType.Namespace
+import com.advancedtelematic.libats.http.DefaultRejectionHandler.rejectionHandler
 import com.advancedtelematic.libats.http._
 import com.advancedtelematic.libats.http.monitoring.MetricsSupport
-import com.advancedtelematic.libats.http.DefaultRejectionHandler.rejectionHandler
-import com.advancedtelematic.libats.messaging.{BusListenerMetrics, MessageBus, MessageBusPublisher, MessageListener}
 import com.advancedtelematic.libats.messaging.daemon.MessageBusListenerActor.Subscribe
-import com.advancedtelematic.libats.messaging_datatype.MessageLike
+import com.advancedtelematic.libats.messaging.{BusListenerMetrics, MessageBus, MessageBusPublisher, MessageListener}
 import com.advancedtelematic.libats.messaging_datatype.Messages.DeviceSeen
 import com.advancedtelematic.libats.slick.db.{BootMigrations, DatabaseConfig}
 import com.advancedtelematic.libats.slick.monitoring.{DatabaseMetrics, DbHealthResource}
-import com.advancedtelematic.metrics.{AkkaHttpRequestMetrics, InfluxdbMetricsReporterSupport}
 import com.advancedtelematic.metrics.prometheus.PrometheusMetricsSupport
-import com.advancedtelematic.ota.deviceregistry.daemon.{
-  DeleteDeviceHandler,
-  DeviceEventListener,
-  DeviceSeenListener,
-  DeviceUpdateStatusListener
-}
-import com.advancedtelematic.ota.deviceregistry.data.{Event, Uuid}
-import com.advancedtelematic.ota.deviceregistry.db.{DeviceRepository, EventJournal}
+import com.advancedtelematic.metrics.{AkkaHttpRequestMetrics, InfluxdbMetricsReporterSupport}
+import com.advancedtelematic.ota.deviceregistry.daemon.{DeleteDeviceHandler, DeviceEventListener, DeviceSeenListener, DeviceUpdateStatusListener}
+import com.advancedtelematic.ota.deviceregistry.data.Uuid
+import com.advancedtelematic.ota.deviceregistry.db.DeviceRepository
 import com.advancedtelematic.ota.deviceregistry.messages.UpdateSpec
-import io.circe.{Decoder, Encoder}
 import slick.jdbc.MySQLProfile.api._
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -51,13 +44,14 @@ class DeviceRegistryRoutes(
 )(implicit db: Database, system: ActorSystem, mat: ActorMaterializer, exec: ExecutionContext)
     extends Directives {
 
-  val route: Route = pathPrefix("api" / "v1") {
+  val route: Route =
     handleRejections(rejectionHandler) {
       ErrorHandler.handleErrors {
-        new DevicesResource(namespaceExtractor, messageBus, deviceNamespaceAuthorizer).route ~
-        new SystemInfoResource(messageBus, namespaceExtractor, deviceNamespaceAuthorizer).route ~
-        new PublicCredentialsResource(namespaceExtractor, messageBus, deviceNamespaceAuthorizer).route ~
-        new GroupsResource(namespaceExtractor, deviceNamespaceAuthorizer).route
+        pathPrefix("api" / "v1") {
+          new DevicesResource(namespaceExtractor, messageBus, deviceNamespaceAuthorizer).route ~
+          new SystemInfoResource(messageBus, namespaceExtractor, deviceNamespaceAuthorizer).route ~
+          new PublicCredentialsResource(namespaceExtractor, messageBus, deviceNamespaceAuthorizer).route ~
+          new GroupsResource(namespaceExtractor, deviceNamespaceAuthorizer).route
       }
     }
   }
@@ -75,8 +69,8 @@ object Boot
     with AkkaHttpRequestMetrics
     with PrometheusMetricsSupport {
 
-  import VersionDirectives._
   import UuidDirectives._
+  import VersionDirectives._
 
   implicit val _db = db
 

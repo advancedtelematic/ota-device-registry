@@ -2,10 +2,10 @@ package com.advancedtelematic.ota.deviceregistry
 
 import akka.http.scaladsl.model.StatusCodes._
 import cats.syntax.show._
-import com.advancedtelematic.libats.data.PaginationResult
+import com.advancedtelematic.libats.data.{ErrorCodes, ErrorRepresentation, PaginationResult}
 import com.advancedtelematic.ota.deviceregistry.data.Group.{GroupExpression, ValidExpression}
 import com.advancedtelematic.ota.deviceregistry.data.{Group, GroupType, Uuid}
-import com.advancedtelematic.ota.deviceregistry.db.{DeviceRepository}
+import com.advancedtelematic.ota.deviceregistry.db.DeviceRepository
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
 import org.scalatest.FunSuite
 import org.scalatest.concurrent.ScalaFutures._
@@ -13,7 +13,9 @@ import eu.timepit.refined.refineV
 import cats.syntax.either._
 import eu.timepit.refined.api.Refined
 import Group._
+import com.advancedtelematic.libats.http.Errors
 import com.advancedtelematic.ota.deviceregistry.data.Device.DeviceId
+import io.circe.Json
 
 class DynamicGroupsResourceSpec extends FunSuite with ResourceSpec {
 
@@ -60,9 +62,12 @@ class DynamicGroupsResourceSpec extends FunSuite with ResourceSpec {
   test("dynamic group with invalid expression is not created") {
     val group      = genGroupInfo.sample.get
     val deviceT    = genDeviceT.sample.get
-    val deviceUuid = createDeviceOk(deviceT)
+
+    createDeviceOk(deviceT)
+
     createGroup(group.groupName, GroupType.dynamic, Some(Refined.unsafeApply(""))) ~> route ~> check {
       status shouldBe BadRequest
+      responseAs[ErrorRepresentation].code shouldBe ErrorCodes.InvalidEntity
     }
   }
 
