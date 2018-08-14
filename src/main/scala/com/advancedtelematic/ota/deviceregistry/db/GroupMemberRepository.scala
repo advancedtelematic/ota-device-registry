@@ -65,17 +65,16 @@ object GroupMemberRepository {
       .delete
 
   def listDevicesInGroup(groupId: GroupId, offset: Option[Long], limit: Option[Long])
-                        (implicit db: Database, ec: ExecutionContext): DBIO[PaginationResult[Uuid]] =
+                        (implicit db: Database, ec: ExecutionContext): DBIO[PaginationResult[(Uuid, DeviceId)]] =
     listDevicesInGroupAction(groupId, offset, limit)
 
   def listDevicesInGroupAction(groupId: GroupId,
                                offset: Option[Long],
                                limit: Option[Long])(
       implicit ec: ExecutionContext
-  ): DBIO[PaginationResult[Uuid]] =
-    groupMembers
-      .filter(_.groupId === groupId)
-      .map(_.deviceUuid)
+  ): DBIO[PaginationResult[(Uuid, DeviceId)]] =
+    groupMembers.filter(_.groupId === groupId).join(DeviceRepository.devices).on(_.deviceUuid === _.uuid)
+      .map { case (_, d) => (d.uuid, d.deviceId) }
       .paginateResult(offset.getOrElse(0L), limit.getOrElse(defaultLimit))
 
   def countDevicesInGroup(

@@ -10,11 +10,13 @@ package com.advancedtelematic.ota.deviceregistry
 
 import akka.http.scaladsl.marshalling.Marshaller._
 import akka.http.scaladsl.model._
+import akka.http.scaladsl.model.headers.Accept
 import akka.http.scaladsl.server._
 import akka.http.scaladsl.unmarshalling.Unmarshaller
 import com.advancedtelematic.libats.auth.{AuthedNamespaceScope, Scopes}
 import com.advancedtelematic.libats.data.DataType.Namespace
 import com.advancedtelematic.libats.http.UUIDKeyAkka._
+import com.advancedtelematic.ota.deviceregistry.data.Device.DeviceId
 import com.advancedtelematic.ota.deviceregistry.data.Group.{GroupExpression, GroupId, Name}
 import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
 import com.advancedtelematic.ota.deviceregistry.data.{Group, GroupType, Uuid}
@@ -47,9 +49,19 @@ class GroupsResource(
 
   val groupMembership = new GroupMembership()
 
-  def getDevicesInGroup(groupId: GroupId): Route =
+  def getDevicesInGroup(groupId: GroupId, includeDeviceId: Boolean): Route =
     parameters(('offset.as[Long].?, 'limit.as[Long].?)) { (offset, limit) =>
-      complete(groupMembership.listDevices(groupId, offset, limit))
+      val deviceIds = groupMembership.listDevices(groupId, offset, limit)
+
+      onSuccess(deviceIds) { res =>
+        if(includeDeviceId)
+          complete {
+            res.map { case (uuid, deviceId) => GroupDevice(uuid, deviceId) }
+          }
+        else
+          complete(res.map(_._1))
+      }
+
     }
 
   def listGroups(ns: Namespace): Route =
@@ -93,7 +105,14 @@ class GroupsResource(
         } ~
         pathPrefix("devices") {
           scope.get {
-            getDevicesInGroup(groupId)
+            optionalHeaderValueByType(classOf[Accept]) { accept =>
+
+              val requestsDeviceId = accept.exists(_.mediaRanges.exists { mr =>
+                mr.matches(MediaTypes.`application/json`) && mr.params.get("vin").contains("1")
+              })
+
+              getDevicesInGroup(groupId, requestsDeviceId)
+            }
           } ~
           deviceNamespaceAuthorizer { deviceUuid =>
             scope.post {
@@ -112,6 +131,16 @@ class GroupsResource(
         }
       }
     }
+}
+
+case class GroupDevice(uuid: Uuid, id: DeviceId)
+
+object GroupDevice {
+  import io.circe.generic.semiauto._
+  import com.advancedtelematic.libats.codecs.CirceAnyVal._
+
+  implicit val groupDeviceEncoder: Encoder[GroupDevice] = deriveEncoder
+  implicit val groupDeviceDecoder: Decoder[GroupDevice] = deriveDecoder
 }
 
 case class CreateGroup(name: Group.Name, groupType: GroupType, expression: Option[GroupExpression])

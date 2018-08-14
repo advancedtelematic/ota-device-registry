@@ -83,7 +83,7 @@ class GroupMembership(implicit val db: Database, ec: ExecutionContext) {
       case (_, _) => throw new IllegalArgumentException(s"(groupType, expression) = ($groupType, $expression)")
     }
 
-  def listDevices(groupId: GroupId, offset: Option[Long], limit: Option[Long]): Future[PaginationResult[Uuid]] =
+  def listDevices(groupId: GroupId, offset: Option[Long], limit: Option[Long]): Future[PaginationResult[(Uuid, DeviceId)]] =
     db.run(GroupMemberRepository.listDevicesInGroup(groupId, offset, limit))
 
   def addGroupMember(groupId: GroupId, deviceId: Uuid)(implicit ec: ExecutionContext): Future[Unit] =

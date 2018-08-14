@@ -106,6 +106,7 @@ object Boot
   new DeviceEventListener(system.settings.config, db, metricRegistry).start()
   new DeleteDeviceHandler(system.settings.config, db, metricRegistry).start()
 
+  // Add custom media type to parser sett
   val host = config.getString("server.host")
   val port = config.getInt("server.port")
   Http().bindAndHandle(routes, host, port)
