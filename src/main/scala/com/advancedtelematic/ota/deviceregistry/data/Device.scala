@@ -22,7 +22,7 @@ import io.circe.{Decoder, Encoder}
 final case class Device(namespace: Namespace,
                         uuid: Uuid,
                         deviceName: DeviceName,
-                        deviceId: Option[DeviceId] = None,
+                        deviceId: DeviceId,
                         deviceType: DeviceType = DeviceType.Other,
                         lastSeen: Option[Instant] = None,
                         createdAt: Instant,

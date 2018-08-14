@@ -49,10 +49,10 @@ trait PublicCredentialsRequests { self: ResourceSpec =>
       implicit ec: ExecutionContext
   ): HttpRequest = {
     val devT = data.DeviceT(Refined.unsafeApply(device.underlying),
-                            None,
-                            Some(device),
-                            credentials = Some(base64Encoder.encodeToString(creds)),
-                            credentialsType = cType)
+      None,
+      device,
+      credentials = Some(base64Encoder.encodeToString(creds)),
+      credentialsType = cType)
     createDeviceWithCredentials(devT)
   }
 

@@ -108,13 +108,13 @@ class GroupExpressionRunSpec extends FunSuite with Matchers with DatabaseSpec wi
       .retryUntil(_.deviceUuid.isDefined)
       .sample
       .get
-      .copy(deviceId = Some(DeviceId("deviceABC")))
+      .copy(deviceId = DeviceId("deviceABC"))
   val device1 =
     DeviceGenerators.genDeviceT
       .retryUntil(_.deviceUuid.isDefined)
       .sample
       .get
-      .copy(deviceId = Some(DeviceId("deviceDEF")))
+      .copy(deviceId = DeviceId("deviceDEF"))
 
   override def beforeAll(): Unit = {
     super.beforeAll()

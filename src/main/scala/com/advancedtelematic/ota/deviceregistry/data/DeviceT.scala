@@ -19,7 +19,7 @@ import io.circe.{Decoder, Encoder}
 final case class DeviceT(
     deviceName: DeviceName,
     deviceUuid: Option[Uuid] = None,
-    deviceId: Option[Device.DeviceId] = None,
+    deviceId: Device.DeviceId,
     deviceType: Device.DeviceType = Device.DeviceType.Other,
     credentials: Option[String] = None,
     credentialsType: Option[CredentialsType] = None

@@ -82,7 +82,7 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
 
   property("GET request with ?deviceId after creating yields same device.") {
     forAll { (deviceId: DeviceId, devicePre: DeviceT) =>
-      val uuid: Uuid = createDeviceOk(devicePre.copy(deviceId = Some(deviceId)))
+      val uuid: Uuid = createDeviceOk(devicePre.copy(deviceId = deviceId))
       fetchByDeviceId(deviceId) ~> route ~> check {
         status shouldBe OK
         val devicePost1: Device = responseAs[Seq[Device]].head
@@ -164,13 +164,10 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
   property("POST request with same deviceId fails with conflict.") {
     forAll(genConflictFreeDeviceTs(2)) {
       case Seq(d1, d2) =>
-        val uuid: Uuid = createDeviceOk(d1)
+        createDeviceOk(d1)
 
         createDevice(d2.copy(deviceId = d1.deviceId)) ~> route ~> check {
-          d1.deviceId match {
-            case Some(deviceId) => status shouldBe Conflict
-            case None           => status shouldBe Created
-          }
+          status shouldBe Conflict
         }
     }
   }
@@ -353,10 +350,10 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
   }
 
   property("searching a device by 'regex' and 'deviceId' fails") {
-    val deviceT = genDeviceT.retryUntil(_.deviceId.isDefined).sample.get
+    val deviceT = genDeviceT.sample.get
     val _: Uuid = createDeviceOk(deviceT)
 
-    fetchByDeviceId(deviceT.deviceId.get, Some("")) ~> route ~> check {
+    fetchByDeviceId(deviceT.deviceId, Some("")) ~> route ~> check {
       status shouldBe BadRequest
     }
   }

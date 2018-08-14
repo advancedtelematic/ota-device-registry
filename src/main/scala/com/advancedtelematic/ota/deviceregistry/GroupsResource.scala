@@ -9,18 +9,18 @@
 package com.advancedtelematic.ota.deviceregistry
 
 import akka.http.scaladsl.marshalling.Marshaller._
-import akka.http.scaladsl.model.StatusCodes
+import akka.http.scaladsl.model._
 import akka.http.scaladsl.server._
 import akka.http.scaladsl.unmarshalling.Unmarshaller
 import com.advancedtelematic.libats.auth.{AuthedNamespaceScope, Scopes}
 import com.advancedtelematic.libats.data.DataType.Namespace
+import com.advancedtelematic.libats.http.UUIDKeyAkka._
 import com.advancedtelematic.ota.deviceregistry.data.Group.{GroupExpression, GroupId, Name}
 import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
 import com.advancedtelematic.ota.deviceregistry.data.{Group, GroupType, Uuid}
 import com.advancedtelematic.ota.deviceregistry.db.GroupInfoRepository
-import slick.jdbc.MySQLProfile.api._
-import com.advancedtelematic.libats.http.UUIDKeyAkka._
 import io.circe.{Decoder, Encoder}
+import slick.jdbc.MySQLProfile.api._
 
 import scala.concurrent.{ExecutionContext, Future}
 

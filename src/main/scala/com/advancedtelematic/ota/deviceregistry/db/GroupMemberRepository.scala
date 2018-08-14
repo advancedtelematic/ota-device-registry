@@ -15,15 +15,11 @@ import com.advancedtelematic.libats.slick.db.SlickExtensions._
 import com.advancedtelematic.libats.slick.db.SlickUUIDKey._
 import com.advancedtelematic.ota.deviceregistry.common.Errors
 import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
-import com.advancedtelematic.ota.deviceregistry.data.{
-  Device,
-  GroupExpressionAST,
-  GroupType,
-  Uuid
-}
+import com.advancedtelematic.ota.deviceregistry.data.{Device, GroupExpressionAST, GroupType, Uuid}
 import slick.jdbc.MySQLProfile.api._
 import slick.lifted.Tag
 import com.advancedtelematic.libats.slick.db.SlickAnyVal._
+import com.advancedtelematic.ota.deviceregistry.data.Device.DeviceId
 
 import scala.concurrent.ExecutionContext
 
@@ -63,19 +59,13 @@ object GroupMemberRepository {
       .delete
       .handleSingleUpdateError(Errors.MissingGroup)
 
-  def removeGroupMemberAll(
-      deviceUuid: Uuid
-  )(implicit ec: ExecutionContext): DBIO[Int] =
+  def removeGroupMemberAll(deviceUuid: Uuid)(implicit ec: ExecutionContext): DBIO[Int] =
     groupMembers
       .filter(r => r.deviceUuid === deviceUuid)
       .delete
 
-  def listDevicesInGroup(groupId: GroupId,
-                         offset: Option[Long],
-                         limit: Option[Long])(
-      implicit db: Database,
-      ec: ExecutionContext
-  ): DBIO[PaginationResult[Uuid]] =
+  def listDevicesInGroup(groupId: GroupId, offset: Option[Long], limit: Option[Long])
+                        (implicit db: Database, ec: ExecutionContext): DBIO[PaginationResult[Uuid]] =
     listDevicesInGroupAction(groupId, offset, limit)
 
   def listDevicesInGroupAction(groupId: GroupId,

@@ -101,7 +101,7 @@ class DevicesResource(
       .andThen {
         case scala.util.Success(uuid) =>
           messageBus.publish(
-            DeviceCreated(ns, uuid, device.deviceName, device.deviceId, device.deviceType, Instant.now())
+            DeviceCreated(ns, uuid, device.deviceName, Some(device.deviceId), device.deviceType, Instant.now())
           )
       }
 

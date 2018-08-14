@@ -51,7 +51,7 @@ class PublicCredentialsResource(
 
   def createDeviceWithPublicCredentials(ns: Namespace, devT: DeviceT): Route = {
     val act = (devT.deviceId, devT.credentials) match {
-      case (Some(devId), Some(credentials)) => {
+      case (devId, Some(credentials)) => {
         val cType = devT.credentialsType.getOrElse(CredentialsType.PEM)
         val dbact = for {
           (created, uuid) <- DeviceRepository.findUuidFromUniqueDeviceIdOrCreate(ns, devId, devT)
@@ -62,7 +62,7 @@ class PublicCredentialsResource(
           (created, uuid) <- db.run(dbact.transactionally)
           _ <- if (created) {
             messageBus.publish(
-              DeviceCreated(ns, uuid, devT.deviceName, devT.deviceId, devT.deviceType, Instant.now())
+              DeviceCreated(ns, uuid, devT.deviceName, Some(devT.deviceId), devT.deviceType, Instant.now())
             )
           } else { Future.successful(()) }
           _ <- messageBus.publish(
@@ -70,7 +70,6 @@ class PublicCredentialsResource(
           )
         } yield uuid
       }
-      case (None, _) => FastFuture.failed(Errors.RequestNeedsDeviceId)
       case (_, None) => FastFuture.failed(Errors.RequestNeedsCredentials)
     }
     complete(act)

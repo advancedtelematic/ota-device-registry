@@ -42,7 +42,7 @@ object DeviceRepository extends ColumnTypes {
     def namespace    = column[Namespace]("namespace")
     def uuid         = column[Uuid]("uuid")
     def deviceName   = column[DeviceName]("device_name")
-    def deviceId     = column[Option[DeviceId]]("device_id")
+    def deviceId     = column[DeviceId]("device_id")
     def deviceType   = column[DeviceType]("device_type")
     def lastSeen     = column[Option[Instant]]("last_seen")
     def createdAt    = column[Instant]("created_at")

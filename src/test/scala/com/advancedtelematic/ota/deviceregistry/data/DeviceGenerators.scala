@@ -43,7 +43,7 @@ trait DeviceGenerators {
     for {
       uuid       <- arbitrary[Uuid]
       name       <- deviceNameGen
-      deviceId   <- deviceIdGen.map(Some.apply)
+      deviceId   <- deviceIdGen
       deviceType <- genDeviceType
       lastSeen   <- Gen.option(genInstant)
       activated  <- Gen.option(genInstant)
@@ -54,7 +54,7 @@ trait DeviceGenerators {
   def genDeviceTWith(deviceNameGen: Gen[DeviceName], deviceIdGen: Gen[DeviceId]): Gen[DeviceT] =
     for {
       name       <- deviceNameGen
-      deviceId   <- deviceIdGen.map(Some.apply)
+      deviceId   <- deviceIdGen
       deviceUuid <- Gen.option(UuidGenerator.genUuid)
       deviceType <- genDeviceType
     } yield DeviceT(name, deviceUuid, deviceId, deviceType)
@@ -91,7 +91,7 @@ object InvalidDeviceGenerators extends DeviceGenerators with DeviceIdGenerators 
     // TODO: for now, just generate an invalid VIN with a valid namespace
     deviceId <- genInvalidDeviceId
     d        <- genDevice
-  } yield d.copy(deviceId = Option(deviceId), namespace = Namespaces.defaultNs)
+  } yield d.copy(deviceId = deviceId, namespace = Namespaces.defaultNs)
 
   def getInvalidVehicle: Device = genInvalidVehicle.sample.getOrElse(getInvalidVehicle)
 }
