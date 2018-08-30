@@ -15,7 +15,7 @@ import slick.lifted.Rep
 object GroupExpressionAST {
   sealed trait Expression
   case class DeviceIdContains(word: String) extends Expression
-  case class DeviceIdCharAt(position: Int, char: Char) extends Expression
+  case class DeviceIdCharAt(char: Char, position: Int) extends Expression
   case class Or(cond: NonEmptyList[Expression])  extends Expression
   case class And(cond: NonEmptyList[Expression]) extends Expression
 
@@ -51,7 +51,7 @@ object GroupExpressionAST {
     case DeviceIdContains(word) =>
       (d: DeviceTable) => d.deviceId.mappedTo[String].like("%" + word + "%")
 
-    case DeviceIdCharAt(p, c) =>
+    case DeviceIdCharAt(c, p) =>
       (d: DeviceTable) => d.deviceId.mappedTo[String].substring(p, p + 1) === c.toString
 
     case Or(conds) =>
@@ -95,7 +95,7 @@ object GroupExpressionParser {
     _ <- string("is")
     _ <- whitespace
     c <- letterOrDigit
-  } yield DeviceIdCharAt(p - 1, c)
+  } yield DeviceIdCharAt(c, p - 1)
 
   private lazy val and: Parser[Expression] = for {
     a <- leftExpression

@@ -99,24 +99,24 @@ class GroupExpressionParserSpec extends FunSuite with Matchers {
   }
 
   test("parses 'deviceid position is'") {
-    runParser("deviceid position(2) is a") shouldBe DeviceIdCharAt(1, 'a')
+    runParser("deviceid position(2) is a") shouldBe DeviceIdCharAt('a', 1)
   }
 
   test("parses 'deviceid position is' is case-sensitive") {
-    runParser("deviceid position(2) is A") shouldBe DeviceIdCharAt(1, 'A')
+    runParser("deviceid position(2) is A") shouldBe DeviceIdCharAt('A', 1)
   }
 
   test("parses 'deviceid position is' number as char") {
-    runParser("deviceid position(2) is 8") shouldBe DeviceIdCharAt(1, '8')
+    runParser("deviceid position(2) is 8") shouldBe DeviceIdCharAt('8', 1)
   }
 
   test("parses 'deviceid position is' ignores chars after first") {
     pending
-    runParser("deviceid position(2) is abc") shouldBe DeviceIdCharAt(1, 'a')
+    runParser("deviceid position(2) is abc") shouldBe DeviceIdCharAt('a', 1)
   }
 
   test("parses 'deviceid position is' with parenthesis") {
-    runParser("(deviceid position(2) is 8)") shouldBe DeviceIdCharAt(1, '8')
+    runParser("(deviceid position(2) is 8)") shouldBe DeviceIdCharAt('8', 1)
   }
 
   test("fails to parse 'deviceid position is' when the position is not positive") {
@@ -136,46 +136,46 @@ class GroupExpressionParserSpec extends FunSuite with Matchers {
 
   test("parses 'deviceid position is' with or expression") {
     runParser("deviceid position(1) is a or deviceid position(2) is 8") shouldBe
-    Or(NonEmptyList.of(DeviceIdCharAt(0, 'a'), DeviceIdCharAt(1, '8')))
+    Or(NonEmptyList.of(DeviceIdCharAt('a', 0), DeviceIdCharAt('8', 1)))
   }
 
   test("parses 'deviceid position is' with multiple or expressions") {
     runParser("deviceid position(1) is a or (deviceid position(2) is 8 or deviceid position(3) is A)") shouldBe
-    Or(NonEmptyList.of(DeviceIdCharAt(0, 'a'), Or(NonEmptyList.of(DeviceIdCharAt(1, '8'), DeviceIdCharAt(2, 'A')))))
+    Or(NonEmptyList.of(DeviceIdCharAt('a', 0), Or(NonEmptyList.of(DeviceIdCharAt('8', 1), DeviceIdCharAt('A', 2)))))
   }
 
   test("parses 'deviceid position is' with and expression") {
     runParser("deviceid position(1) is a and deviceid position(2) is 8") shouldBe
-    And(NonEmptyList.of(DeviceIdCharAt(0, 'a'), DeviceIdCharAt(1, '8')))
+    And(NonEmptyList.of(DeviceIdCharAt('a', 0), DeviceIdCharAt('8', 1)))
   }
 
   test("parses 'deviceid position is' with multiple and expressions") {
     runParser("deviceid position(1) is a and (deviceid position(2) is 8 and deviceid position(3) is A)") shouldBe
-    And(NonEmptyList.of(DeviceIdCharAt(0, 'a'), And(NonEmptyList.of(DeviceIdCharAt(1, '8'), DeviceIdCharAt(2, 'A')))))
+    And(NonEmptyList.of(DeviceIdCharAt('a', 0), And(NonEmptyList.of(DeviceIdCharAt('8', 1), DeviceIdCharAt('A', 2)))))
   }
 
   test("parses 'deviceid contains' or 'deviceid position is'") {
     runParser("deviceid contains something0 or deviceid position(3) is x") shouldBe
-    Or(NonEmptyList.of(DeviceIdContains("something0"), DeviceIdCharAt(2, 'x')))
+    Or(NonEmptyList.of(DeviceIdContains("something0"), DeviceIdCharAt('x', 2)))
   }
 
   test("parses 'deviceid position is' or nested 'deviceid contains'") {
     runParser("deviceid position(3) is x or (deviceid contains something0 and deviceid contains something0else)") shouldBe
     Or(
-      NonEmptyList.of(DeviceIdCharAt(2, 'x'),
+      NonEmptyList.of(DeviceIdCharAt('x', 2),
                       And(NonEmptyList.of(DeviceIdContains("something0"), DeviceIdContains("something0else"))))
     )
   }
 
   test("parses 'deviceid position is' and 'deviceid contains'") {
     runParser("deviceid position(3) is x and deviceid contains something0") shouldBe
-    And(NonEmptyList.of(DeviceIdCharAt(2, 'x'), DeviceIdContains("something0")))
+    And(NonEmptyList.of(DeviceIdCharAt('x', 2), DeviceIdContains("something0")))
   }
 
   test("parses 'deviceid contains' and nested 'deviceid position is'") {
     runParser("deviceid contains something0 and (deviceid position(1) is x or deviceid position(2) is y)") shouldBe
     And(
-      NonEmptyList.of(DeviceIdContains("something0"), Or(NonEmptyList.of(DeviceIdCharAt(0, 'x'), DeviceIdCharAt(1, 'y'))))
+      NonEmptyList.of(DeviceIdContains("something0"), Or(NonEmptyList.of(DeviceIdCharAt('x', 0), DeviceIdCharAt('y', 1))))
     )
   }
 
