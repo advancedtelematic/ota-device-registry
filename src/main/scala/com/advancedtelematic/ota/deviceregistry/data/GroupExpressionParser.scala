@@ -38,13 +38,11 @@ object GroupExpressionAST {
 
     case Or(conds) =>
       val evaledConds = conds.map(evalToScala)
-      evaledConds.reduceLeft { (a, b) => (d: Device) => a(d) || b(d)
-      }
+      evaledConds.reduceLeft { (a, b) => (d: Device) => a(d) || b(d) }
 
     case And(conds) =>
       val evaledConds = conds.map(evalToScala)
-      evaledConds.reduceLeft { (a, b) => (d: Device) => a(d) && b(d)
-      }
+      evaledConds.reduceLeft { (a, b) => (d: Device) => a(d) && b(d) }
   }
 
   def eval(exp: Expression): DeviceTable => Rep[Boolean] = exp match {
@@ -72,30 +70,28 @@ object GroupExpressionParser {
 
   private lazy val expression: Parser[Expression] = or | and | leftExpression
 
-  private lazy val leftExpression: Parser[Expression] = deviceIdContains | deviceIdCharAt | brackets
+  private lazy val leftExpression: Parser[Expression] = deviceIdExpression | brackets
+
+  private lazy val deviceIdExpression: Parser[Expression] = deviceIdCons ~> (deviceIdContains |  deviceIdCharAt)
 
   private lazy val brackets: Parser[Expression] = parens(expression)
 
   private lazy val parser: Parser[Expression] = expression <~ endOfInput
 
+  private lazy val deviceIdCons: Parser[Unit] = token(string("deviceid")).map(_ => ())
+
   private lazy val deviceIdContains: Parser[Expression] = for {
-    _ <- string("deviceid")
-    _ <- skipWhitespace
-    _ <- string("contains")
-    _ <- skipWhitespace
-    b <- takeWhile1(c => c.isLetterOrDigit || c == '-')
-  } yield DeviceIdContains(b)
+    _ <- token(string("contains"))
+    str <- takeWhile1(c => c.isLetterOrDigit || c == '-')
+  } yield DeviceIdContains(str)
 
   private lazy val deviceIdCharAt: Parser[Expression] = for {
-    _ <- string("deviceid")
-    _ <- skipWhitespace
     _ <- string("position")
-    p <- parens(int.filter(_ > 0))
+    pos <- parens(int.filter(_ > 0))
     _ <- skipWhitespace
-    _ <- string("is")
-    _ <- whitespace
-    c <- letterOrDigit
-  } yield DeviceIdCharAt(c, p - 1)
+    _ <- token(string("is"))
+    char <- letterOrDigit
+  } yield DeviceIdCharAt(char, pos - 1)
 
   private lazy val and: Parser[Expression] = for {
     a <- leftExpression
