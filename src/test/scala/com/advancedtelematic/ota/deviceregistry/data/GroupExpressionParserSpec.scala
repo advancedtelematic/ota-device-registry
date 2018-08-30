@@ -102,17 +102,8 @@ class GroupExpressionParserSpec extends FunSuite with Matchers {
     runParser("deviceid position(2) is a") shouldBe DeviceIdCharAt('a', 1)
   }
 
-  test("parses 'deviceid position is' is case-sensitive") {
-    runParser("deviceid position(2) is A") shouldBe DeviceIdCharAt('A', 1)
-  }
-
   test("parses 'deviceid position is' number as char") {
     runParser("deviceid position(2) is 8") shouldBe DeviceIdCharAt('8', 1)
-  }
-
-  test("parses 'deviceid position is' ignores chars after first") {
-    pending
-    runParser("deviceid position(2) is abc") shouldBe DeviceIdCharAt('a', 1)
   }
 
   test("parses 'deviceid position is' with parenthesis") {
@@ -262,14 +253,17 @@ class GroupExpressionRunSpec extends FunSuite with Matchers with DatabaseSpec wi
     runGroupExpression(s"deviceid position(8) is B") shouldBe Seq(device0.deviceUuid.get)
   }
 
+  test("returns matching 'deviceid position is' is case-insensitive") {
+    runGroupExpression(s"deviceid position(1) is D") shouldBe Seq(device0.deviceUuid.get, device1.deviceUuid.get)
+    runGroupExpression(s"deviceid position(8) is b") shouldBe Seq(device0.deviceUuid.get)
+  }
+
   test("does not match 'deviceid position is' when different char at position") {
     runGroupExpression(s"deviceid position(8) is Z") shouldBe empty
   }
 
   test("does not match 'deviceid position is' when position is out of bounds") {
-    val minMaxDeviceIdLength =
-      scala.math.max(device0.deviceId.get.underlying.length, device1.deviceId.get.underlying.length)
-    runGroupExpression(s"deviceid position($minMaxDeviceIdLength) is X") shouldBe empty
+    runGroupExpression(s"deviceid position(9) is X") shouldBe empty
     runGroupExpression(s"deviceid position(1000) is Y") shouldBe empty
   }
 

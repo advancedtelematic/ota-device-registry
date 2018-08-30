@@ -33,8 +33,8 @@ object GroupExpressionAST {
     case DeviceIdContains(word) =>
       (d: Device) => d.deviceId.exists(_.underlying.contains(word))
 
-    case DeviceIdCharAt(p, c) =>
-      (d: Device) => d.deviceId.exists(id => p < id.underlying.length && id.underlying.charAt(p) == c)
+    case DeviceIdCharAt(c, p) =>
+      (d: Device) => d.deviceId.exists(id => p < id.underlying.length && id.underlying.charAt(p).toLower == c.toLower)
 
     case Or(conds) =>
       val evaledConds = conds.map(evalToScala)
@@ -50,17 +50,15 @@ object GroupExpressionAST {
       (d: DeviceTable) => d.deviceId.mappedTo[String].like("%" + word + "%")
 
     case DeviceIdCharAt(c, p) =>
-      (d: DeviceTable) => d.deviceId.mappedTo[String].substring(p, p + 1) === c.toString
+      (d: DeviceTable) => d.deviceId.mappedTo[String].substring(p, p + 1).toLowerCase.mappedTo[Char] === c.toLower
 
     case Or(conds) =>
       val evaledConds = conds.map(eval)
-      evaledConds.reduceLeft { (a, b) => (d: DeviceTable) => a(d) || b(d)
-      }
+      evaledConds.reduceLeft { (a, b) => (d: DeviceTable) => a(d) || b(d) }
 
     case And(conds) =>
       val evaledConds = conds.map(eval)
-      evaledConds.reduceLeft { (a, b) => (d: DeviceTable) => a(d) && b(d)
-      }
+      evaledConds.reduceLeft { (a, b) => (d: DeviceTable) => a(d) && b(d) }
   }
 }
 
