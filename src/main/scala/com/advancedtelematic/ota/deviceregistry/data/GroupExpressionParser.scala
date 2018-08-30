@@ -1,27 +1,21 @@
 package com.advancedtelematic.ota.deviceregistry.data
 
+import atto.Atto._
 import atto._
-import Atto._
 import cats.data.NonEmptyList
-import cats.implicits._
-import com.advancedtelematic.ota.deviceregistry.db.DeviceRepository.DeviceTable
-import slick.lifted.Rep
-import slick.jdbc.MySQLProfile.api._
-import com.advancedtelematic.libats.slick.db.SlickExtensions._
-import com.advancedtelematic.libats.slick.db.SlickAnyVal._
-import com.advancedtelematic.ota.deviceregistry.data.Group.GroupExpression
-import com.advancedtelematic.ota.deviceregistry.data.GroupExpressionAST.{
-  And,
-  DeviceContains,
-  Expression,
-  Or
-}
 import cats.syntax.either._
+import com.advancedtelematic.libats.slick.db.SlickExtensions._
 import com.advancedtelematic.ota.deviceregistry.common.Errors
+import com.advancedtelematic.ota.deviceregistry.data.Group.GroupExpression
+import com.advancedtelematic.ota.deviceregistry.data.GroupExpressionAST._
+import com.advancedtelematic.ota.deviceregistry.db.DeviceRepository.DeviceTable
+import slick.jdbc.MySQLProfile.api._
+import slick.lifted.Rep
 
 object GroupExpressionAST {
   sealed trait Expression
   case class DeviceContains(word: String) extends Expression
+  case class DeviceIdCharAt(position: Int, char: Char) extends Expression
   case class Or(cond: NonEmptyList[Expression])  extends Expression
   case class And(cond: NonEmptyList[Expression]) extends Expression
 
@@ -39,6 +33,9 @@ object GroupExpressionAST {
     case DeviceContains(word) =>
       (d: Device) =>
         d.deviceId.exists(_.underlying.contains(word))
+
+    case DeviceIdCharAt(p, c) =>
+      (d: Device) => d.deviceId.exists(id => p < id.underlying.length && id.underlying.charAt(p) == c)
 
     case Or(conds) =>
       val evaledConds = conds.map(evalToScala)
@@ -59,6 +56,9 @@ object GroupExpressionAST {
       (d: DeviceTable) =>
         d.deviceId.mappedTo[String].like("%" + word + "%")
 
+    case DeviceIdCharAt(p, c) =>
+      (d: DeviceTable) => d.deviceId.mappedTo[String].substring(p, p + 1) === c.toString
+
     case Or(conds) =>
       val cc = conds.map(eval)
       cc.reduceLeft { (a, b) => (d: DeviceTable) =>
@@ -77,15 +77,15 @@ object GroupExpressionParser {
   def parse(str: String) =
     parser.parse(str).done.either.leftMap(Errors.InvalidGroupExpression)
 
-  lazy val expression: Parser[Expression] = or | and | leftExpression
+  private lazy val expression: Parser[Expression] = or | and | leftExpression
 
-  lazy val leftExpression: Parser[Expression] = deviceIdContains | brackets
+  private lazy val leftExpression: Parser[Expression] = deviceIdContains | deviceIdCharAt | brackets
 
-  lazy val brackets: Parser[Expression] = parens(expression)
+  private lazy val brackets: Parser[Expression] = parens(expression)
 
-  lazy val parser: Parser[Expression] = expression <~ endOfInput
+  private lazy val parser: Parser[Expression] = expression <~ endOfInput
 
-  lazy val deviceIdContains: Parser[Expression] = for {
+  private lazy val deviceIdContains: Parser[Expression] = for {
     _ <- string("deviceid")
     _ <- skipWhitespace
     _ <- string("contains")
@@ -93,13 +93,24 @@ object GroupExpressionParser {
     b <- takeWhile1(c => c.isLetterOrDigit || c == '-')
   } yield DeviceContains(b)
 
-  lazy val and: Parser[Expression] = for {
+  private lazy val deviceIdCharAt: Parser[Expression] = for {
+    _ <- string("deviceid")
+    _ <- skipWhitespace
+    _ <- string("position")
+    p <- parens(int.filter(_ > 0))
+    _ <- skipWhitespace
+    _ <- string("is")
+    _ <- whitespace
+    c <- letterOrDigit
+  } yield DeviceIdCharAt(p - 1, c)
+
+  private lazy val and: Parser[Expression] = for {
     a <- leftExpression
     _ <- skipWhitespace
     b <- many1(token(string("and")) ~> token(leftExpression))
   } yield And(a :: b)
 
-  lazy val or: Parser[Expression] = for {
+  private lazy val or: Parser[Expression] = for {
     a <- and | leftExpression
     _ <- skipWhitespace
     b <- many1(token(string("or")) ~> token(and | leftExpression))
