@@ -7,7 +7,7 @@ mkdir entrypoint.d/ || true
 echo "
 CREATE DATABASE device_registry;
 CREATE DATABASE device_registry_test;
-GRANT ALL PRIVILEGES ON \`device\_registry%\`.* TO 'sota_test'@'%';
+GRANT ALL PRIVILEGES ON \`device\_registry%\`.* TO 'device_registry'@'%';
 FLUSH PRIVILEGES;
 " > entrypoint.d/db_user.sql
 
@@ -16,9 +16,9 @@ docker run -d \
   --name mariadb-device-registry \
   -p 3306:3306 \
   -v $(pwd)/entrypoint.d:/docker-entrypoint-initdb.d \
-  -e MYSQL_ROOT_PASSWORD=sota-test \
-  -e MYSQL_USER=sota_test \
-  -e MYSQL_PASSWORD=s0ta \
+  -e MYSQL_ROOT_PASSWORD=root \
+  -e MYSQL_USER=device_registry \
+  -e MYSQL_PASSWORD=device_registry \
   mariadb:10.2 \
   --character-set-server=utf8 --collation-server=utf8_unicode_ci \
   --max_connections=1000
@@ -30,7 +30,7 @@ function mysqladmin_alive {
            --rm \
            --link mariadb-device-registry \
            mariadb:10.2 \
-           mysqladmin ping --protocol=TCP -h mariadb-device-registry -P 3306 -u sota_test -ps0ta
+           mysqladmin ping --protocol=TCP -h mariadb-device-registry -P 3306 -u device_registry -pdevice_registry
 }
 
 TRIES=60
