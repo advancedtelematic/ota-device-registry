@@ -48,6 +48,8 @@ object SystemInfoRepository extends SlickJsonHelper {
     def hostname   = column[String]("hostname")
     def macAddress = column[String]("mac_address")
 
+    def pk = primaryKey("sys_info_pk", uuid)
+
     def * = (uuid, localIpV4, hostname, macAddress).mapTo[NetworkInfo]
   }
 
