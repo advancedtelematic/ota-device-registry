@@ -34,6 +34,8 @@ object EventJournal {
     def event            = column[Json]("event")
     def receivedAt       = column[Instant]("received_at")
 
+    def pk = primaryKey("events_pk", (deviceUuid, eventId))
+
     private def fromEvent(e: Event) =
       Some((Uuid(refineV[Uuid.Valid](e.deviceUuid.uuid.toString).right.get),
            e.eventId,

@@ -19,6 +19,10 @@ import com.advancedtelematic.ota.deviceregistry.db.DeviceRepository
 import com.advancedtelematic.ota.deviceregistry.messages.{UpdateSpec, UpdateStatus}
 import com.advancedtelematic.ota.deviceregistry.messages.UpdateStatus.UpdateStatus
 import slick.jdbc.MySQLProfile.api._
+import com.advancedtelematic.libats.messaging_datatype.MessageCodecs._
+import com.advancedtelematic.libats.messaging_datatype.Messages._
+import MessageLike._
+import com.advancedtelematic.ota.deviceregistry.daemon.DeviceUpdateStatusListener.DeviceUpdateStatus._
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -50,7 +54,7 @@ object DeviceUpdateStatusListener {
   object DeviceUpdateStatus {
     import cats.syntax.show._
     import com.advancedtelematic.libats.codecs.CirceCodecs._
-    implicit val MessageLikeInstance = MessageLike[DeviceUpdateStatus](_.device.show)
+    implicit val MessageLikeInstance = MessageLike.derive[DeviceUpdateStatus](_.device.show)
   }
 
   def action(

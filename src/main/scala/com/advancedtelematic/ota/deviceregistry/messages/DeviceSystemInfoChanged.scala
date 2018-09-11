@@ -18,5 +18,5 @@ object DeviceSystemInfoChanged {
   import cats.syntax.show._
   import com.advancedtelematic.libats.codecs.CirceCodecs._
 
-  implicit val MessageLikeInstance = MessageLike[DeviceSystemInfoChanged](_.uuid.show)
+  implicit val MessageLikeInstance = MessageLike.derive[DeviceSystemInfoChanged](_.uuid.show)
 }

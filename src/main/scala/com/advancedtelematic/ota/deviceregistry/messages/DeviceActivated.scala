@@ -19,5 +19,5 @@ final case class DeviceActivated(namespace: Namespace, uuid: Uuid, at: Instant)
 object DeviceActivated {
   import cats.syntax.show._
   import com.advancedtelematic.libats.codecs.CirceCodecs._
-  implicit val MessageLikeInstance = MessageLike[DeviceActivated](_.uuid.show)
+  implicit val MessageLikeInstance = MessageLike.derive[DeviceActivated](_.uuid.show)
 }
