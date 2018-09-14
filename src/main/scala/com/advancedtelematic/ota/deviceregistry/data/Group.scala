@@ -8,23 +8,28 @@
 
 package com.advancedtelematic.ota.deviceregistry.data
 
+import java.time.Instant
 import java.util.UUID
-
-import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
-import slick.jdbc.MySQLProfile.api._
 
 import com.advancedtelematic.libats.data.DataType.Namespace
 import com.advancedtelematic.libats.data.UUIDKey.{UUIDKey, UUIDKeyObj}
-import com.advancedtelematic.ota.deviceregistry.data.Group._
+import com.advancedtelematic.libats.slick.codecs.SlickRefined._
+import com.advancedtelematic.libats.slick.db.SlickExtensions._
+import com.advancedtelematic.ota.deviceregistry.data.Group.{GroupId, _}
 import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
+import com.advancedtelematic.ota.deviceregistry.db.GroupInfoRepository.GroupInfoTable
 import eu.timepit.refined.api.{Refined, Validate}
 import io.circe.{Decoder, Encoder}
+import slick.jdbc.MySQLProfile.api._
+import slick.lifted.ColumnOrdered
 
 case class Group(id: GroupId,
                  groupName: Name,
                  namespace: Namespace,
                  groupType: GroupType,
-                 expression: Option[GroupExpression] = None)
+                 expression: Option[GroupExpression] = None,
+                 createdAt: Instant,
+                 updatedAt: Instant)
 
 object GroupType extends Enumeration {
   type GroupType = Value
@@ -44,6 +49,7 @@ object Group {
 
   case class ValidName()
   type Name = Refined[String, ValidName]
+  implicit val nameOrdering: Ordering[Name] = (a, b) => a.value.toLowerCase compareTo b.value.toLowerCase
 
   implicit val validGroupName: Validate.Plain[String, ValidName] =
     Validate.fromPredicate(
@@ -74,4 +80,18 @@ object Group {
     import com.advancedtelematic.libats.codecs.CirceCodecs._
     io.circe.generic.semiauto.deriveEncoder[Group]
   }
+}
+
+object SortBy extends Enumeration {
+  type SortBy = Value
+  val NAME       = Value("name")
+  val CREATED_AT = Value("createdAt")
+
+  implicit class Sorting(sortBy: Value) {
+    def groupSorting: GroupInfoTable => ColumnOrdered[_] = sortBy match {
+      case SortBy.NAME       => _.groupName.asc
+      case SortBy.CREATED_AT => _.createdAt.desc
+    }
+  }
+
 }

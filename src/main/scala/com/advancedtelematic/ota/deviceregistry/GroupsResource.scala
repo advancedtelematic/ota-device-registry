@@ -16,19 +16,17 @@ import com.advancedtelematic.libats.auth.{AuthedNamespaceScope, Scopes}
 import com.advancedtelematic.libats.data.DataType.Namespace
 import com.advancedtelematic.ota.deviceregistry.data.Group.{GroupExpression, GroupId, Name}
 import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
-import com.advancedtelematic.ota.deviceregistry.data.{Group, GroupType, Uuid}
+import com.advancedtelematic.ota.deviceregistry.data.{Group, GroupType, SortBy, Uuid}
 import com.advancedtelematic.ota.deviceregistry.db.GroupInfoRepository
 import slick.jdbc.MySQLProfile.api._
 import com.advancedtelematic.libats.http.UUIDKeyAkka._
+import com.advancedtelematic.ota.deviceregistry.data.SortBy.SortBy
 import io.circe.{Decoder, Encoder}
 
 import scala.concurrent.{ExecutionContext, Future}
 
-class GroupsResource(
-    namespaceExtractor: Directive1[AuthedNamespaceScope],
-    deviceNamespaceAuthorizer: Directive1[Uuid]
-)(implicit ec: ExecutionContext, db: Database)
-    extends Directives {
+class GroupsResource(namespaceExtractor: Directive1[AuthedNamespaceScope], deviceNamespaceAuthorizer: Directive1[Uuid])
+                    (implicit ec: ExecutionContext, db: Database) extends Directives {
 
   import UuidDirectives._
   import com.advancedtelematic.libats.http.RefinedMarshallingSupport._
@@ -42,8 +40,8 @@ class GroupsResource(
     }
   }
 
-  implicit val groupTypeParamUnmarshaller: Unmarshaller[String, GroupType] =
-    Unmarshaller.strict[String, GroupType](GroupType.withName)
+  implicit val groupTypeParamUnmarshaller: Unmarshaller[String, GroupType] = Unmarshaller.strict[String, GroupType](GroupType.withName)
+  implicit val sortByUnmarshaller: Unmarshaller[String, SortBy] = Unmarshaller.strict[String, SortBy](SortBy.withName)
 
   val groupMembership = new GroupMembership()
 
@@ -52,10 +50,8 @@ class GroupsResource(
       complete(groupMembership.listDevices(groupId, offset, limit))
     }
 
-  def listGroups(ns: Namespace): Route =
-    parameters(('offset.as[Long].?, 'limit.as[Long].?)) { (offset, limit) =>
-      complete(db.run(GroupInfoRepository.list(ns, offset, limit)))
-    }
+  def listGroups(ns: Namespace, sortBy: SortBy, offset: Long, limit : Long): Route =
+      complete(db.run(GroupInfoRepository.list(ns, sortBy, offset, limit)))
 
   def getGroup(groupId: GroupId): Route =
     complete(db.run(GroupInfoRepository.findByIdAction(groupId)))
@@ -84,8 +80,8 @@ class GroupsResource(
       (scope.post & entity(as[CreateGroup]) & pathEnd) { req =>
         createGroup(req.name, ns.namespace, req.groupType, req.expression)
       } ~
-      (scope.get & pathEnd) {
-        listGroups(ns.namespace)
+      (scope.get & pathEnd & parameters(('sortBy.as[SortBy] ? SortBy.NAME, 'offset.as[Long] ? 0, 'limit.as[Long] ? 50))) { (sortBy, offset, limit) =>
+        listGroups(ns.namespace, sortBy, offset, limit)
       } ~
       GroupIdPath { groupId =>
         (scope.get & pathEndOrSingleSlash) {
