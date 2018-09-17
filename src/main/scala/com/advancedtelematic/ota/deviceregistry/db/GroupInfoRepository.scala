@@ -8,18 +8,25 @@
 
 package com.advancedtelematic.ota.deviceregistry.db
 
-import com.advancedtelematic.libats.data.PaginationResult
+import java.time.Instant
+
 import com.advancedtelematic.libats.data.DataType.Namespace
+import com.advancedtelematic.libats.data.PaginationResult
+import com.advancedtelematic.libats.slick.codecs.SlickRefined._
+import com.advancedtelematic.libats.slick.db.Operators.regex
 import com.advancedtelematic.libats.slick.db.SlickExtensions._
-import com.advancedtelematic.ota.deviceregistry.data
+import com.advancedtelematic.libats.slick.db.SlickUUIDKey._
 import com.advancedtelematic.ota.deviceregistry.common.{Errors, SlickJsonHelper}
+import com.advancedtelematic.ota.deviceregistry.data
 import com.advancedtelematic.ota.deviceregistry.data.Group
 import com.advancedtelematic.ota.deviceregistry.data.Group.{GroupExpression, GroupId, Name}
-import slick.jdbc.MySQLProfile.api._
-import com.advancedtelematic.libats.slick.codecs.SlickRefined._
 import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
-import SlickMappings._
-import com.advancedtelematic.libats.slick.db.SlickUUIDKey._
+import com.advancedtelematic.ota.deviceregistry.data.SortBy.SortBy
+import com.advancedtelematic.ota.deviceregistry.db.DbOps.Sorting
+import com.advancedtelematic.ota.deviceregistry.db.SlickMappings._
+import eu.timepit.refined.api.Refined
+import eu.timepit.refined.string.Regex
+import slick.jdbc.MySQLProfile.api._
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -34,19 +41,26 @@ object GroupInfoRepository extends SlickJsonHelper with ColumnTypes {
     def namespace  = column[Namespace]("namespace")
     def groupType     = column[GroupType]("type")
     def expression = column[Option[GroupExpression]]("expression")
+    def createdAt = column[Instant]("created_at")
+    def updatedAt = column[Instant]("updated_at")
 
-    def * = (id, groupName, namespace, groupType, expression) <> ((Group.apply _).tupled, Group.unapply)
+    def * = (id, groupName, namespace, groupType, expression, createdAt, updatedAt) <> ((Group.apply _).tupled, Group.unapply)
   }
   // scalastyle:on
 
   val groupInfos = TableQuery[GroupInfoTable]
 
-  def list(namespace: Namespace, offset: Option[Long], limit: Option[Long])(
+  def search(ns: Namespace, rx: Option[String Refined Regex], sortBy: SortBy, offset: Long, limit: Long)(
       implicit ec: ExecutionContext
-  ): DBIO[PaginationResult[Group]] =
+  ): DBIO[PaginationResult[Group]] = {
     groupInfos
-      .filter(g => g.namespace === namespace)
-      .paginateResult(offset.getOrElse(0L), limit.getOrElse(defaultLimit))
+      .filter(_.namespace === ns)
+      .withFilter(gi => rx match {
+          case Some(r) => regex(gi.groupName, r)
+          case None    => true: Rep[Boolean]
+      })
+      .paginateAndSortResult(sortBy.groupSorting, offset, limit)
+  }
 
   def findById(id: GroupId)(implicit db: Database, ec: ExecutionContext): Future[Group] =
     db.run(findByIdAction(id))
@@ -57,14 +71,9 @@ object GroupInfoRepository extends SlickJsonHelper with ColumnTypes {
       .result
       .failIfNotSingle(Errors.MissingGroup)
 
-  def create(id: GroupId,
-             groupName: Name,
-             namespace: Namespace,
-             groupType: GroupType,
-             expression: Option[GroupExpression])(
-      implicit ec: ExecutionContext
-  ): DBIO[GroupId] =
-    (groupInfos += data.Group(id, groupName, namespace, groupType, expression))
+  def create(id: GroupId, groupName: Name, namespace: Namespace, groupType: GroupType, expression: Option[GroupExpression])
+            (implicit ec: ExecutionContext): DBIO[GroupId] =
+    (groupInfos += data.Group(id, groupName, namespace, groupType, expression, Instant.now(), Instant.now()))
       .handleIntegrityErrors(Errors.ConflictingGroup)
       .map(_ => id)
 

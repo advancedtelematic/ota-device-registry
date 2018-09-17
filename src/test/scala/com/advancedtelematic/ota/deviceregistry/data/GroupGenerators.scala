@@ -8,6 +8,9 @@
 
 package com.advancedtelematic.ota.deviceregistry.data
 
+import java.time.Instant
+import java.time.temporal.ChronoUnit
+
 import com.advancedtelematic.libats.data.DataType.Namespace
 import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
 import eu.timepit.refined.api.Refined
@@ -22,10 +25,15 @@ trait GroupGenerators {
     name   <- Gen.listOfN[Char](strLen, Arbitrary.arbChar.arbitrary)
   } yield Refined.unsafeApply(name.mkString)
 
+  val genGroupNameAlphanumeric: Gen[Group.Name] = for {
+    strLen <- Gen.choose(2, 100)
+    name   <- Gen.listOfN[Char](strLen, Gen.alphaNumChar)
+  } yield Refined.unsafeApply(name.mkString)
+
   def genGroupInfo: Gen[Group] =
     for {
       name <- genGroupName
-    } yield Group(GroupId.generate(), name, defaultNs, GroupType.static, None)
+    } yield Group(GroupId.generate(), name, defaultNs, GroupType.static, None, Instant.now, Instant.now.plus(1, ChronoUnit.HOURS))
 
   implicit lazy val arbGroupName: Arbitrary[Group.Name] = Arbitrary(genGroupName)
   implicit lazy val arbGroupInfo: Arbitrary[Group]      = Arbitrary(genGroupInfo)

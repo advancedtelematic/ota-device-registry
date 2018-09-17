@@ -10,8 +10,9 @@ package com.advancedtelematic.ota.deviceregistry
 
 import akka.http.scaladsl.model.StatusCodes._
 import com.advancedtelematic.libats.data.PaginationResult
-import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
-import com.advancedtelematic.ota.deviceregistry.data.{Group, Uuid}
+import com.advancedtelematic.ota.deviceregistry.data.Group.{GroupId, ValidName, nameOrdering}
+import com.advancedtelematic.ota.deviceregistry.data.{Group, SortBy, Uuid}
+import eu.timepit.refined.api.Refined
 import org.scalacheck.Arbitrary._
 import org.scalacheck.Gen
 import org.scalatest.FunSuite
@@ -38,6 +39,48 @@ class GroupsResourceSpec extends FunSuite with ResourceSpec {
       responseGroups.total shouldBe groupNames.size
       responseGroups.values.foreach { group =>
         groupNames.count(name => name == group.groupName) shouldBe 1
+      }
+    }
+  }
+
+  test("gets all existing groups sorted by name") {
+    val (staticGroupNames, dynamicGroupNames) = Gen.listOfN(20, genGroupNameAlphanumeric).sample.get.splitAt(9)
+    staticGroupNames.map(createGroupOk)
+    dynamicGroupNames.map(createDynamicGroupOk(_, Refined.unsafeApply("deviceid contains something")))
+
+    listGroups(Some(SortBy.CREATED_AT)) ~> route ~> check {
+      status shouldBe OK
+      val responseGroups = responseAs[PaginationResult[Group]].values
+      responseGroups.map(_.createdAt).reverse shouldBe sorted
+    }
+  }
+
+  test("gets all existing groups sorted by creation time") {
+    val (staticGroupNames, dynamicGroupNames) = Gen.listOfN(20, genGroupNameAlphanumeric).sample.get.splitAt(9)
+    staticGroupNames.map(createGroupOk)
+    dynamicGroupNames.map(createDynamicGroupOk(_, Refined.unsafeApply("deviceid contains something")))
+    val sortedGroupNames = staticGroupNames.union(dynamicGroupNames).sorted
+
+    listGroups() ~> route ~> check {
+      status shouldBe OK
+      val responseGroups = responseAs[PaginationResult[Group]].values
+      responseGroups.map(_.groupName).filter(sortedGroupNames.contains) shouldBe sortedGroupNames
+    }
+  }
+
+  test("gets all existing groups matching a regular expression") {
+    val names = Seq("aabb", "aaxbc", "a123b", "cba3")
+    val groupNames = names.map(s => Refined.unsafeApply[String, ValidName](s))
+    groupNames.map(createGroupOk)
+
+    val tests = Map("a1" -> Seq("a123b"), "aa.*" -> Seq("aabb", "aaxbc"), "a\\d+[a-z]" -> Seq("a123b"), ".*3.*" -> Seq("a123b", "cba3"))
+
+    tests.foreach{ case (k, v) =>
+      searchGroups(Refined.unsafeApply(k)) ~> route ~> check {
+        status shouldBe OK
+        val responseGroupNames = responseAs[PaginationResult[Group]].values.map(_.groupName.value).filter(names.contains)
+        responseGroupNames.size shouldBe v.size
+        responseGroupNames should contain allElementsOf v
       }
     }
   }
@@ -111,7 +154,7 @@ class GroupsResourceSpec extends FunSuite with ResourceSpec {
       status shouldBe OK
     }
 
-    listGroups() ~> route ~> check {
+    listGroups(limit = Some(100L)) ~> route ~> check {
       status shouldBe OK
       val groups = responseAs[PaginationResult[Group]]
       groups.values.count(e => e.id.equals(groupId) && e.groupName.equals(newGroupName)) shouldBe 1
