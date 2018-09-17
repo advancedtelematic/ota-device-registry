@@ -17,10 +17,10 @@ import com.advancedtelematic.libats.slick.db.SlickExtensions._
 import com.advancedtelematic.libats.slick.db.SlickUUIDKey._
 import com.advancedtelematic.ota.deviceregistry.common.{Errors, SlickJsonHelper}
 import com.advancedtelematic.ota.deviceregistry.data
-import com.advancedtelematic.ota.deviceregistry.data.Group
+import com.advancedtelematic.ota.deviceregistry.data.{Group, SortBy}
 import com.advancedtelematic.ota.deviceregistry.data.Group.{GroupExpression, GroupId, Name}
 import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
-import com.advancedtelematic.ota.deviceregistry.data.SortBy.SortBy
+import com.advancedtelematic.ota.deviceregistry.db.DbOps.sortBySlickOrderedConversion
 import com.advancedtelematic.ota.deviceregistry.db.SlickMappings._
 import slick.jdbc.MySQLProfile.api._
 
@@ -40,17 +40,16 @@ object GroupInfoRepository extends SlickJsonHelper with ColumnTypes {
     def createdAt = column[Instant]("created_at")
     def updatedAt = column[Instant]("updated_at")
 
-    def * = (id, groupName, namespace, groupType, expression, createdAt, updatedAt) <> ((Group.apply _).tupled, Group.unapply)
+    def * = (id, groupName, namespace, groupType, expression) <> ((Group.apply _).tupled, Group.unapply)
   }
   // scalastyle:on
 
   val groupInfos = TableQuery[GroupInfoTable]
 
-  def list(namespace: Namespace, sortBy: SortBy, offset: Long, limit: Long)(implicit ec: ExecutionContext): DBIO[PaginationResult[Group]] =
+  def list(namespace: Namespace, offset: Long, limit: Long, sortBy: SortBy)(implicit ec: ExecutionContext): DBIO[PaginationResult[Group]] =
     groupInfos
-      .filter(g => g.namespace === namespace)
-      .sortBy(sortBy.groupSorting)
-      .paginateResult(offset, limit)
+      .filter(_.namespace === namespace)
+      .paginateAndSortResult(sortBy, offset, limit)
 
   def findById(id: GroupId)(implicit db: Database, ec: ExecutionContext): Future[Group] =
     db.run(findByIdAction(id))
@@ -63,7 +62,7 @@ object GroupInfoRepository extends SlickJsonHelper with ColumnTypes {
 
   def create(id: GroupId, groupName: Name, namespace: Namespace, groupType: GroupType, expression: Option[GroupExpression])
             (implicit ec: ExecutionContext): DBIO[GroupId] =
-    (groupInfos += data.Group(id, groupName, namespace, groupType, expression, Instant.now(), Instant.now()))
+    (groupInfos += data.Group(id, groupName, namespace, groupType, expression))
       .handleIntegrityErrors(Errors.ConflictingGroup)
       .map(_ => id)
 

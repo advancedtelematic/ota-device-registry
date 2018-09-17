@@ -13,9 +13,7 @@ import eu.timepit.refined.refineV
 import cats.syntax.either._
 import eu.timepit.refined.api.Refined
 import Group._
-import com.advancedtelematic.libats.http.Errors
 import com.advancedtelematic.ota.deviceregistry.data.Device.DeviceId
-import io.circe.Json
 
 class DynamicGroupsResourceSpec extends FunSuite with ResourceSpec {
 
@@ -30,12 +28,12 @@ class DynamicGroupsResourceSpec extends FunSuite with ResourceSpec {
   }
 
   test("dynamic group gets created.") {
-    val group = genGroupInfo.sample.get
+    val group = genStaticGroup.sample.get
     createDynamicGroupOk(group.groupName, Refined.unsafeApply("deviceid contains something"))
   }
 
   test("device gets added to dynamic group") {
-    val group      = genGroupInfo.sample.get
+    val group      = genStaticGroup.sample.get
     val deviceT    = genDeviceT.sample.get
     val deviceUuid = createDeviceOk(deviceT)
     val groupId    = createDynamicGroupOk(group.groupName, deviceT.deviceId.get.toValidExp)
@@ -49,7 +47,7 @@ class DynamicGroupsResourceSpec extends FunSuite with ResourceSpec {
   }
 
   test("dynamic group is empty when no device matches the expression") {
-    val group   = genGroupInfo.sample.get
+    val group   = genStaticGroup.sample.get
     val groupId = createDynamicGroupOk(group.groupName, Refined.unsafeApply("deviceid contains nothing"))
 
     listDevicesInGroup(groupId) ~> route ~> check {
@@ -60,7 +58,7 @@ class DynamicGroupsResourceSpec extends FunSuite with ResourceSpec {
   }
 
   test("dynamic group with invalid expression is not created") {
-    val group      = genGroupInfo.sample.get
+    val group      = genStaticGroup.sample.get
     val deviceT    = genDeviceT.sample.get
 
     createDeviceOk(deviceT)
@@ -72,7 +70,7 @@ class DynamicGroupsResourceSpec extends FunSuite with ResourceSpec {
   }
 
   test("manually adding a device to dynamic group fails") {
-    val group      = genGroupInfo.sample.get
+    val group      = genStaticGroup.sample.get
     val deviceT    = genDeviceT.sample.get
     val deviceUuid = createDeviceOk(deviceT)
     val groupId    = createDynamicGroupOk(group.groupName, deviceT.deviceId.get.toValidExp)
@@ -83,7 +81,7 @@ class DynamicGroupsResourceSpec extends FunSuite with ResourceSpec {
   }
 
   test("counts devices for dynamic group") {
-    val group   = genGroupInfo.sample.get
+    val group   = genStaticGroup.sample.get
     val deviceT = genDeviceT.sample.get
     val _       = createDeviceOk(deviceT)
     val groupId = createDynamicGroupOk(group.groupName, deviceT.deviceId.get.toValidExp)
@@ -95,7 +93,7 @@ class DynamicGroupsResourceSpec extends FunSuite with ResourceSpec {
   }
 
   test("removing a device from a dynamic group fails") {
-    val group      = genGroupInfo.sample.get
+    val group      = genStaticGroup.sample.get
     val deviceT    = genDeviceT.sample.get
     val deviceUuid = createDeviceOk(deviceT)
     val groupId    = createDynamicGroupOk(group.groupName, deviceT.deviceId.get.toValidExp)
@@ -106,7 +104,7 @@ class DynamicGroupsResourceSpec extends FunSuite with ResourceSpec {
   }
 
   test("deleting a device causes it to be removed from dynamic group") {
-    val group      = genGroupInfo.sample.get
+    val group      = genStaticGroup.sample.get
     val deviceT    = genDeviceT.sample.get
     val deviceUuid = createDeviceOk(deviceT)
     val groupId    = createDynamicGroupOk(group.groupName, deviceT.deviceId.get.toValidExp)
@@ -173,7 +171,7 @@ class DynamicGroupsResourceSpec extends FunSuite with ResourceSpec {
 
     // Add the device to a static group
     val staticGroup   = genGroupName.sample.get
-    val staticGroupId = createGroupOk(staticGroup)
+    val staticGroupId = createStaticGroupOk(staticGroup)
     addDeviceToGroupOk(staticGroupId, deviceUuid)
 
     // Make the device show up for a dynamic group

@@ -8,13 +8,14 @@
 
 package com.advancedtelematic.ota.deviceregistry
 
-import akka.http.scaladsl.model.StatusCodes._
-import com.advancedtelematic.libats.data.PaginationResult
+import akka.http.scaladsl.model.Uri.Query
 import com.advancedtelematic.ota.deviceregistry.data.Group.{GroupId, nameOrdering}
-import com.advancedtelematic.ota.deviceregistry.data.{Group, SortBy, Uuid}
-import eu.timepit.refined.api.Refined
+import com.advancedtelematic.ota.deviceregistry.data.SortByCreatedAt
 import org.scalacheck.Arbitrary._
 import org.scalacheck.Gen
+import akka.http.scaladsl.model.StatusCodes._
+import com.advancedtelematic.libats.data.PaginationResult
+import com.advancedtelematic.ota.deviceregistry.data.{Group, Uuid}
 import org.scalatest.FunSuite
 
 class GroupsResourceSpec extends FunSuite with ResourceSpec {
@@ -30,7 +31,7 @@ class GroupsResourceSpec extends FunSuite with ResourceSpec {
     //TODO: PRO-1182 turn this back into a property when we can delete groups
     val groupNames = Gen.listOfN(10, arbitrary[Group.Name]).sample.get
     groupNames.foreach { groupName =>
-      createGroupOk(groupName)
+      createStaticGroupOk(groupName)
     }
 
     listGroups() ~> route ~> check {
@@ -44,22 +45,9 @@ class GroupsResourceSpec extends FunSuite with ResourceSpec {
   }
 
   test("gets all existing groups sorted by name") {
-    val (staticGroupNames, dynamicGroupNames) = Gen.listOfN(20, genGroupNameAlphanumeric).sample.get.splitAt(9)
-    staticGroupNames.map(createGroupOk)
-    dynamicGroupNames.map(createDynamicGroupOk(_, Refined.unsafeApply("deviceid contains something")))
-
-    listGroups(Some(SortBy.CREATED_AT)) ~> route ~> check {
-      status shouldBe OK
-      val responseGroups = responseAs[PaginationResult[Group]].values
-      responseGroups.map(_.createdAt).reverse shouldBe sorted
-    }
-  }
-
-  test("gets all existing groups sorted by creation time") {
-    val (staticGroupNames, dynamicGroupNames) = Gen.listOfN(20, genGroupNameAlphanumeric).sample.get.splitAt(9)
-    staticGroupNames.map(createGroupOk)
-    dynamicGroupNames.map(createDynamicGroupOk(_, Refined.unsafeApply("deviceid contains something")))
-    val sortedGroupNames = staticGroupNames.union(dynamicGroupNames).sorted
+    val groupNames = Gen.listOfN(20, genGroupName).sample.get
+    val sortedGroupNames = groupNames.sorted
+    groupNames.map(createGroupOk)
 
     listGroups() ~> route ~> check {
       status shouldBe OK
@@ -68,10 +56,28 @@ class GroupsResourceSpec extends FunSuite with ResourceSpec {
     }
   }
 
+  test("gets all existing groups sorted by creation time") {
+    val groupNames = Gen.listOfN(20, genGroupName).sample.get
+    val groupIds = groupNames.map(createGroupOk)
+
+    listGroups(Some(SortByCreatedAt)) ~> route ~> check {
+      status shouldBe OK
+      val responseGroups = responseAs[PaginationResult[Group]].values
+      responseGroups.reverse.map(_.id).filter(groupIds.contains) shouldBe groupIds
+    }
+  }
+
+  test("fails to get existing groups given an invalid sorting") {
+    val q = Query(Map("sortBy" -> Gen.alphaNumStr.sample.get))
+    Get(Resource.uri(groupsApi).withQuery(q)) ~> route ~> check {
+      status shouldBe BadRequest
+    }
+  }
+
   test("lists devices with custom pagination limit") {
     val deviceNumber = 50
-    val group        = genGroupInfo.sample.get
-    val groupId      = createGroupOk(group.groupName)
+    val group        = genStaticGroup.sample.get
+    val groupId      = createStaticGroupOk(group.groupName)
 
     val deviceTs             = genConflictFreeDeviceTs(deviceNumber).sample.get
     val deviceIds: Seq[Uuid] = deviceTs.map(createDeviceOk)
@@ -88,8 +94,8 @@ class GroupsResourceSpec extends FunSuite with ResourceSpec {
   test("lists devices with custom pagination limit and offset") {
     val offset       = 10
     val deviceNumber = 50
-    val group        = genGroupInfo.sample.get
-    val groupId      = createGroupOk(group.groupName)
+    val group        = genStaticGroup.sample.get
+    val groupId      = createStaticGroupOk(group.groupName)
 
     val deviceTs             = genConflictFreeDeviceTs(deviceNumber).sample.get
     val deviceIds: Seq[Uuid] = deviceTs.map(createDeviceOk)
@@ -110,7 +116,7 @@ class GroupsResourceSpec extends FunSuite with ResourceSpec {
 
   test("gets detailed information of a group") {
     val groupName = genGroupName.sample.get
-    val groupId   = createGroupOk(groupName)
+    val groupId   = createStaticGroupOk(groupName)
 
     getGroupDetails(groupId) ~> route ~> check {
       status shouldBe OK
@@ -121,7 +127,7 @@ class GroupsResourceSpec extends FunSuite with ResourceSpec {
   }
 
   test("gets detailed information of a non-existing group fails") {
-    val groupId = genGroupInfo.sample.get.id
+    val groupId = genStaticGroup.sample.get.id
 
     getGroupDetails(groupId) ~> route ~> check {
       status shouldBe NotFound
@@ -131,7 +137,7 @@ class GroupsResourceSpec extends FunSuite with ResourceSpec {
   test("renames a group") {
     val groupName    = genGroupName.sample.get
     val newGroupName = genGroupName.sample.get
-    val groupId      = createGroupOk(groupName)
+    val groupId      = createStaticGroupOk(groupName)
 
     renameGroup(groupId, newGroupName) ~> route ~> check {
       status shouldBe OK
@@ -152,7 +158,7 @@ class GroupsResourceSpec extends FunSuite with ResourceSpec {
 
   test("adds devices to groups") {
     val groupName  = genGroupName.sample.get
-    val groupId    = createGroupOk(groupName)
+    val groupId    = createStaticGroupOk(groupName)
     val deviceUuid = createDeviceOk(genDeviceT.sample.get)
 
     addDeviceToGroup(groupId, deviceUuid) ~> route ~> check {
@@ -169,8 +175,8 @@ class GroupsResourceSpec extends FunSuite with ResourceSpec {
   test("renaming a group to existing group fails") {
     val groupAName = genGroupName.sample.get
     val groupBName = genGroupName.sample.get
-    val groupAId   = createGroupOk(groupAName)
-    val groupBId   = createGroupOk(groupBName)
+    val groupAId   = createStaticGroupOk(groupAName)
+    val groupBId   = createStaticGroupOk(groupBName)
 
     renameGroup(groupAId, groupBName) ~> route ~> check {
       status shouldBe Conflict
@@ -180,7 +186,7 @@ class GroupsResourceSpec extends FunSuite with ResourceSpec {
   test("removes devices from a group") {
     val groupName = genGroupName.sample.get
     val deviceId  = createDeviceOk(genDeviceT.sample.get)
-    val groupId   = createGroupOk(groupName)
+    val groupId   = createStaticGroupOk(groupName)
 
     addDeviceToGroup(groupId, deviceId) ~> route ~> check {
       status shouldBe OK
