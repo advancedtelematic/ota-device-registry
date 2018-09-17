@@ -17,6 +17,8 @@ import com.advancedtelematic.ota.deviceregistry.data.Group.{GroupExpression, Gro
 import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
 import com.advancedtelematic.ota.deviceregistry.data.SortBy.SortBy
 import com.advancedtelematic.ota.deviceregistry.data.{GroupType, Uuid}
+import eu.timepit.refined.api.Refined
+import eu.timepit.refined.string.Regex
 
 import scala.concurrent.ExecutionContext
 
@@ -55,6 +57,9 @@ trait GroupRequests {
     })
     Get(Resource.uri(groupsApi).withQuery(Query(m)))
   }
+
+  def searchGroups(regex : String Refined Regex) =
+    Get(Resource.uri(groupsApi).withQuery(Query("regex" -> regex.value)))
 
   def createGroup(groupName: Name, groupType: GroupType = GroupType.static, expression: Option[GroupExpression] = None)(
       implicit ec: ExecutionContext

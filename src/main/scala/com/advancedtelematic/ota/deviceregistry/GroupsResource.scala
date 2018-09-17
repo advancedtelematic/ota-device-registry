@@ -14,14 +14,16 @@ import akka.http.scaladsl.server._
 import akka.http.scaladsl.unmarshalling.Unmarshaller
 import com.advancedtelematic.libats.auth.{AuthedNamespaceScope, Scopes}
 import com.advancedtelematic.libats.data.DataType.Namespace
+import com.advancedtelematic.libats.http.UUIDKeyAkka._
 import com.advancedtelematic.ota.deviceregistry.data.Group.{GroupExpression, GroupId, Name}
 import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
+import com.advancedtelematic.ota.deviceregistry.data.SortBy.SortBy
 import com.advancedtelematic.ota.deviceregistry.data.{Group, GroupType, SortBy, Uuid}
 import com.advancedtelematic.ota.deviceregistry.db.GroupInfoRepository
-import slick.jdbc.MySQLProfile.api._
-import com.advancedtelematic.libats.http.UUIDKeyAkka._
-import com.advancedtelematic.ota.deviceregistry.data.SortBy.SortBy
+import eu.timepit.refined.api.Refined
+import eu.timepit.refined.string.Regex
 import io.circe.{Decoder, Encoder}
+import slick.jdbc.MySQLProfile.api._
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -50,8 +52,8 @@ class GroupsResource(namespaceExtractor: Directive1[AuthedNamespaceScope], devic
       complete(groupMembership.listDevices(groupId, offset, limit))
     }
 
-  def listGroups(ns: Namespace, sortBy: SortBy, offset: Long, limit : Long): Route =
-      complete(db.run(GroupInfoRepository.list(ns, sortBy, offset, limit)))
+  def listGroups(ns: Namespace, regex: Option[String Refined Regex], sortBy: SortBy, offset: Long, limit: Long): Route =
+    complete(db.run(GroupInfoRepository.search(ns, regex, sortBy, offset, limit)))
 
   def getGroup(groupId: GroupId): Route =
     complete(db.run(GroupInfoRepository.findByIdAction(groupId)))
@@ -80,8 +82,8 @@ class GroupsResource(namespaceExtractor: Directive1[AuthedNamespaceScope], devic
       (scope.post & entity(as[CreateGroup]) & pathEnd) { req =>
         createGroup(req.name, ns.namespace, req.groupType, req.expression)
       } ~
-      (scope.get & pathEnd & parameters(('sortBy.as[SortBy] ? SortBy.NAME, 'offset.as[Long] ? 0, 'limit.as[Long] ? 50))) { (sortBy, offset, limit) =>
-        listGroups(ns.namespace, sortBy, offset, limit)
+      (scope.get & pathEnd & parameters(('regex.as[String Refined Regex].?, 'sortBy.as[SortBy] ? SortBy.NAME, 'offset.as[Long] ? 0, 'limit.as[Long] ? 50))) {
+        (regex, sortBy, offset, limit) => listGroups(ns.namespace, regex, sortBy, offset, limit)
       } ~
       GroupIdPath { groupId =>
         (scope.get & pathEndOrSingleSlash) {
