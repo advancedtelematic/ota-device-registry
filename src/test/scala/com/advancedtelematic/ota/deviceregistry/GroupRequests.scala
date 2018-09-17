@@ -17,9 +17,7 @@ import com.advancedtelematic.ota.deviceregistry.data.Group.{GroupExpression, Gro
 import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
 import com.advancedtelematic.ota.deviceregistry.data.SortBy.SortBy
 import com.advancedtelematic.ota.deviceregistry.data.{GroupType, Uuid}
-import io.circe.Json
 
-import scala.collection.mutable
 import scala.concurrent.ExecutionContext
 
 trait GroupRequests {
@@ -51,10 +49,11 @@ trait GroupRequests {
     Get(Resource.uri("device_groups", groupId.show, "count"))
 
   def listGroups(sortBy: Option[SortBy] = None, limit : Option[Long] = None): HttpRequest = {
-    val m = mutable.Map[String, String]()
-    sortBy.map(sb => m.put("sortBy", sb.toString))
-    limit.map(l => m.put("limit", l.toString))
-    Get(Resource.uri(groupsApi).withQuery(Query(m.toMap)))
+    val m = List("sortBy" -> sortBy, "limit" -> limit).foldLeft(Map.empty[String, String])((acc, x) => x match {
+        case (k, Some(v)) => acc + (k -> v.toString)
+        case (_, None)    => acc
+    })
+    Get(Resource.uri(groupsApi).withQuery(Query(m)))
   }
 
   def createGroup(groupName: Name, groupType: GroupType = GroupType.static, expression: Option[GroupExpression] = None)(

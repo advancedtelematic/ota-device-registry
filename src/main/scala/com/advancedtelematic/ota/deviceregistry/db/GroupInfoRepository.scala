@@ -21,6 +21,7 @@ import com.advancedtelematic.ota.deviceregistry.data.Group
 import com.advancedtelematic.ota.deviceregistry.data.Group.{GroupExpression, GroupId, Name}
 import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
 import com.advancedtelematic.ota.deviceregistry.data.SortBy.SortBy
+import com.advancedtelematic.ota.deviceregistry.db.DbOps.Sorting
 import com.advancedtelematic.ota.deviceregistry.db.SlickMappings._
 import slick.jdbc.MySQLProfile.api._
 

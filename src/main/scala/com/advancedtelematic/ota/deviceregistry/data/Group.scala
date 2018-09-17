@@ -86,12 +86,4 @@ object SortBy extends Enumeration {
   type SortBy = Value
   val NAME       = Value("name")
   val CREATED_AT = Value("createdAt")
-
-  implicit class Sorting(sortBy: Value) {
-    def groupSorting: GroupInfoTable => ColumnOrdered[_] = sortBy match {
-      case SortBy.NAME       => _.groupName.asc
-      case SortBy.CREATED_AT => _.createdAt.desc
-    }
-  }
-
 }
