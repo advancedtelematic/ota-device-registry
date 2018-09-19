@@ -42,7 +42,6 @@ object Group {
 
   case class ValidName()
   type Name = Refined[String, ValidName]
-  implicit val nameOrdering: Ordering[Name] = Ordering.by[Name, String](_.value.toLowerCase)
 
   implicit val validGroupName: Validate.Plain[String, ValidName] =
     Validate.fromPredicate(

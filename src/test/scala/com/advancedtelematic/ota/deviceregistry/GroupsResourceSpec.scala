@@ -9,7 +9,7 @@
 package com.advancedtelematic.ota.deviceregistry
 
 import akka.http.scaladsl.model.Uri.Query
-import com.advancedtelematic.ota.deviceregistry.data.Group.{GroupId, nameOrdering}
+import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
 import com.advancedtelematic.ota.deviceregistry.data.{Group, SortBy, Uuid}
 import org.scalacheck.Arbitrary._
 import org.scalacheck.Gen
@@ -45,7 +45,7 @@ class GroupsResourceSpec extends FunSuite with ResourceSpec {
 
   test("gets all existing groups sorted by name") {
     val groupNames = Gen.listOfN(20, genGroupName).sample.get
-    val sortedGroupNames = groupNames.sorted
+    val sortedGroupNames = groupNames.sortBy(_.value.toLowerCase)
     groupNames.map(createGroupOk)
 
     listGroups() ~> route ~> check {
