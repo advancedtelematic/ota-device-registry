@@ -17,15 +17,15 @@ trait GroupGenerators {
 
   private lazy val defaultNs: Namespace = Namespace("default")
 
-  val genGroupName: Gen[Group.Name] = for {
+  def genGroupName(charGen: Gen[Char] = Arbitrary.arbChar.arbitrary): Gen[Group.Name] = for {
     strLen <- Gen.choose(2, 100)
-    name   <- Gen.listOfN[Char](strLen, Gen.alphaNumChar)
+    name   <- Gen.listOfN[Char](strLen, charGen)
   } yield Refined.unsafeApply(name.mkString)
 
   def genStaticGroup: Gen[Group] =
-    genGroupName.flatMap(Group(GroupId.generate(), _, defaultNs, GroupType.static, None))
+    genGroupName().flatMap(Group(GroupId.generate(), _, defaultNs, GroupType.static, None))
 
-  implicit lazy val arbGroupName: Arbitrary[Group.Name] = Arbitrary(genGroupName)
+  implicit lazy val arbGroupName: Arbitrary[Group.Name] = Arbitrary(genGroupName())
   implicit lazy val arbStaticGroup: Arbitrary[Group] = Arbitrary(genStaticGroup)
 }
 

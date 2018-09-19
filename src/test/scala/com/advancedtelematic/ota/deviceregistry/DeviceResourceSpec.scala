@@ -303,7 +303,7 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
     val deviceNumber = 20
     val groupNumber  = 5
     val deviceTs     = genConflictFreeDeviceTs(deviceNumber).sample.get
-    val groups       = Gen.listOfN(groupNumber, genGroupName).sample.get
+    val groups       = Gen.listOfN(groupNumber, genGroupName()).sample.get
     val pkg          = genPackageId.sample.get
 
     val deviceIds: Seq[Uuid]   = deviceTs.map(createDeviceOk)
@@ -367,7 +367,7 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
     val deviceNumber         = 50
     val deviceTs             = genConflictFreeDeviceTs(deviceNumber).sample.get
     val deviceIds: Seq[Uuid] = deviceTs.map(createDeviceOk)
-    val group                = genGroupName.sample.get
+    val group                = genGroupName().sample.get
     val groupId              = createStaticGroupOk(group)
 
     deviceIds.foreach { id =>
@@ -401,7 +401,7 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
     }
 
     // add devices to group and check that we get less ungrouped devices
-    val group   = genGroupName.sample.get
+    val group   = genGroupName().sample.get
     val groupId = createStaticGroupOk(group)
 
     deviceIds.foreach { id =>
@@ -546,7 +546,7 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
     val deviceIds: Seq[Uuid] = deviceTs.map(createDeviceOk)
 
     val groupNumber            = 10
-    val groups                 = Gen.listOfN(groupNumber, genGroupName).sample.get
+    val groups                 = Gen.listOfN(groupNumber, genGroupName()).sample.get
     val groupIds: Seq[GroupId] = groups.map(m => createStaticGroupOk(m))
 
     (0 until deviceNumber).foreach { i =>
@@ -592,8 +592,8 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
   }
 
   property("getting the groups of a device returns the correct static groups") {
-    val groupName1 = genGroupName.sample.get
-    val groupName2 = genGroupName.sample.get
+    val groupName1 = genGroupName().sample.get
+    val groupName2 = genGroupName().sample.get
     val groupId1   = createStaticGroupOk(groupName1)
     val groupId2   = createStaticGroupOk(groupName2)
     val deviceUuid = createDeviceOk(genDeviceT.sample.get)

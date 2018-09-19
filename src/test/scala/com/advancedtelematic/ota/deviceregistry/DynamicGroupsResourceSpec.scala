@@ -122,8 +122,8 @@ class DynamicGroupsResourceSpec extends FunSuite with ResourceSpec {
   }
 
   test("getting the groups of a device returns the correct dynamic groups") {
-    val groupName1 = genGroupName.sample.get
-    val groupName2 = genGroupName.sample.get
+    val groupName1 = genGroupName().sample.get
+    val groupName2 = genGroupName().sample.get
 
     val deviceT = genDeviceT.sample.get.copy(deviceName = Refined.unsafeApply("12347890800808"))
     val deviceId   = deviceT.deviceId.get
@@ -144,8 +144,8 @@ class DynamicGroupsResourceSpec extends FunSuite with ResourceSpec {
   }
 
   test("getting the groups of a device using two 'contains' returns the correct dynamic groups") {
-    val groupName1 = genGroupName.sample.get
-    val groupName2 = genGroupName.sample.get
+    val groupName1 = genGroupName().sample.get
+    val groupName2 = genGroupName().sample.get
 
     val deviceT = genDeviceT.sample.get.copy(deviceName = Refined.unsafeApply("ABCDEFGHIJ"))
     val deviceId   = deviceT.deviceId.get
@@ -170,12 +170,12 @@ class DynamicGroupsResourceSpec extends FunSuite with ResourceSpec {
     val deviceUuid = createDeviceOk(deviceT)
 
     // Add the device to a static group
-    val staticGroup   = genGroupName.sample.get
+    val staticGroup   = genGroupName().sample.get
     val staticGroupId = createStaticGroupOk(staticGroup)
     addDeviceToGroupOk(staticGroupId, deviceUuid)
 
     // Make the device show up for a dynamic group
-    val dynamicGroup   = genGroupName.sample.get
+    val dynamicGroup   = genGroupName().sample.get
     val expression: GroupExpression = Refined.unsafeApply(s"deviceid contains ${deviceId.show.substring(1, 5)}")
     val dynamicGroupId = createDynamicGroupOk(dynamicGroup, expression)
 
