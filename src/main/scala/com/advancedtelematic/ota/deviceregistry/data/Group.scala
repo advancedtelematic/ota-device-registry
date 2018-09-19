@@ -75,6 +75,8 @@ object Group {
   }
 }
 
-sealed abstract class SortBy(val name: String)
-case object SortByName extends SortBy(name = "name")
-case object SortByCreatedAt extends SortBy(name = "createdAt")
+object SortBy {
+  sealed trait SortBy
+  case object Name      extends SortBy
+  case object CreatedAt extends SortBy
+}

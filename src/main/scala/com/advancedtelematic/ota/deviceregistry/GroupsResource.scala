@@ -17,6 +17,7 @@ import com.advancedtelematic.libats.data.DataType.Namespace
 import com.advancedtelematic.libats.http.UUIDKeyAkka._
 import com.advancedtelematic.ota.deviceregistry.data.Group.{GroupExpression, GroupId, Name}
 import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
+import com.advancedtelematic.ota.deviceregistry.data.SortBy.SortBy
 import com.advancedtelematic.ota.deviceregistry.data._
 import com.advancedtelematic.ota.deviceregistry.db.GroupInfoRepository
 import io.circe.{Decoder, Encoder}
@@ -41,9 +42,11 @@ class GroupsResource(namespaceExtractor: Directive1[AuthedNamespaceScope], devic
 
   implicit val groupTypeParamUnmarshaller: Unmarshaller[String, GroupType] = Unmarshaller.strict[String, GroupType](GroupType.withName)
   implicit val sortByUnmarshaller: Unmarshaller[String, SortBy] = Unmarshaller.strict {
-    case SortByName.name      => SortByName
-    case SortByCreatedAt.name => SortByCreatedAt
-    case s => throw new IllegalArgumentException(s"Invalid value for sorting parameter: '$s'.")
+    _.toLowerCase match {
+      case "name"      => SortBy.Name
+      case "createdat" => SortBy.CreatedAt
+      case s           => throw new IllegalArgumentException(s"Invalid value for sorting parameter: '$s'.")
+    }
   }
 
   val groupMembership = new GroupMembership()
@@ -84,7 +87,7 @@ class GroupsResource(namespaceExtractor: Directive1[AuthedNamespaceScope], devic
         createGroup(req.name, ns.namespace, req.groupType, req.expression)
       } ~
       (scope.get & pathEnd & parameters(('offset.as[Long] ? 0L, 'limit.as[Long] ? 50L, 'sortBy.as[SortBy].?))) {
-        (offset, limit, sortBy) => listGroups(ns.namespace, offset, limit, sortBy.getOrElse(SortByName))
+        (offset, limit, sortBy) => listGroups(ns.namespace, offset, limit, sortBy.getOrElse(SortBy.Name))
       } ~
       GroupIdPath { groupId =>
         (scope.get & pathEndOrSingleSlash) {

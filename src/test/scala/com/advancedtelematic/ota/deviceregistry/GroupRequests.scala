@@ -15,7 +15,8 @@ import cats.syntax.show._
 import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId._
 import com.advancedtelematic.ota.deviceregistry.data.Group.{GroupExpression, GroupId, Name}
 import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
-import com.advancedtelematic.ota.deviceregistry.data.{GroupType, SortBy, Uuid}
+import com.advancedtelematic.ota.deviceregistry.data.SortBy.SortBy
+import com.advancedtelematic.ota.deviceregistry.data.{GroupType, Uuid}
 import eu.timepit.refined.api.Refined
 
 import scala.concurrent.ExecutionContext
@@ -50,7 +51,7 @@ trait GroupRequests {
     Get(Resource.uri("device_groups", groupId.show, "count"))
 
   def listGroups(sortBy: Option[SortBy] = None, limit : Option[Long] = None): HttpRequest = {
-    val m = List("sortBy" -> sortBy, "limit" -> limit).collect { case (k, Some(v: SortBy)) => k -> v.name }.toMap
+    val m = List("sortBy" -> sortBy, "limit" -> limit).collect { case (k, Some(v)) => k -> v.toString }.toMap
     Get(Resource.uri(groupsApi).withQuery(Query(m)))
   }
 

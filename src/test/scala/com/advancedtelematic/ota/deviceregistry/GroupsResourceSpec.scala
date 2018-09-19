@@ -10,12 +10,11 @@ package com.advancedtelematic.ota.deviceregistry
 
 import akka.http.scaladsl.model.Uri.Query
 import com.advancedtelematic.ota.deviceregistry.data.Group.{GroupId, nameOrdering}
-import com.advancedtelematic.ota.deviceregistry.data.SortByCreatedAt
+import com.advancedtelematic.ota.deviceregistry.data.{Group, SortBy, Uuid}
 import org.scalacheck.Arbitrary._
 import org.scalacheck.Gen
 import akka.http.scaladsl.model.StatusCodes._
 import com.advancedtelematic.libats.data.PaginationResult
-import com.advancedtelematic.ota.deviceregistry.data.{Group, Uuid}
 import org.scalatest.FunSuite
 
 class GroupsResourceSpec extends FunSuite with ResourceSpec {
@@ -60,7 +59,7 @@ class GroupsResourceSpec extends FunSuite with ResourceSpec {
     val groupNames = Gen.listOfN(20, genGroupName).sample.get
     val groupIds = groupNames.map(createGroupOk)
 
-    listGroups(Some(SortByCreatedAt)) ~> route ~> check {
+    listGroups(Some(SortBy.CreatedAt)) ~> route ~> check {
       status shouldBe OK
       val responseGroups = responseAs[PaginationResult[Group]].values
       responseGroups.reverse.map(_.id).filter(groupIds.contains) shouldBe groupIds

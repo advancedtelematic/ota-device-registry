@@ -17,9 +17,10 @@ import com.advancedtelematic.libats.slick.db.SlickExtensions._
 import com.advancedtelematic.libats.slick.db.SlickUUIDKey._
 import com.advancedtelematic.ota.deviceregistry.common.{Errors, SlickJsonHelper}
 import com.advancedtelematic.ota.deviceregistry.data
-import com.advancedtelematic.ota.deviceregistry.data.{Group, SortBy}
+import com.advancedtelematic.ota.deviceregistry.data.Group
 import com.advancedtelematic.ota.deviceregistry.data.Group.{GroupExpression, GroupId, Name}
 import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
+import com.advancedtelematic.ota.deviceregistry.data.SortBy.SortBy
 import com.advancedtelematic.ota.deviceregistry.db.DbOps.sortBySlickOrderedConversion
 import com.advancedtelematic.ota.deviceregistry.db.SlickMappings._
 import slick.jdbc.MySQLProfile.api._
