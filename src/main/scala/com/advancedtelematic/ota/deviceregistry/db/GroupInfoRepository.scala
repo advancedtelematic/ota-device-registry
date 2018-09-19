@@ -13,6 +13,7 @@ import java.time.Instant
 import com.advancedtelematic.libats.data.DataType.Namespace
 import com.advancedtelematic.libats.data.PaginationResult
 import com.advancedtelematic.libats.slick.codecs.SlickRefined._
+import com.advancedtelematic.libats.slick.db.Operators.regex
 import com.advancedtelematic.libats.slick.db.SlickExtensions._
 import com.advancedtelematic.libats.slick.db.SlickUUIDKey._
 import com.advancedtelematic.ota.deviceregistry.common.{Errors, SlickJsonHelper}
@@ -23,6 +24,8 @@ import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
 import com.advancedtelematic.ota.deviceregistry.data.SortBy.SortBy
 import com.advancedtelematic.ota.deviceregistry.db.DbOps.sortBySlickOrderedConversion
 import com.advancedtelematic.ota.deviceregistry.db.SlickMappings._
+import eu.timepit.refined.api.Refined
+import eu.timepit.refined.string.Regex
 import slick.jdbc.MySQLProfile.api._
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -47,9 +50,13 @@ object GroupInfoRepository extends SlickJsonHelper with ColumnTypes {
 
   val groupInfos = TableQuery[GroupInfoTable]
 
-  def list(namespace: Namespace, offset: Long, limit: Long, sortBy: SortBy)(implicit ec: ExecutionContext): DBIO[PaginationResult[Group]] =
+  def search(namespace: Namespace, rx: Option[String Refined Regex], offset: Long, limit: Long, sortBy: SortBy)(implicit ec: ExecutionContext): DBIO[PaginationResult[Group]] =
     groupInfos
       .filter(_.namespace === namespace)
+      .withFilter(gi => rx match {
+        case Some(r) => regex(gi.groupName, r)
+        case None    => true.bind
+      })
       .paginateAndSortResult(sortBy, offset, limit)
 
   def findById(id: GroupId)(implicit db: Database, ec: ExecutionContext): Future[Group] =

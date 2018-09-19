@@ -18,6 +18,7 @@ import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
 import com.advancedtelematic.ota.deviceregistry.data.SortBy.SortBy
 import com.advancedtelematic.ota.deviceregistry.data.{GroupType, Uuid}
 import eu.timepit.refined.api.Refined
+import eu.timepit.refined.string.Regex
 
 import scala.concurrent.ExecutionContext
 import scala.util.Random
@@ -54,6 +55,9 @@ trait GroupRequests {
     val m = List("sortBy" -> sortBy, "limit" -> limit).collect { case (k, Some(v)) => k -> v.toString }.toMap
     Get(Resource.uri(groupsApi).withQuery(Query(m)))
   }
+
+  def searchGroups(regex : String Refined Regex) =
+    Get(Resource.uri(groupsApi).withQuery(Query("regex" -> regex.value)))
 
   def createGroup(groupName: Name, groupType: GroupType = GroupType.static, expression: Option[GroupExpression] = None)
                  (implicit ec: ExecutionContext): HttpRequest = {
