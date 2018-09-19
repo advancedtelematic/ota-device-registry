@@ -58,8 +58,8 @@ class GroupsResource(namespaceExtractor: Directive1[AuthedNamespaceScope], devic
       complete(groupMembership.listDevices(groupId, offset, limit))
     }
 
-  def listGroups(ns: Namespace, offset: Long, limit: Long, sortBy: SortBy, regex: Option[String Refined Regex]): Route =
-    complete(db.run(GroupInfoRepository.search(ns, regex, offset, limit, sortBy)))
+  def listGroups(ns: Namespace, offset: Long, limit: Long, sortBy: SortBy, contains: Option[String]): Route =
+    complete(db.run(GroupInfoRepository.list(ns, offset, limit, sortBy, contains)))
 
   def getGroup(groupId: GroupId): Route =
     complete(db.run(GroupInfoRepository.findByIdAction(groupId)))
@@ -88,8 +88,8 @@ class GroupsResource(namespaceExtractor: Directive1[AuthedNamespaceScope], devic
       (scope.post & entity(as[CreateGroup]) & pathEnd) { req =>
         createGroup(req.name, ns.namespace, req.groupType, req.expression)
       } ~
-      (scope.get & pathEnd & parameters(('offset.as[Long] ? 0L, 'limit.as[Long] ? 50L, 'sortBy.as[SortBy].?, 'regex.as[String Refined Regex].?))) {
-        (offset, limit, sortBy, regex) => listGroups(ns.namespace, offset, limit, sortBy.getOrElse(SortBy.Name), regex)
+      (scope.get & pathEnd & parameters(('offset.as[Long] ? 0L, 'limit.as[Long] ? 50L, 'sortBy.as[SortBy].?, 'contains.as[String].?))) {
+        (offset, limit, sortBy, contains) => listGroups(ns.namespace, offset, limit, sortBy.getOrElse(SortBy.Name), contains)
       } ~
       GroupIdPath { groupId =>
         (scope.get & pathEndOrSingleSlash) {
