@@ -51,8 +51,8 @@ trait GroupRequests {
   def countDevicesInGroup(groupId: GroupId)(implicit ec: ExecutionContext): HttpRequest =
     Get(Resource.uri("device_groups", groupId.show, "count"))
 
-  def listGroups(sortBy: Option[SortBy] = None, limit : Option[Long] = None, contains: Option[String] = None): HttpRequest = {
-    val m = List("sortBy" -> sortBy, "limit" -> limit, "contains" -> contains).collect { case (k, Some(v)) => k -> v.toString }.toMap
+  def listGroups(sortBy: Option[SortBy] = None, limit : Option[Long] = None, nameContains: Option[String] = None): HttpRequest = {
+    val m = List("sortBy" -> sortBy, "limit" -> limit, "nameContains" -> nameContains).collect { case (k, Some(v)) => k -> v.toString }.toMap
     Get(Resource.uri(groupsApi).withQuery(Query(m)))
   }
 
