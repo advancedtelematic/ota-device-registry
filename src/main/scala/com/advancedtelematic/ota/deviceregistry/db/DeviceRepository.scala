@@ -25,7 +25,6 @@ import eu.timepit.refined.string.Regex
 import slick.jdbc.MySQLProfile.api._
 
 import scala.concurrent.ExecutionContext
-import scala.util.{Failure, Success}
 
 object DeviceRepository extends ColumnTypes {
   val defaultLimit = 50

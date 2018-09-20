@@ -15,10 +15,12 @@ import cats.syntax.show._
 import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId._
 import com.advancedtelematic.ota.deviceregistry.data.Group.{GroupExpression, GroupId, Name}
 import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
+import com.advancedtelematic.ota.deviceregistry.data.SortBy.SortBy
 import com.advancedtelematic.ota.deviceregistry.data.{GroupType, Uuid}
-import io.circe.Json
+import eu.timepit.refined.api.Refined
 
 import scala.concurrent.ExecutionContext
+import scala.util.Random
 
 trait GroupRequests {
   self: ResourceSpec =>
@@ -48,16 +50,22 @@ trait GroupRequests {
   def countDevicesInGroup(groupId: GroupId)(implicit ec: ExecutionContext): HttpRequest =
     Get(Resource.uri("device_groups", groupId.show, "count"))
 
-  def listGroups(): HttpRequest = Get(Resource.uri(groupsApi))
+  def listGroups(sortBy: Option[SortBy] = None, limit : Option[Long] = None): HttpRequest = {
+    val m = List("sortBy" -> sortBy, "limit" -> limit).collect { case (k, Some(v)) => k -> v.toString }.toMap
+    Get(Resource.uri(groupsApi).withQuery(Query(m)))
+  }
 
-  def createGroup(groupName: Name, groupType: GroupType = GroupType.static, expression: Option[GroupExpression] = None)(
-      implicit ec: ExecutionContext
-  ): HttpRequest = {
+  def createGroup(groupName: Name, groupType: GroupType = GroupType.static, expression: Option[GroupExpression] = None)
+                 (implicit ec: ExecutionContext): HttpRequest = {
     val req = CreateGroup(groupName, groupType, expression)
     Post(Resource.uri(groupsApi), req)
   }
 
-  def createGroupOk(groupName: Name)(implicit ec: ExecutionContext): GroupId =
+  def createGroupOk(name: Name)(implicit ec: ExecutionContext): GroupId =
+    if (Random.nextBoolean()) createStaticGroupOk(name)
+    else createDynamicGroupOk(name, Refined.unsafeApply("deviceid contains abcd"))
+
+  def createStaticGroupOk(groupName: Name)(implicit ec: ExecutionContext): GroupId =
     createGroup(groupName, GroupType.static) ~> route ~> check {
       status shouldBe Created
       responseAs[GroupId]

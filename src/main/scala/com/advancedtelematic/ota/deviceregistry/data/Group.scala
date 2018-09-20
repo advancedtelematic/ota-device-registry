@@ -10,15 +10,13 @@ package com.advancedtelematic.ota.deviceregistry.data
 
 import java.util.UUID
 
-import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
-import slick.jdbc.MySQLProfile.api._
-
 import com.advancedtelematic.libats.data.DataType.Namespace
 import com.advancedtelematic.libats.data.UUIDKey.{UUIDKey, UUIDKeyObj}
-import com.advancedtelematic.ota.deviceregistry.data.Group._
+import com.advancedtelematic.ota.deviceregistry.data.Group.{GroupId, _}
 import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
 import eu.timepit.refined.api.{Refined, Validate}
 import io.circe.{Decoder, Encoder}
+import slick.jdbc.MySQLProfile.api._
 
 case class Group(id: GroupId,
                  groupName: Name,
@@ -74,4 +72,10 @@ object Group {
     import com.advancedtelematic.libats.codecs.CirceCodecs._
     io.circe.generic.semiauto.deriveEncoder[Group]
   }
+}
+
+object SortBy {
+  sealed trait SortBy
+  case object Name      extends SortBy
+  case object CreatedAt extends SortBy
 }

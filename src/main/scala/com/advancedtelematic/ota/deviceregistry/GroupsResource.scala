@@ -14,21 +14,19 @@ import akka.http.scaladsl.server._
 import akka.http.scaladsl.unmarshalling.Unmarshaller
 import com.advancedtelematic.libats.auth.{AuthedNamespaceScope, Scopes}
 import com.advancedtelematic.libats.data.DataType.Namespace
+import com.advancedtelematic.libats.http.UUIDKeyAkka._
 import com.advancedtelematic.ota.deviceregistry.data.Group.{GroupExpression, GroupId, Name}
 import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
-import com.advancedtelematic.ota.deviceregistry.data.{Group, GroupType, Uuid}
+import com.advancedtelematic.ota.deviceregistry.data.SortBy.SortBy
+import com.advancedtelematic.ota.deviceregistry.data._
 import com.advancedtelematic.ota.deviceregistry.db.GroupInfoRepository
-import slick.jdbc.MySQLProfile.api._
-import com.advancedtelematic.libats.http.UUIDKeyAkka._
 import io.circe.{Decoder, Encoder}
+import slick.jdbc.MySQLProfile.api._
 
 import scala.concurrent.{ExecutionContext, Future}
 
-class GroupsResource(
-    namespaceExtractor: Directive1[AuthedNamespaceScope],
-    deviceNamespaceAuthorizer: Directive1[Uuid]
-)(implicit ec: ExecutionContext, db: Database)
-    extends Directives {
+class GroupsResource(namespaceExtractor: Directive1[AuthedNamespaceScope], deviceNamespaceAuthorizer: Directive1[Uuid])
+                    (implicit ec: ExecutionContext, db: Database) extends Directives {
 
   import UuidDirectives._
   import com.advancedtelematic.libats.http.RefinedMarshallingSupport._
@@ -42,8 +40,14 @@ class GroupsResource(
     }
   }
 
-  implicit val groupTypeParamUnmarshaller: Unmarshaller[String, GroupType] =
-    Unmarshaller.strict[String, GroupType](GroupType.withName)
+  implicit val groupTypeParamUnmarshaller: Unmarshaller[String, GroupType] = Unmarshaller.strict[String, GroupType](GroupType.withName)
+  implicit val sortByUnmarshaller: Unmarshaller[String, SortBy] = Unmarshaller.strict {
+    _.toLowerCase match {
+      case "name"      => SortBy.Name
+      case "createdat" => SortBy.CreatedAt
+      case s           => throw new IllegalArgumentException(s"Invalid value for sorting parameter: '$s'.")
+    }
+  }
 
   val groupMembership = new GroupMembership()
 
@@ -52,10 +56,8 @@ class GroupsResource(
       complete(groupMembership.listDevices(groupId, offset, limit))
     }
 
-  def listGroups(ns: Namespace): Route =
-    parameters(('offset.as[Long].?, 'limit.as[Long].?)) { (offset, limit) =>
-      complete(db.run(GroupInfoRepository.list(ns, offset, limit)))
-    }
+  def listGroups(ns: Namespace, offset: Long, limit: Long, sortBy: SortBy): Route =
+    complete(db.run(GroupInfoRepository.list(ns, offset, limit, sortBy)))
 
   def getGroup(groupId: GroupId): Route =
     complete(db.run(GroupInfoRepository.findByIdAction(groupId)))
@@ -84,8 +86,8 @@ class GroupsResource(
       (scope.post & entity(as[CreateGroup]) & pathEnd) { req =>
         createGroup(req.name, ns.namespace, req.groupType, req.expression)
       } ~
-      (scope.get & pathEnd) {
-        listGroups(ns.namespace)
+      (scope.get & pathEnd & parameters(('offset.as[Long] ? 0L, 'limit.as[Long] ? 50L, 'sortBy.as[SortBy].?))) {
+        (offset, limit, sortBy) => listGroups(ns.namespace, offset, limit, sortBy.getOrElse(SortBy.Name))
       } ~
       GroupIdPath { groupId =>
         (scope.get & pathEndOrSingleSlash) {
