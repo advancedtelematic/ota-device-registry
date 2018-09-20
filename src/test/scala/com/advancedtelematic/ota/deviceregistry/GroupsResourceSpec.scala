@@ -9,12 +9,13 @@
 package com.advancedtelematic.ota.deviceregistry
 
 import akka.http.scaladsl.model.Uri.Query
-import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
+import com.advancedtelematic.ota.deviceregistry.data.Group.{GroupId, ValidName}
 import com.advancedtelematic.ota.deviceregistry.data.{Group, SortBy, Uuid}
 import org.scalacheck.Arbitrary._
 import org.scalacheck.Gen
 import akka.http.scaladsl.model.StatusCodes._
 import com.advancedtelematic.libats.data.PaginationResult
+import eu.timepit.refined.api.Refined
 import org.scalatest.FunSuite
 
 class GroupsResourceSpec extends FunSuite with ResourceSpec {
@@ -70,6 +71,23 @@ class GroupsResourceSpec extends FunSuite with ResourceSpec {
     val q = Query(Map("sortBy" -> Gen.alphaNumStr.sample.get))
     Get(Resource.uri(groupsApi).withQuery(q)) ~> route ~> check {
       status shouldBe BadRequest
+    }
+  }
+
+  test("gets all existing groups that contain a string") {
+    val names = Seq("aabb", "baaxbc", "a123ba", "cba3b")
+    val groupNames = names.map(s => Refined.unsafeApply[String, ValidName](s))
+    groupNames.map(createGroupOk)
+
+    val tests = Map("" -> names, "a1" -> Seq("a123ba"), "aa" -> Seq("aabb", "baaxbc"), "3b" -> Seq("a123ba", "cba3b"), "3" -> Seq("a123ba", "cba3b"))
+
+    tests.foreach{ case (k, v) =>
+      listGroups(nameContains = Some(k)) ~> route ~> check {
+        status shouldBe OK
+        val responseGroupNames = responseAs[PaginationResult[Group]].values.map(_.groupName.value).filter(names.contains)
+        responseGroupNames.size shouldBe v.size
+        responseGroupNames should contain allElementsOf v
+      }
     }
   }
 

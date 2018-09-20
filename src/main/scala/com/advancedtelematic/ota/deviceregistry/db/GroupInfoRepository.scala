@@ -47,9 +47,10 @@ object GroupInfoRepository extends SlickJsonHelper with ColumnTypes {
 
   val groupInfos = TableQuery[GroupInfoTable]
 
-  def list(namespace: Namespace, offset: Long, limit: Long, sortBy: SortBy)(implicit ec: ExecutionContext): DBIO[PaginationResult[Group]] =
+  def list(namespace: Namespace, offset: Long, limit: Long, sortBy: SortBy, nameContains: Option[String])(implicit ec: ExecutionContext): DBIO[PaginationResult[Group]] =
     groupInfos
       .filter(_.namespace === namespace)
+      .maybeContains(_.groupName, nameContains)
       .paginateAndSortResult(sortBy, offset, limit)
 
   def findById(id: GroupId)(implicit db: Database, ec: ExecutionContext): Future[Group] =

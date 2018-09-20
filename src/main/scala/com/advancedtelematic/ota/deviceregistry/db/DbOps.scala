@@ -1,4 +1,5 @@
 package com.advancedtelematic.ota.deviceregistry.db
+
 import com.advancedtelematic.libats.slick.codecs.SlickRefined._
 import com.advancedtelematic.libats.slick.db.SlickExtensions._
 import com.advancedtelematic.ota.deviceregistry.data.Group._
