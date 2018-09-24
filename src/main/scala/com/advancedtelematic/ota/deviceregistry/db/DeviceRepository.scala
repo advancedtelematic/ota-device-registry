@@ -173,22 +173,16 @@ object DeviceRepository extends ColumnTypes {
       .flatMap(_.fold[DBIO[Device]](DBIO.failed(Errors.MissingDevice))(DBIO.successful))
 
   def updateLastSeen(uuid: Uuid, when: Instant)(implicit ec: ExecutionContext): DBIO[(Boolean, Namespace)] = {
-
     val sometime = Some(when)
 
     val dbIO = for {
-      count <- devices
+      (ns, activatedAt) <- devices
         .filter(_.uuid === uuid)
-        .filter(_.activatedAt.isEmpty)
-        .map(_.activatedAt)
-        .update(sometime)
-      _ <- devices.filter(_.uuid === uuid).map(_.lastSeen).update(sometime)
-      ns <- devices
-        .filter(_.uuid === uuid)
-        .map(_.namespace)
+        .map(x => (x.namespace, x.activatedAt))
         .result
         .failIfNotSingle(Errors.MissingDevice)
-    } yield (count > 0, ns)
+      _ <- devices.filter(_.uuid === uuid).map(x => (x.lastSeen, x.activatedAt)).update((sometime, activatedAt.orElse(sometime)))
+    } yield (activatedAt.isEmpty, ns)
 
     dbIO.transactionally
   }
