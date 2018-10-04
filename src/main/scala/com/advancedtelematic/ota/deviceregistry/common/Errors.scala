@@ -27,7 +27,7 @@ object Errors {
     val MissingGroupInfo                   = ErrorCode("missing_group_info")
     val GroupAlreadyExists                 = ErrorCode("group_already_exists")
     val MemberAlreadyExists                = ErrorCode("device_already_a_group_member")
-    val RequestNeedsDeviceId               = ErrorCode("reguest_needs_deviceid")
+    val RequestNeedsDeviceId               = ErrorCode("request_needs_deviceid")
     val RequestNeedsCredentials            = ErrorCode("request_needs_credentials")
     val CannotAddDeviceToDynamicGroup      = ErrorCode("cannot_add_device_to_dynamic_group")
     val CannotRemoveDeviceFromDynamicGroup = ErrorCode("cannot_remove_device_from_dynamic_group")
@@ -35,7 +35,7 @@ object Errors {
     val InvalidGroupExpression             = ErrorCode("invalid_group_expression")
   }
 
-  def InvalidGroupExpression(err: String) = RawError(Codes.InvalidGroupExpression, StatusCodes.BadRequest, s"Invalid group expression: $err")
+  def InvalidGroupExpression(err: String) = RawError(Codes.InvalidGroupExpression, StatusCodes.BadRequest, s"Invalid group expression: '$err'")
 
   def InvalidGroupExpressionForGroupType(groupType: GroupType, expression: Option[GroupExpression]) =
     RawError(Codes.InvalidGroupExpressionForGroupType,
@@ -65,5 +65,4 @@ object Errors {
     RawError(Codes.CannotRemoveDeviceFromDynamicGroup,
              StatusCodes.BadRequest,
              "cannot remove device from dynamic group")
-
 }

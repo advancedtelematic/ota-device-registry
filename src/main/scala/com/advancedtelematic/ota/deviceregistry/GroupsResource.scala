@@ -20,8 +20,6 @@ import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
 import com.advancedtelematic.ota.deviceregistry.data.SortBy.SortBy
 import com.advancedtelematic.ota.deviceregistry.data._
 import com.advancedtelematic.ota.deviceregistry.db.GroupInfoRepository
-import eu.timepit.refined.api.Refined
-import eu.timepit.refined.string.Regex
 import io.circe.{Decoder, Encoder}
 import slick.jdbc.MySQLProfile.api._
 
