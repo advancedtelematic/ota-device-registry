@@ -14,10 +14,12 @@ import akka.http.scaladsl.model.Uri.{Path, Query}
 import akka.http.scaladsl.model.{HttpRequest, StatusCodes, Uri}
 import akka.http.scaladsl.server.Route
 import cats.syntax.show._
+import com.advancedtelematic.ota.deviceregistry.data.DataType.CorrelationId
 import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
 import com.advancedtelematic.ota.deviceregistry.data.{Device, DeviceT, PackageId, Uuid}
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
 import io.circe.Json
+
 import scala.concurrent.ExecutionContext
 
 /**
@@ -154,9 +156,10 @@ trait DeviceRequests { self: ResourceSpec =>
   def recordEvents(deviceUuid: Uuid, events: Json): HttpRequest =
     Post(Resource.uri(api, deviceUuid.show, "events"), events)
 
-  def getEvents(deviceUuid: Uuid): HttpRequest =
-    Get(Resource.uri(api, deviceUuid.show, "events"))
+  def getEvents(deviceUuid: Uuid, correlationId: Option[CorrelationId] = None): HttpRequest = {
+    val query = Query(correlationId.map("correlationId" -> _.show).toMap)
+    Get(Resource.uri(api, deviceUuid.show, "events").withQuery(query))
+  }
 
   def getGroupsOfDevice(deviceUuid: Uuid): HttpRequest = Get(Resource.uri(api, deviceUuid.show, "groups"))
-
 }

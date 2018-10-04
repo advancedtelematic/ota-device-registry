@@ -8,17 +8,24 @@
 
 package com.advancedtelematic.ota.deviceregistry.db
 
+import com.advancedtelematic.libats.data.DataType.Namespace
 import com.advancedtelematic.libats.slick.codecs.SlickEnumMapper
-import com.advancedtelematic.ota.deviceregistry.data.{CredentialsType, GroupType}
+import com.advancedtelematic.ota.deviceregistry.data.DataType.IndexedEventType
+import com.advancedtelematic.ota.deviceregistry.data.{CredentialsType, GroupType, PackageId}
 import slick.jdbc.MySQLProfile.api._
 
 object SlickMappings {
+  implicit val groupTypeMapper = SlickEnumMapper.enumMapper(GroupType)
 
-  implicit val grouTypeMapper = SlickEnumMapper.enumMapper(GroupType)
+  implicit val credentialsTypeMapper = SlickEnumMapper.enumMapper(CredentialsType)
 
-  implicit val enumMapperCredentialsType =
-    MappedColumnType.base[CredentialsType.CredentialsType, String](
-      _.toString,
-      (s: String) => CredentialsType.withName(s)
-    )
+  implicit val indexedEventTypeMapper = SlickEnumMapper.enumMapper(IndexedEventType)
+
+  private[db] implicit val namespaceColumnType =
+    MappedColumnType.base[Namespace, String](_.get, Namespace.apply)
+
+  private[db] case class LiftedPackageId(name: Rep[PackageId.Name], version: Rep[PackageId.Version])
+
+  private[db] implicit object LiftedPackageShape
+    extends CaseClassShape(LiftedPackageId.tupled, (p: (PackageId.Name, PackageId.Version)) => PackageId(p._1, p._2))
 }

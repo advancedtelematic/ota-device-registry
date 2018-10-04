@@ -24,7 +24,7 @@ class DeviceEventListener(config: Config, db: Database, metrics: MetricRegistry)
     implicit val ec: ExecutionContext,
     system: ActorSystem
 ) {
-  private[this] val journal = new EventJournal(db)
+  private[this] val journal = new EventJournal()(db, ec)
 
   def start(): Unit = {
     val eventsListener = system.actorOf(

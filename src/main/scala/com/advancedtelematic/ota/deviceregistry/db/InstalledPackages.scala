@@ -15,6 +15,7 @@ import com.advancedtelematic.libats.data.DataType.Namespace
 import com.advancedtelematic.libats.slick.codecs.SlickRefined._
 import com.advancedtelematic.libats.slick.db.Operators.regex
 import com.advancedtelematic.libats.slick.db.SlickExtensions._
+import SlickMappings._
 import com.advancedtelematic.libats.slick.db.SlickUUIDKey._
 import com.advancedtelematic.ota.deviceregistry.common.PackageStat
 import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
@@ -26,7 +27,7 @@ import slick.jdbc.MySQLProfile.api._
 
 import scala.concurrent.ExecutionContext
 
-object InstalledPackages extends ColumnTypes {
+object InstalledPackages {
 
   private[this] val defaultLimit = 50L
 
