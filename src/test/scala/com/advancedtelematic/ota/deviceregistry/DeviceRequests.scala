@@ -14,10 +14,11 @@ import akka.http.scaladsl.model.Uri.{Path, Query}
 import akka.http.scaladsl.model.{HttpRequest, StatusCodes, Uri}
 import akka.http.scaladsl.server.Route
 import cats.syntax.show._
-import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
+import com.advancedtelematic.ota.deviceregistry.data.Group.{GroupExpression, GroupId}
 import com.advancedtelematic.ota.deviceregistry.data.{Device, DeviceT, PackageId, Uuid}
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
 import io.circe.Json
+
 import scala.concurrent.ExecutionContext
 
 /**
@@ -158,5 +159,10 @@ trait DeviceRequests { self: ResourceSpec =>
     Get(Resource.uri(api, deviceUuid.show, "events"))
 
   def getGroupsOfDevice(deviceUuid: Uuid): HttpRequest = Get(Resource.uri(api, deviceUuid.show, "groups"))
+
+  def countDevicesForExpression(expression: Option[GroupExpression]): HttpRequest = {
+    val u = Resource.uri(api, "count")
+    Get(expression.fold(u)(e => u.withQuery(Query("expression" -> e.value))))
+  }
 
 }

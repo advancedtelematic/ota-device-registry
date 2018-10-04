@@ -73,7 +73,7 @@ class GroupMembership(implicit val db: Database, ec: ExecutionContext) {
   def create(name: Group.Name,
              namespace: Namespace,
              groupType: GroupType,
-             expression: Option[GroupExpression]) =
+             expression: Option[GroupExpression]): Future[GroupId] =
     (groupType, expression) match {
       case (GroupType.static, None)       => new StaticMembership().create(GroupId.generate(), name, namespace)
       case (GroupType.dynamic, Some(exp)) => new DynamicMembership().create(GroupId.generate(), name, namespace, exp)
