@@ -24,6 +24,7 @@ import eu.timepit.refined.api.Refined
 import eu.timepit.refined.string.Regex
 import SlickMappings._
 import slick.jdbc.MySQLProfile.api._
+import com.advancedtelematic.libats.messaging_datatype.DataType.{DeviceId => DeviceUUID}
 
 import scala.concurrent.ExecutionContext
 
@@ -40,7 +41,7 @@ object DeviceRepository {
   // scalastyle:off
   class DeviceTable(tag: Tag) extends Table[Device](tag, "Device") {
     def namespace    = column[Namespace]("namespace")
-    def uuid         = column[Uuid]("uuid")
+    def uuid         = column[DeviceUUID]("uuid")
     def deviceName   = column[DeviceName]("device_name")
     def deviceId     = column[Option[DeviceId]]("device_id")
     def deviceType   = column[DeviceType]("device_type")
@@ -58,8 +59,8 @@ object DeviceRepository {
   // scalastyle:on
   val devices = TableQuery[DeviceTable]
 
-  def create(ns: Namespace, device: DeviceT)(implicit ec: ExecutionContext): DBIO[Uuid] = {
-    val uuid: Uuid = device.deviceUuid.getOrElse(Uuid.generate())
+  def create(ns: Namespace, device: DeviceT)(implicit ec: ExecutionContext): DBIO[DeviceUUID] = {
+    val uuid = device.deviceUuid.getOrElse(DeviceUUID.generate)
 
     val dbDevice = Device(ns,
       uuid,
@@ -71,14 +72,14 @@ object DeviceRepository {
     val dbIO = devices += dbDevice
     dbIO
       .handleIntegrityErrors(Errors.ConflictingDevice)
-      .andThen { GroupMemberRepository.addDeviceToDynamicGroups(ns, uuid, dbDevice) }
+      .andThen { GroupMemberRepository.addDeviceToDynamicGroups(ns, dbDevice) }
       .map(_ => uuid)
       .transactionally
   }
 
   def findUuidFromUniqueDeviceIdOrCreate(ns: Namespace, deviceId: DeviceId, devT: DeviceT)(
       implicit ec: ExecutionContext
-  ): DBIO[(Boolean, Uuid)] =
+  ): DBIO[(Boolean, DeviceUUID)] =
     for {
       devs <- findByDeviceId(ns, deviceId)
       (created, uuid) <- devs match {
@@ -88,7 +89,7 @@ object DeviceRepository {
       }
     } yield (created, uuid)
 
-  def exists(ns: Namespace, uuid: Uuid)(implicit ec: ExecutionContext): DBIO[Device] =
+  def exists(ns: Namespace, uuid: DeviceUUID)(implicit ec: ExecutionContext): DBIO[Device] =
     devices
       .filter(d => d.namespace === ns && d.uuid === uuid)
       .result
@@ -103,7 +104,7 @@ object DeviceRepository {
   def searchByDeviceIdContains(ns: Namespace, expression: GroupExpression)(
       implicit db: Database,
       ec: ExecutionContext
-  ): DBIO[Seq[Uuid]] = {
+  ): DBIO[Seq[DeviceUUID]] = {
     val filter = GroupExpressionAST.compileToSlick(expression)
 
     devices
@@ -163,7 +164,7 @@ object DeviceRepository {
                                       limit.getOrElse[Long](defaultLimit).min(maxLimit))
   }
 
-  def updateDeviceName(ns: Namespace, uuid: Uuid, deviceName: DeviceName)(
+  def updateDeviceName(ns: Namespace, uuid: DeviceUUID, deviceName: DeviceName)(
       implicit ec: ExecutionContext
   ): DBIO[Unit] =
     devices
@@ -173,14 +174,14 @@ object DeviceRepository {
       .handleIntegrityErrors(Errors.ConflictingDevice)
       .handleSingleUpdateError(Errors.MissingDevice)
 
-  def findByUuid(uuid: Uuid)(implicit ec: ExecutionContext): DBIO[Device] =
+  def findByUuid(uuid: DeviceUUID)(implicit ec: ExecutionContext): DBIO[Device] =
     devices
       .filter(_.uuid === uuid)
       .result
       .headOption
       .flatMap(_.fold[DBIO[Device]](DBIO.failed(Errors.MissingDevice))(DBIO.successful))
 
-  def updateLastSeen(uuid: Uuid, when: Instant)(implicit ec: ExecutionContext): DBIO[(Boolean, Namespace)] = {
+  def updateLastSeen(uuid: DeviceUUID, when: Instant)(implicit ec: ExecutionContext): DBIO[(Boolean, Namespace)] = {
     val sometime = Some(when)
 
     val dbIO = for {
@@ -195,7 +196,7 @@ object DeviceRepository {
     dbIO.transactionally
   }
 
-  def delete(ns: Namespace, uuid: Uuid)(implicit ec: ExecutionContext): DBIO[Unit] = {
+  def delete(ns: Namespace, uuid: DeviceUUID)(implicit ec: ExecutionContext): DBIO[Unit] = {
     val dbIO = for {
       _ <- exists(ns, uuid)
       _ <- EventJournal.deleteEvents(uuid)
@@ -208,7 +209,7 @@ object DeviceRepository {
     dbIO.transactionally
   }
 
-  def deviceNamespace(uuid: Uuid)(implicit ec: ExecutionContext): DBIO[Namespace] =
+  def deviceNamespace(uuid: DeviceUUID)(implicit ec: ExecutionContext): DBIO[Namespace] =
     devices
       .filter(_.uuid === uuid)
       .map(_.namespace)
@@ -224,7 +225,7 @@ object DeviceRepository {
       .length
       .result
 
-  def setDeviceStatus(uuid: Uuid, status: DeviceStatus)(implicit ec: ExecutionContext): DBIO[Unit] =
+  def setDeviceStatus(uuid: DeviceUUID, status: DeviceStatus)(implicit ec: ExecutionContext): DBIO[Unit] =
     devices
       .filter(_.uuid === uuid)
       .map(_.deviceStatus)

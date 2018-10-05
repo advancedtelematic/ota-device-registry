@@ -10,6 +10,7 @@ package com.advancedtelematic.ota.deviceregistry.db
 
 import java.time.Instant
 
+import com.advancedtelematic.libats.messaging_datatype.DataType.{DeviceId => DeviceUUID}
 import com.advancedtelematic.libats.data.PaginationResult
 import com.advancedtelematic.libats.data.DataType.Namespace
 import com.advancedtelematic.libats.slick.codecs.SlickRefined._
@@ -19,7 +20,7 @@ import SlickMappings._
 import com.advancedtelematic.libats.slick.db.SlickUUIDKey._
 import com.advancedtelematic.ota.deviceregistry.common.PackageStat
 import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
-import com.advancedtelematic.ota.deviceregistry.data.{PackageId, Uuid}
+import com.advancedtelematic.ota.deviceregistry.data.PackageId
 import com.advancedtelematic.ota.deviceregistry.data.PackageId.Name
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.string.Regex
@@ -31,9 +32,9 @@ object InstalledPackages {
 
   private[this] val defaultLimit = 50L
 
-  type InstalledPkgRow = (Uuid, PackageId.Name, PackageId.Version, Instant)
+  type InstalledPkgRow = (DeviceUUID, PackageId.Name, PackageId.Version, Instant)
 
-  case class InstalledPackage(device: Uuid, packageId: PackageId, lastModified: Instant)
+  case class InstalledPackage(device: DeviceUUID, packageId: PackageId, lastModified: Instant)
 
   object InstalledPackage {
     import com.advancedtelematic.libats.codecs.CirceCodecs._
@@ -56,7 +57,7 @@ object InstalledPackages {
     }
 
   class InstalledPackageTable(tag: Tag) extends Table[InstalledPackage](tag, "InstalledPackage") {
-    def device       = column[Uuid]("device_uuid")
+    def device       = column[DeviceUUID]("device_uuid")
     def name         = column[PackageId.Name]("name")
     def version      = column[PackageId.Version]("version")
     def lastModified = column[Instant]("last_modified")
@@ -68,7 +69,7 @@ object InstalledPackages {
 
   private val installedPackages = TableQuery[InstalledPackageTable]
 
-  def setInstalled(device: Uuid, packages: Set[PackageId])(implicit ec: ExecutionContext): DBIO[Unit] =
+  def setInstalled(device: DeviceUUID, packages: Set[PackageId])(implicit ec: ExecutionContext): DBIO[Unit] =
     DBIO
       .seq(
         installedPackages.filter(_.device === device).delete,
@@ -77,7 +78,7 @@ object InstalledPackages {
       .transactionally
 
   def installedOn(
-      device: Uuid,
+      device: DeviceUUID,
       regexOpt: Option[String Refined Regex],
       offset: Option[Long],
       limit: Option[Long]
@@ -161,7 +162,7 @@ object InstalledPackages {
   def allInstalledPackagesById(
       namespace: Namespace,
       ids: Set[PackageId]
-  )(implicit db: Database, ec: ExecutionContext): DBIO[Seq[(Uuid, PackageId)]] =
+  )(implicit db: Database, ec: ExecutionContext): DBIO[Seq[(DeviceUUID, PackageId)]] =
     inSetQuery(ids)
       .join(DeviceRepository.devices)
       .on(_.device === _.uuid)

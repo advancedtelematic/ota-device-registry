@@ -13,6 +13,7 @@ import com.advancedtelematic.ota.deviceregistry.data.{CredentialsType, Device, D
 import com.advancedtelematic.ota.deviceregistry.PublicCredentialsResource.FetchPublicCredentials
 import io.circe.generic.auto._
 import org.scalacheck.{Arbitrary, Gen}
+import com.advancedtelematic.libats.messaging_datatype.DataType.{DeviceId => DeviceUUID}
 
 class PublicCredentialsResourceSpec extends ResourcePropSpec {
   import Device._
@@ -26,7 +27,7 @@ class PublicCredentialsResourceSpec extends ResourcePropSpec {
   )
 
   property("GET requests fails on non-existent device") {
-    forAll { (uuid: Uuid) =>
+    forAll { (uuid: DeviceUUID) =>
       fetchPublicCredentials(uuid) ~> route ~> check { status shouldBe NotFound }
     }
   }
@@ -70,7 +71,7 @@ class PublicCredentialsResourceSpec extends ResourcePropSpec {
       val devT = mdevT.copy(deviceId = Some(deviceId), credentials = Some(creds), credentialsType = Some(cType))
       val uuid = createDeviceWithCredentials(devT) ~> route ~> check {
         status shouldBe OK
-        responseAs[Uuid]
+        responseAs[DeviceUUID]
       }
 
       fetchPublicCredentials(uuid) ~> route ~> check {

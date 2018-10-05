@@ -8,27 +8,18 @@
 
 package com.advancedtelematic.ota.deviceregistry.data
 
+import com.advancedtelematic.libats.messaging_datatype.DataType.{DeviceId => DeviceUUID}
 import com.advancedtelematic.ota.deviceregistry.data.CredentialsType.CredentialsType
 import com.advancedtelematic.ota.deviceregistry.data.Device.DeviceName
-import io.circe.{Decoder, Encoder}
 
 /*
  * Device transfer object
  */
-// TODO: Use org.genivi.sota.core.data.client.ResponseEncoder
 final case class DeviceT(
     deviceName: DeviceName,
-    deviceUuid: Option[Uuid] = None,
+    deviceUuid: Option[DeviceUUID] = None,
     deviceId: Option[Device.DeviceId] = None,
     deviceType: Device.DeviceType = Device.DeviceType.Other,
     credentials: Option[String] = None,
     credentialsType: Option[CredentialsType] = None
 )
-
-object DeviceT {
-  private[this] implicit val DevcieIdEncoder = Encoder.encodeString.contramap[Device.DeviceId](_.underlying)
-  private[this] implicit val DevcieIdDecoder = Decoder.decodeString.map(Device.DeviceId.apply)
-  import com.advancedtelematic.libats.codecs.CirceCodecs.{refinedDecoder, refinedEncoder}
-  implicit val EncoderInstance = io.circe.generic.semiauto.deriveEncoder[DeviceT]
-  implicit val DecoderInstance = io.circe.generic.semiauto.deriveDecoder[DeviceT]
-}

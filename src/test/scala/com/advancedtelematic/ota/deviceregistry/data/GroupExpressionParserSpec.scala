@@ -15,6 +15,7 @@ import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.time.{Millis, Span}
 import org.scalatest.{FunSuite, Matchers}
 import slick.jdbc.MySQLProfile.api._
+import com.advancedtelematic.libats.slick.db.SlickUUIDKey._
 
 class GroupExpressionParserSpec extends FunSuite with Matchers {
 

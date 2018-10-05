@@ -10,7 +10,8 @@ package com.advancedtelematic.ota.deviceregistry
 
 import akka.http.scaladsl.model.Uri.Query
 import com.advancedtelematic.ota.deviceregistry.data.Group.{GroupId, ValidName}
-import com.advancedtelematic.ota.deviceregistry.data.{Group, SortBy, Uuid}
+import com.advancedtelematic.ota.deviceregistry.data.{Group, SortBy}
+import com.advancedtelematic.libats.messaging_datatype.DataType.{DeviceId => DeviceUUID}
 import org.scalacheck.Arbitrary._
 import org.scalacheck.Gen
 import akka.http.scaladsl.model.StatusCodes._
@@ -97,13 +98,13 @@ class GroupsResourceSpec extends FunSuite with ResourceSpec {
     val groupId      = createStaticGroupOk(group.groupName)
 
     val deviceTs             = genConflictFreeDeviceTs(deviceNumber).sample.get
-    val deviceIds: Seq[Uuid] = deviceTs.map(createDeviceOk)
+    val deviceIds = deviceTs.map(createDeviceOk)
 
     deviceIds.foreach(deviceId => addDeviceToGroupOk(groupId, deviceId))
 
     listDevicesInGroup(groupId, limit = Some(limit)) ~> route ~> check {
       status shouldBe OK
-      val result = responseAs[PaginationResult[Uuid]]
+      val result = responseAs[PaginationResult[DeviceUUID]]
       result.values.length shouldBe limit
     }
   }
@@ -115,17 +116,17 @@ class GroupsResourceSpec extends FunSuite with ResourceSpec {
     val groupId      = createStaticGroupOk(group.groupName)
 
     val deviceTs             = genConflictFreeDeviceTs(deviceNumber).sample.get
-    val deviceIds: Seq[Uuid] = deviceTs.map(createDeviceOk)
+    val deviceIds = deviceTs.map(createDeviceOk)
 
     deviceIds.foreach(deviceId => addDeviceToGroupOk(groupId, deviceId))
 
     val allDevices = listDevicesInGroup(groupId, limit = Some(deviceNumber)) ~> route ~> check {
-      responseAs[PaginationResult[Uuid]].values
+      responseAs[PaginationResult[DeviceUUID]].values
     }
 
     listDevicesInGroup(groupId, offset = Some(offset), limit = Some(limit)) ~> route ~> check {
       status shouldBe OK
-      val result = responseAs[PaginationResult[Uuid]]
+      val result = responseAs[PaginationResult[DeviceUUID]]
       result.values.length shouldBe limit
       allDevices.slice(offset, offset + limit) shouldEqual result.values
     }
@@ -184,7 +185,7 @@ class GroupsResourceSpec extends FunSuite with ResourceSpec {
 
     listDevicesInGroup(groupId) ~> route ~> check {
       status shouldBe OK
-      val devices = responseAs[PaginationResult[Uuid]]
+      val devices = responseAs[PaginationResult[DeviceUUID]]
       devices.values.contains(deviceUuid) shouldBe true
     }
   }
@@ -211,7 +212,7 @@ class GroupsResourceSpec extends FunSuite with ResourceSpec {
 
     listDevicesInGroup(groupId) ~> route ~> check {
       status shouldBe OK
-      val devices = responseAs[PaginationResult[Uuid]]
+      val devices = responseAs[PaginationResult[DeviceUUID]]
       devices.values.contains(deviceId) shouldBe true
     }
 
@@ -221,7 +222,7 @@ class GroupsResourceSpec extends FunSuite with ResourceSpec {
 
     listDevicesInGroup(groupId) ~> route ~> check {
       status shouldBe OK
-      val devices = responseAs[PaginationResult[Uuid]]
+      val devices = responseAs[PaginationResult[DeviceUUID]]
       devices.values.contains(deviceId) shouldBe false
     }
   }

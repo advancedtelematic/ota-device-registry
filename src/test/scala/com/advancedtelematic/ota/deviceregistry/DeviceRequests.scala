@@ -14,9 +14,11 @@ import akka.http.scaladsl.model.Uri.{Path, Query}
 import akka.http.scaladsl.model.{HttpRequest, StatusCodes, Uri}
 import akka.http.scaladsl.server.Route
 import cats.syntax.show._
+import com.advancedtelematic.libats.messaging_datatype.DataType.{DeviceId => DeviceUUID}
+import com.advancedtelematic.ota.deviceregistry.data.Codecs._
 import com.advancedtelematic.ota.deviceregistry.data.DataType.CorrelationId
 import com.advancedtelematic.ota.deviceregistry.data.Group.{GroupExpression, GroupId}
-import com.advancedtelematic.ota.deviceregistry.data.{Device, DeviceT, PackageId, Uuid}
+import com.advancedtelematic.ota.deviceregistry.data.{Device, DeviceT, PackageId}
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
 import io.circe.Json
 
@@ -43,7 +45,7 @@ trait DeviceRequests { self: ResourceSpec =>
 
   val api = "devices"
 
-  def fetchDevice(uuid: Uuid): HttpRequest =
+  def fetchDevice(uuid: DeviceUUID): HttpRequest =
     Get(Resource.uri(api, uuid.show))
 
   def listDevices(): HttpRequest =
@@ -80,10 +82,10 @@ trait DeviceRequests { self: ResourceSpec =>
         )
     )
 
-  def updateDevice(uuid: Uuid, device: DeviceT)(implicit ec: ExecutionContext): HttpRequest =
+  def updateDevice(uuid: DeviceUUID, device: DeviceT)(implicit ec: ExecutionContext): HttpRequest =
     Put(Resource.uri(api, uuid.show), device)
 
-  def updateDeviceOk(uuid: Uuid, device: DeviceT)(implicit ec: ExecutionContext): Unit =
+  def updateDeviceOk(uuid: DeviceUUID, device: DeviceT)(implicit ec: ExecutionContext): Unit =
     updateDevice(uuid, device) ~> route ~> check {
       status shouldBe OK
     }
@@ -91,41 +93,41 @@ trait DeviceRequests { self: ResourceSpec =>
   def createDevice(device: DeviceT)(implicit ec: ExecutionContext): HttpRequest =
     Post(Resource.uri(api), device)
 
-  def createDeviceOk(device: DeviceT)(implicit ec: ExecutionContext): Uuid =
+  def createDeviceOk(device: DeviceT)(implicit ec: ExecutionContext): DeviceUUID =
     createDevice(device) ~> route ~> check {
       status shouldBe Created
-      responseAs[Uuid]
+      responseAs[DeviceUUID]
   }
 
-  def deleteDevice(uuid: Uuid)(implicit ec: ExecutionContext): HttpRequest =
+  def deleteDevice(uuid: DeviceUUID)(implicit ec: ExecutionContext): HttpRequest =
     Delete(Resource.uri(api, uuid.show))
 
-  def fetchSystemInfo(uuid: Uuid): HttpRequest =
+  def fetchSystemInfo(uuid: DeviceUUID): HttpRequest =
     Get(Resource.uri(api, uuid.show, "system_info"))
 
-  def createSystemInfo(uuid: Uuid, json: Json)(implicit ec: ExecutionContext): HttpRequest =
+  def createSystemInfo(uuid: DeviceUUID, json: Json)(implicit ec: ExecutionContext): HttpRequest =
     Post(Resource.uri(api, uuid.show, "system_info"), json)
 
-  def updateSystemInfo(uuid: Uuid, json: Json)(implicit ec: ExecutionContext): HttpRequest =
+  def updateSystemInfo(uuid: DeviceUUID, json: Json)(implicit ec: ExecutionContext): HttpRequest =
     Put(Resource.uri(api, uuid.show, "system_info"), json)
 
-  def fetchNetworkInfo(uuid: Uuid)(implicit ec: ExecutionContext): HttpRequest = {
+  def fetchNetworkInfo(uuid: DeviceUUID)(implicit ec: ExecutionContext): HttpRequest = {
     val uri = Resource.uri(api, uuid.show, "system_info", "network")
     Get(uri)
   }
 
-  def listGroupsForDevice(device: Uuid)(implicit ec: ExecutionContext): HttpRequest =
+  def listGroupsForDevice(device: DeviceUUID)(implicit ec: ExecutionContext): HttpRequest =
     Get(Resource.uri(api, device.show, "groups"))
 
-  def installSoftware(device: Uuid, packages: Set[PackageId]): HttpRequest =
+  def installSoftware(device: DeviceUUID, packages: Set[PackageId]): HttpRequest =
     Put(Resource.uri("mydevice", device.show, "packages"), packages)
 
-  def installSoftwareOk(device: Uuid, packages: Set[PackageId])(implicit route: Route): Unit =
+  def installSoftwareOk(device: DeviceUUID, packages: Set[PackageId])(implicit route: Route): Unit =
     installSoftware(device, packages) ~> route ~> check {
       status shouldBe StatusCodes.NoContent
     }
 
-  def listPackages(device: Uuid, regex: Option[String] = None)(implicit ec: ExecutionContext): HttpRequest =
+  def listPackages(device: DeviceUUID, regex: Option[String] = None)(implicit ec: ExecutionContext): HttpRequest =
     regex match {
       case Some(r) =>
         Get(Resource.uri("devices", device.show, "packages").withQuery(Query("regex" -> r)))
@@ -153,17 +155,16 @@ trait DeviceRequests { self: ResourceSpec =>
   def getPackageStats(name: PackageId.Name): HttpRequest =
     Get(Resource.uri("device_packages", name))
 
-  def recordEvents(deviceUuid: Uuid, events: Json): HttpRequest =
+  def recordEvents(deviceUuid: DeviceUUID, events: Json): HttpRequest =
     Post(Resource.uri(api, deviceUuid.show, "events"), events)
-
-  def getEvents(deviceUuid: Uuid, correlationId: Option[CorrelationId] = None): HttpRequest = {
-    val query = Query(correlationId.map("correlationId" -> _.id).toMap)
-    Get(Resource.uri(api, deviceUuid.show, "events").withQuery(query))
-  }
-
-  def getGroupsOfDevice(deviceUuid: Uuid): HttpRequest = Get(Resource.uri(api, deviceUuid.show, "groups"))
 
   def countDevicesForExpression(expression: Option[GroupExpression]): HttpRequest =
     Get(Resource.uri(api, "count").withQuery(Query(expression.map("expression" -> _.value).toMap)))
 
+  def getEvents(deviceUuid: DeviceUUID, correlationId: Option[CorrelationId] = None): HttpRequest = {
+    val query = Query(correlationId.map("correlationId" -> _.id).toMap)
+    Get(Resource.uri(api, deviceUuid.show, "events").withQuery(query))
+  }
+
+  def getGroupsOfDevice(deviceUuid: DeviceUUID): HttpRequest = Get(Resource.uri(api, deviceUuid.show, "groups"))
 }

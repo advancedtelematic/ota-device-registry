@@ -6,15 +6,16 @@ import com.advancedtelematic.libats.data.PaginationResult
 import com.advancedtelematic.ota.deviceregistry.common.Errors
 import com.advancedtelematic.ota.deviceregistry.data.Group.{GroupExpression, GroupId, Name}
 import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
-import com.advancedtelematic.ota.deviceregistry.data.{Group, GroupType, Uuid}
+import com.advancedtelematic.ota.deviceregistry.data.{Group, GroupType}
 import com.advancedtelematic.ota.deviceregistry.db.{DeviceRepository, GroupInfoRepository, GroupMemberRepository}
 import slick.jdbc.MySQLProfile.api._
 
 import scala.concurrent.{ExecutionContext, Future}
+import com.advancedtelematic.libats.messaging_datatype.DataType.{DeviceId => DeviceUUID}
 
 protected trait GroupMembershipOperations {
-  def addMember(groupId: GroupId, deviceId: Uuid): Future[Unit]
-  def removeMember(group: Group, deviceId: Uuid): Future[Unit]
+  def addMember(groupId: GroupId, deviceId: DeviceUUID): Future[Unit]
+  def removeMember(group: Group, deviceId: DeviceUUID): Future[Unit]
 }
 
 protected class DynamicMembership(implicit db: Database, ec: ExecutionContext) extends GroupMembershipOperations {
@@ -38,19 +39,19 @@ protected class DynamicMembership(implicit db: Database, ec: ExecutionContext) e
       .transactionally
   }
 
-  override def addMember(groupId: GroupId, deviceId: Uuid): Future[Unit] =
+  override def addMember(groupId: GroupId, deviceId: DeviceUUID): Future[Unit] =
     FastFuture.failed(Errors.CannotAddDeviceToDynamicGroup)
 
-  override def removeMember(group: Group, deviceId: Uuid): Future[Unit] =
+  override def removeMember(group: Group, deviceId: DeviceUUID): Future[Unit] =
     FastFuture.failed(Errors.CannotRemoveDeviceFromDynamicGroup)
 }
 
 protected class StaticMembership(implicit db: Database, ec: ExecutionContext) extends GroupMembershipOperations {
 
-  override def addMember(groupId: GroupId, deviceId: Uuid): Future[Unit] =
+  override def addMember(groupId: GroupId, deviceId: DeviceUUID): Future[Unit] =
     db.run(GroupMemberRepository.addGroupMember(groupId, deviceId)).map(_ => ())
 
-  override def removeMember(group: Group, deviceId: Uuid): Future[Unit] =
+  override def removeMember(group: Group, deviceId: DeviceUUID): Future[Unit] =
     db.run(GroupMemberRepository.removeGroupMember(group.id, deviceId))
 
   def create(
@@ -82,17 +83,17 @@ class GroupMembership(implicit val db: Database, ec: ExecutionContext) {
       case (_, _) => throw new IllegalArgumentException(s"(groupType, expression) = ($groupType, $expression)")
     }
 
-  def listDevices(groupId: GroupId, offset: Option[Long], limit: Option[Long]): Future[PaginationResult[Uuid]] =
+  def listDevices(groupId: GroupId, offset: Option[Long], limit: Option[Long]): Future[PaginationResult[DeviceUUID]] =
     db.run(GroupMemberRepository.listDevicesInGroup(groupId, offset, limit))
 
-  def addGroupMember(groupId: GroupId, deviceId: Uuid)(implicit ec: ExecutionContext): Future[Unit] =
+  def addGroupMember(groupId: GroupId, deviceId: DeviceUUID)(implicit ec: ExecutionContext): Future[Unit] =
     runGroupOperation(groupId) { (g, m) =>
       m.addMember(g.id, deviceId)
     }
 
   def countDevices(groupId: GroupId): Future[Long] = db.run(GroupMemberRepository.countDevicesInGroup(groupId))
 
-  def removeGroupMember(groupId: GroupId, deviceId: Uuid): Future[Unit] = runGroupOperation(groupId) { (g, m) =>
+  def removeGroupMember(groupId: GroupId, deviceId: DeviceUUID): Future[Unit] = runGroupOperation(groupId) { (g, m) =>
     m.removeMember(g, deviceId)
   }
 }

@@ -11,6 +11,7 @@ package com.advancedtelematic.ota.deviceregistry.data
 import eu.timepit.refined.api.Refined
 import org.scalacheck.{Arbitrary, Gen}
 import java.time.Instant
+import com.advancedtelematic.libats.messaging_datatype.DataType.{DeviceId => DeviceUUID}
 
 import com.advancedtelematic.ota.deviceregistry.data
 
@@ -18,13 +19,14 @@ trait DeviceGenerators {
 
   import Arbitrary._
   import Device._
-  import UuidGenerator._
 
   val genDeviceName: Gen[DeviceName] = for {
     //use a minimum length for DeviceName to reduce possibility of naming conflicts
     size <- Gen.choose(10, 100)
     name <- Gen.containerOfN[Seq, Char](size, Gen.alphaNumChar)
   } yield Refined.unsafeApply(name.mkString)
+
+  val genDeviceUUID: Gen[DeviceUUID] = Gen.delay(DeviceUUID.generate)
 
   val genDeviceId: Gen[DeviceId] = for {
     size <- Gen.choose(10, 100)
@@ -41,7 +43,7 @@ trait DeviceGenerators {
 
   def genDeviceWith(deviceNameGen: Gen[DeviceName], deviceIdGen: Gen[DeviceId]): Gen[Device] =
     for {
-      uuid       <- arbitrary[Uuid]
+      uuid       <- genDeviceUUID
       name       <- deviceNameGen
       deviceId   <- deviceIdGen.map(Some.apply)
       deviceType <- genDeviceType
@@ -55,7 +57,7 @@ trait DeviceGenerators {
     for {
       name       <- deviceNameGen
       deviceId   <- deviceIdGen.map(Some.apply)
-      deviceUuid <- Gen.option(UuidGenerator.genUuid)
+      deviceUuid <- Gen.option(genDeviceUUID)
       deviceType <- genDeviceType
     } yield DeviceT(name, deviceUuid, deviceId, deviceType)
 
@@ -76,6 +78,7 @@ trait DeviceGenerators {
     }
 
   implicit lazy val arbDeviceName: Arbitrary[DeviceName] = Arbitrary(genDeviceName)
+  implicit lazy val arbDeviceUUID: Arbitrary[DeviceUUID] = Arbitrary(genDeviceUUID)
   implicit lazy val arbDeviceId: Arbitrary[DeviceId]     = Arbitrary(genDeviceId)
   implicit lazy val arbDeviceType: Arbitrary[DeviceType] = Arbitrary(genDeviceType)
   implicit lazy val arbLastSeen: Arbitrary[Instant]      = Arbitrary(genInstant)

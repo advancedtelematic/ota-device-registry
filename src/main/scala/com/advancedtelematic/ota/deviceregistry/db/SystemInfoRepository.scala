@@ -12,9 +12,10 @@ import akka.Done
 import cats.data.State
 import cats.implicits._
 import com.advancedtelematic.libats.data.DataType.Namespace
+import com.advancedtelematic.libats.messaging_datatype.DataType.{DeviceId => DeviceUUID}
 import com.advancedtelematic.libats.slick.db.SlickExtensions._
+import com.advancedtelematic.libats.slick.db.SlickUUIDKey._
 import com.advancedtelematic.ota.deviceregistry.common.Errors
-import com.advancedtelematic.ota.deviceregistry.data.Uuid
 import io.circe.Json
 import org.slf4j.LoggerFactory
 import slick.jdbc.MySQLProfile.api._
@@ -26,7 +27,7 @@ object SystemInfoRepository {
   import com.advancedtelematic.libats.slick.db.SlickAnyVal._
 
   type SystemInfoType = Json
-  case class SystemInfo(uuid: Uuid, systemInfo: SystemInfoType)
+  case class SystemInfo(uuid: DeviceUUID, systemInfo: SystemInfoType)
 
   private val _log = LoggerFactory.getLogger(this.getClass)
 
@@ -45,21 +46,19 @@ object SystemInfoRepository {
 
   // scalastyle:off
   class SystemInfoTable(tag: Tag) extends Table[SystemInfo](tag, "DeviceSystem") {
-    def uuid       = column[Uuid]("uuid")
+    def uuid       = column[DeviceUUID]("uuid")
     def systemInfo = column[Json]("system_info")
 
-    def * =
-      (uuid, systemInfo).shaped <>
-      ((SystemInfo.apply _).tupled, SystemInfo.unapply _)
+    def * = (uuid, systemInfo).shaped <> ((SystemInfo.apply _).tupled, SystemInfo.unapply _)
 
     def pk = primaryKey("uuid", uuid)
   }
   // scalastyle:on
 
-  final case class NetworkInfo(deviceUuid: Uuid, localIpV4: String, hostname: String, macAddress: String)
+  final case class NetworkInfo(deviceUuid: DeviceUUID, localIpV4: String, hostname: String, macAddress: String)
 
   class SysInfoNetworkTable(tag: Tag) extends Table[NetworkInfo](tag, "DeviceSystem") {
-    def uuid       = column[Uuid]("uuid")
+    def uuid       = column[DeviceUUID]("uuid")
     def localIpV4  = column[String]("local_ipv4")
     def hostname   = column[String]("hostname")
     def macAddress = column[String]("mac_address")
@@ -74,7 +73,7 @@ object SystemInfoRepository {
   def setNetworkInfo(value: NetworkInfo)(implicit ec: ExecutionContext): DBIO[Done] =
     networkInfos.insertOrUpdate(value).map(_ => Done)
 
-  def getNetworkInfo(deviceUuid: Uuid)(implicit ec: ExecutionContext): DBIO[NetworkInfo] =
+  def getNetworkInfo(deviceUuid: DeviceUUID)(implicit ec: ExecutionContext): DBIO[NetworkInfo] =
     networkInfos.filter(_.uuid === deviceUuid).result.failIfEmpty(Errors.MissingSystemInfo).map(_.head)
 
   val systemInfos = TableQuery[SystemInfoTable]
@@ -110,14 +109,14 @@ object SystemInfoRepository {
       .map(_._2)
       .result
 
-  def exists(uuid: Uuid)(implicit ec: ExecutionContext): DBIO[SystemInfo] =
+  def exists(uuid: DeviceUUID)(implicit ec: ExecutionContext): DBIO[SystemInfo] =
     systemInfos
       .filter(_.uuid === uuid)
       .result
       .headOption
       .flatMap(_.fold[DBIO[SystemInfo]](DBIO.failed(Errors.MissingSystemInfo))(DBIO.successful))
 
-  def findByUuid(uuid: Uuid)(implicit ec: ExecutionContext): DBIO[SystemInfoType] = {
+  def findByUuid(uuid: DeviceUUID)(implicit ec: ExecutionContext): DBIO[SystemInfoType] = {
     val dbIO = for {
       _ <- DeviceRepository.findByUuid(uuid)
       p <- systemInfos
@@ -129,7 +128,7 @@ object SystemInfoRepository {
     dbIO.transactionally
   }
 
-  def create(uuid: Uuid, data: SystemInfoType)(implicit ec: ExecutionContext): DBIO[Unit] =
+  def create(uuid: DeviceUUID, data: SystemInfoType)(implicit ec: ExecutionContext): DBIO[Unit] =
     for {
       _ <- DeviceRepository.findByUuid(uuid) // check that the device exists
       _ <- exists(uuid).asTry.flatMap {
@@ -140,13 +139,13 @@ object SystemInfoRepository {
       _ <- systemInfos += SystemInfo(uuid, newData)
     } yield ()
 
-  def update(uuid: Uuid, data: SystemInfoType)(implicit ec: ExecutionContext): DBIO[Unit] =
+  def update(uuid: DeviceUUID, data: SystemInfoType)(implicit ec: ExecutionContext): DBIO[Unit] =
     for {
       _ <- DeviceRepository.findByUuid(uuid) // check that the device exists
       newData = addUniqueIdNrs(data)
       _ <- systemInfos.insertOrUpdate(SystemInfo(uuid, newData))
     } yield ()
 
-  def delete(uuid: Uuid)(implicit ec: ExecutionContext): DBIO[Int] =
+  def delete(uuid: DeviceUUID)(implicit ec: ExecutionContext): DBIO[Int] =
     systemInfos.filter(_.uuid === uuid).delete
 }

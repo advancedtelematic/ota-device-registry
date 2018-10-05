@@ -17,6 +17,8 @@ import com.advancedtelematic.ota.deviceregistry.PublicCredentialsResource.FetchP
 import eu.timepit.refined.api.Refined
 
 import scala.concurrent.ExecutionContext
+import com.advancedtelematic.libats.messaging_datatype.DataType.{DeviceId => DeviceUUID}
+import com.advancedtelematic.ota.deviceregistry.data.Codecs._
 
 trait PublicCredentialsRequests { self: ResourceSpec =>
   import StatusCodes._
@@ -28,12 +30,12 @@ trait PublicCredentialsRequests { self: ResourceSpec =>
   private lazy val base64Decoder = Base64.getDecoder()
   private lazy val base64Encoder = Base64.getEncoder()
 
-  def fetchPublicCredentials(device: Uuid): HttpRequest = {
+  def fetchPublicCredentials(device: DeviceUUID): HttpRequest = {
     import cats.syntax.show._
     Get(Resource.uri(credentialsApi, device.show, "public_credentials"))
   }
 
-  def fetchPublicCredentialsOk(device: Uuid): Array[Byte] =
+  def fetchPublicCredentialsOk(device: DeviceUUID): Array[Byte] =
     fetchPublicCredentials(device) ~> route ~> check {
       implicit val CredentialsDecoder =
         io.circe.generic.semiauto.deriveDecoder[FetchPublicCredentials]
@@ -60,9 +62,9 @@ trait PublicCredentialsRequests { self: ResourceSpec =>
       device: DeviceId,
       creds: Array[Byte],
       cType: Option[CredentialsType] = None
-  )(implicit ec: ExecutionContext): Uuid =
+  )(implicit ec: ExecutionContext): DeviceUUID =
     updatePublicCredentials(device, creds, cType) ~> route ~> check {
-      val uuid = responseAs[Uuid]
+      val uuid = responseAs[DeviceUUID]
       status shouldBe OK
       uuid
     }

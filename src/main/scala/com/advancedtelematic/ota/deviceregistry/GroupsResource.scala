@@ -24,20 +24,17 @@ import io.circe.{Decoder, Encoder}
 import slick.jdbc.MySQLProfile.api._
 
 import scala.concurrent.{ExecutionContext, Future}
+import com.advancedtelematic.libats.messaging_datatype.DataType.{DeviceId => DeviceUUID}
 
-class GroupsResource(namespaceExtractor: Directive1[AuthedNamespaceScope], deviceNamespaceAuthorizer: Directive1[Uuid])
+class GroupsResource(namespaceExtractor: Directive1[AuthedNamespaceScope], deviceNamespaceAuthorizer: Directive1[DeviceUUID])
                     (implicit ec: ExecutionContext, db: Database) extends Directives {
 
-  import UuidDirectives._
   import com.advancedtelematic.libats.http.RefinedMarshallingSupport._
   import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
 
   private val GroupIdPath = {
     def groupAllowed(groupId: GroupId): Future[Namespace] = db.run(GroupInfoRepository.groupInfoNamespace(groupId))
-
-    pathPrefix(GroupId.Path).flatMap { groupId =>
-      allowExtractor(namespaceExtractor, provide(groupId), groupAllowed)
-    }
+    AllowUUIDPath(GroupId)(namespaceExtractor, groupAllowed)
   }
 
   implicit val groupTypeParamUnmarshaller: Unmarshaller[String, GroupType] = Unmarshaller.strict[String, GroupType](GroupType.withName)
@@ -74,10 +71,10 @@ class GroupsResource(namespaceExtractor: Directive1[AuthedNamespaceScope], devic
   def countDevices(groupId: GroupId): Route =
     complete(groupMembership.countDevices(groupId))
 
-  def addDeviceToGroup(groupId: GroupId, deviceUuid: Uuid): Route =
+  def addDeviceToGroup(groupId: GroupId, deviceUuid: DeviceUUID): Route =
     complete(groupMembership.addGroupMember(groupId, deviceUuid))
 
-  def removeDeviceFromGroup(groupId: GroupId, deviceId: Uuid): Route =
+  def removeDeviceFromGroup(groupId: GroupId, deviceId: DeviceUUID): Route =
     complete(groupMembership.removeGroupMember(groupId, deviceId))
 
   val route: Route =

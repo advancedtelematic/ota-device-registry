@@ -70,8 +70,8 @@ object EventJournal {
 
   protected [db] val indexedEvents = TableQuery[IndexedEventTable]
 
-  def deleteEvents(deviceUuid: Uuid)(implicit ec: ExecutionContext): DBIO[Int] =
-    events.filter(_.deviceUuid === DeviceUUID(deviceUuid.toJava)).delete
+  def deleteEvents(deviceUuid: DeviceUUID)(implicit ec: ExecutionContext): DBIO[Int] =
+    events.filter(_.deviceUuid === deviceUuid).delete
 }
 
 class EventJournal()(implicit db: Database, ec: ExecutionContext) {
@@ -93,16 +93,16 @@ class EventJournal()(implicit db: Database, ec: ExecutionContext) {
     db.run(io).map(_ => ())
   }
 
-  def getEvents(deviceUuid: Uuid, correlationId: Option[CorrelationId]): Future[Seq[Event]] =
+  def getEvents(deviceUuid: DeviceUUID, correlationId: Option[CorrelationId]): Future[Seq[Event]] =
     if(correlationId.isDefined)
       db.run(findEventsByCorrelationId(deviceUuid, correlationId.get))
     else
-      db.run(events.filter(_.deviceUuid === DeviceUUID(deviceUuid.toJava)).result)
+      db.run(events.filter(_.deviceUuid === deviceUuid).result)
 
 
-  protected [db] def findEventsByCorrelationId(deviceUuid: Uuid, correlationId: CorrelationId): DBIO[Seq[Event]] = {
+  protected [db] def findEventsByCorrelationId(deviceUuid: DeviceUUID, correlationId: CorrelationId): DBIO[Seq[Event]] = {
     EventJournal.events
-      .filter(_.deviceUuid === DeviceUUID(deviceUuid.toJava))
+      .filter(_.deviceUuid === deviceUuid)
       .join(EventJournal.indexedEvents)
       .on { case (ej, ie) => ej.deviceUuid.mappedTo[String] === ie.deviceUuid.mappedTo[String] && ej.eventId === ie.eventId }
       .map(_._1)
@@ -110,4 +110,3 @@ class EventJournal()(implicit db: Database, ec: ExecutionContext) {
   }
 }
 
-// TODO:SM lots of DeviceUUID(_.toJava) around

@@ -9,7 +9,9 @@
 package com.advancedtelematic.ota.deviceregistry.data
 
 import java.time.{Instant, OffsetDateTime}
+import java.util.UUID
 
+import com.advancedtelematic.libats.messaging_datatype.DataType.{DeviceId => DeviceUUID}
 import cats.Show
 import cats.syntax.show._
 import com.advancedtelematic.libats.data.DataType.Namespace
@@ -20,7 +22,7 @@ import eu.timepit.refined.api.{Refined, Validate}
 import io.circe.{Decoder, Encoder}
 
 final case class Device(namespace: Namespace,
-                        uuid: Uuid,
+                        uuid: DeviceUUID,
                         deviceName: DeviceName,
                         deviceId: Option[DeviceId] = None,
                         deviceType: DeviceType = DeviceType.Other,
@@ -35,6 +37,7 @@ final case class Device(namespace: Namespace,
 
 object Device {
 
+  // TODO:SM Rename to DeviceVin ?
   final case class DeviceId(underlying: String) extends AnyVal
   implicit val showDeviceId = new Show[DeviceId] {
     def show(deviceId: DeviceId) = deviceId.underlying
@@ -89,9 +92,9 @@ object Device {
     override def compare(id1: DeviceId, id2: DeviceId): Int = id1.underlying compare id2.underlying
   }
 
-  implicit def DeviceOrdering(implicit ord: Ordering[Uuid]): Ordering[Device] =
+  implicit def DeviceOrdering(implicit ord: Ordering[UUID]): Ordering[Device] =
     new Ordering[Device] {
-      override def compare(d1: Device, d2: Device): Int = ord.compare(d1.uuid, d2.uuid)
+      override def compare(d1: Device, d2: Device): Int = ord.compare(d1.uuid.uuid, d2.uuid.uuid)
     }
 
   implicit val showOffsetDateTable = new Show[OffsetDateTime] {

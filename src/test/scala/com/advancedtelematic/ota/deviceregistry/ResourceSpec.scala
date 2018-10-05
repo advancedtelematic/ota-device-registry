@@ -18,14 +18,12 @@ import com.advancedtelematic.ota.deviceregistry.data.{
   DeviceGenerators,
   GroupGenerators,
   PackageIdGenerators,
-  SimpleJsonGenerator,
-  Uuid,
-  UuidGenerator
+  SimpleJsonGenerator
 }
 import com.advancedtelematic.ota.deviceregistry.db.DeviceRepository
 import org.scalatest.{BeforeAndAfterAll, Matchers, PropSpec, Suite}
 import org.scalatest.prop.PropertyChecks
-
+import com.advancedtelematic.libats.messaging_datatype.DataType.{DeviceId => DeviceUUID}
 import scala.concurrent.Future
 import scala.concurrent.duration._
 
@@ -40,8 +38,7 @@ trait ResourceSpec
     with PublicCredentialsRequests
     with PackageIdGenerators
     with Matchers
-    with SimpleJsonGenerator
-    with UuidGenerator {
+    with SimpleJsonGenerator {
 
   self: Suite =>
 
@@ -52,10 +49,9 @@ trait ResourceSpec
 
   lazy val namespaceExtractor = Directives.provide(AuthedNamespaceScope(defaultNs))
 
-  private val namespaceAuthorizer =
-    UuidDirectives.allowExtractor(namespaceExtractor, UuidDirectives.extractUuid, deviceAllowed)
+  private val namespaceAuthorizer = AllowUUIDPath.deviceUUID(namespaceExtractor, deviceAllowed)
 
-  private def deviceAllowed(deviceId: Uuid): Future[Namespace] =
+  private def deviceAllowed(deviceId: DeviceUUID): Future[Namespace] =
     db.run(DeviceRepository.deviceNamespace(deviceId))
 
   lazy val messageBus = MessageBus.publisher(system, system.settings.config)

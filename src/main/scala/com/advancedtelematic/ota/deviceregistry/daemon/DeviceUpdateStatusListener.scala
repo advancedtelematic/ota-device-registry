@@ -10,10 +10,11 @@ package com.advancedtelematic.ota.deviceregistry.daemon
 
 import java.time.Instant
 
+import com.advancedtelematic.libats.messaging_datatype.DataType.{DeviceId => DeviceUUID}
 import com.advancedtelematic.libats.data.DataType.Namespace
 import com.advancedtelematic.libats.messaging.MessageBusPublisher
 import com.advancedtelematic.libats.messaging_datatype.MessageLike
-import com.advancedtelematic.ota.deviceregistry.data.{DeviceStatus, Uuid}
+import com.advancedtelematic.ota.deviceregistry.data.{DeviceStatus}
 import com.advancedtelematic.ota.deviceregistry.data.DeviceStatus.DeviceStatus
 import com.advancedtelematic.ota.deviceregistry.db.DeviceRepository
 import com.advancedtelematic.ota.deviceregistry.messages.{UpdateSpec, UpdateStatus}
@@ -47,7 +48,7 @@ object DeviceUpdateStatusListener {
     }
 
   final case class DeviceUpdateStatus(namespace: Namespace,
-                                      device: Uuid,
+                                      device: DeviceUUID,
                                       status: DeviceStatus,
                                       timestamp: Instant = Instant.now())
 
