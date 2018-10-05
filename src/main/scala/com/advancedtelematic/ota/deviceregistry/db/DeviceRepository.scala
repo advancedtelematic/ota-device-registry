@@ -43,7 +43,7 @@ object DeviceRepository {
     def namespace    = column[Namespace]("namespace")
     def uuid         = column[DeviceUUID]("uuid")
     def deviceName   = column[DeviceName]("device_name")
-    def deviceId     = column[Option[DeviceId]]("device_id")
+    def deviceId     = column[Option[DeviceOemId]]("device_id")
     def deviceType   = column[DeviceType]("device_type")
     def lastSeen     = column[Option[Instant]]("last_seen")
     def createdAt    = column[Instant]("created_at")
@@ -77,7 +77,7 @@ object DeviceRepository {
       .transactionally
   }
 
-  def findUuidFromUniqueDeviceIdOrCreate(ns: Namespace, deviceId: DeviceId, devT: DeviceT)(
+  def findUuidFromUniqueDeviceIdOrCreate(ns: Namespace, deviceId: DeviceOemId, devT: DeviceT)(
       implicit ec: ExecutionContext
   ): DBIO[(Boolean, DeviceUUID)] =
     for {
@@ -96,7 +96,7 @@ object DeviceRepository {
       .headOption
       .flatMap(_.fold[DBIO[Device]](DBIO.failed(Errors.MissingDevice))(DBIO.successful))
 
-  def findByDeviceId(ns: Namespace, deviceId: DeviceId)(implicit ec: ExecutionContext): DBIO[Seq[Device]] =
+  def findByDeviceId(ns: Namespace, deviceId: DeviceOemId)(implicit ec: ExecutionContext): DBIO[Seq[Device]] =
     devices
       .filter(d => d.namespace === ns && d.deviceId === deviceId)
       .result

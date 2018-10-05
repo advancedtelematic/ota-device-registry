@@ -16,10 +16,10 @@ import com.advancedtelematic.ota.deviceregistry.data.Device.DeviceName
  * Device transfer object
  */
 final case class DeviceT(
-    deviceName: DeviceName,
-    deviceUuid: Option[DeviceUUID] = None,
-    deviceId: Option[Device.DeviceId] = None,
-    deviceType: Device.DeviceType = Device.DeviceType.Other,
-    credentials: Option[String] = None,
-    credentialsType: Option[CredentialsType] = None
+                          deviceName: DeviceName,
+                          deviceUuid: Option[DeviceUUID] = None,
+                          deviceId: Option[Device.DeviceOemId] = None,
+                          deviceType: Device.DeviceType = Device.DeviceType.Other,
+                          credentials: Option[String] = None,
+                          credentialsType: Option[CredentialsType] = None
 )

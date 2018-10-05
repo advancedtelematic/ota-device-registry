@@ -14,7 +14,7 @@ import eu.timepit.refined.refineV
 import cats.syntax.either._
 import eu.timepit.refined.api.Refined
 import Group._
-import com.advancedtelematic.ota.deviceregistry.data.Device.DeviceId
+import com.advancedtelematic.ota.deviceregistry.data.Device.DeviceOemId
 
 class DynamicGroupsResourceSpec extends FunSuite with ResourceSpec {
 
@@ -23,7 +23,7 @@ class DynamicGroupsResourceSpec extends FunSuite with ResourceSpec {
 
   private[this] implicit val GroupDecoder = deriveDecoder[Group]
 
-  implicit class DeviceIdToExpression(value: DeviceId) {
+  implicit class DeviceIdToExpression(value: DeviceOemId) {
     def toValidExp: GroupExpression =
       refineV[ValidExpression](s"deviceid contains ${value.underlying}").valueOr(err => throw new IllegalArgumentException(err))
   }

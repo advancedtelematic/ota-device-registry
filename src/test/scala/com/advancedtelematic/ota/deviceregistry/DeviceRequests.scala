@@ -58,7 +58,7 @@ trait DeviceRequests { self: ResourceSpec =>
         .withQuery(Query("regex" -> regex, "offset" -> offset.toString, "limit" -> limit.toString))
     )
 
-  def fetchByDeviceId(deviceId: Device.DeviceId, regex: Option[String] = None): HttpRequest = {
+  def fetchByDeviceId(deviceId: Device.DeviceOemId, regex: Option[String] = None): HttpRequest = {
     val baseParams                  = Map("deviceId"                             -> deviceId.show)
     val params: Map[String, String] = if (regex.isDefined) baseParams + ("regex" -> regex.get) else baseParams
     Get(Resource.uri(api).withQuery(Query(params)))

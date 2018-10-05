@@ -29,7 +29,7 @@ import com.advancedtelematic.ota.deviceregistry.DevicesResource.EventPayload
 import com.advancedtelematic.ota.deviceregistry.common.Errors
 import com.advancedtelematic.ota.deviceregistry.data.Codecs._
 import com.advancedtelematic.ota.deviceregistry.data.DataType.CorrelationId
-import com.advancedtelematic.ota.deviceregistry.data.Device.{ActiveDeviceCount, DeviceId}
+import com.advancedtelematic.ota.deviceregistry.data.Device.{ActiveDeviceCount, DeviceOemId}
 import com.advancedtelematic.ota.deviceregistry.data.Group.{GroupExpression, GroupId}
 import com.advancedtelematic.ota.deviceregistry.data.{DeviceT, PackageId}
 import com.advancedtelematic.ota.deviceregistry.db.{DeviceRepository, EventJournal, GroupMemberRepository, InstalledPackages}
@@ -91,7 +91,7 @@ class DevicesResource(
       case (re, None, None, true, offset, limit) =>
         complete(db.run(DeviceRepository.searchUngrouped(ns, re, offset, limit)))
       case (None, Some(deviceId), None, false, _, _) =>
-        complete(db.run(DeviceRepository.findByDeviceId(ns, DeviceId(deviceId))))
+        complete(db.run(DeviceRepository.findByDeviceId(ns, DeviceOemId(deviceId))))
       case _ =>
         complete((BadRequest, "'regex' and 'deviceId' parameters cannot be used together!"))
     }

@@ -6,7 +6,7 @@ import com.advancedtelematic.libats.data.DataType.Namespace
 import com.advancedtelematic.libats.http.Errors
 import com.advancedtelematic.libats.slick.db.SlickAnyVal._
 import com.advancedtelematic.libats.test.DatabaseSpec
-import com.advancedtelematic.ota.deviceregistry.data.Device.DeviceId
+import com.advancedtelematic.ota.deviceregistry.data.Device.DeviceOemId
 import com.advancedtelematic.ota.deviceregistry.data.GroupExpressionAST.{And, DeviceIdCharAt, DeviceIdContains, Or}
 import com.advancedtelematic.ota.deviceregistry.db.DeviceRepository
 import com.advancedtelematic.ota.deviceregistry.db.DeviceRepository.DeviceTable
@@ -185,13 +185,13 @@ class GroupExpressionRunSpec extends FunSuite with Matchers with DatabaseSpec wi
       .retryUntil(_.deviceUuid.isDefined)
       .sample
       .get
-      .copy(deviceId = Some(DeviceId("deviceABC")))
+      .copy(deviceId = Some(DeviceOemId("deviceABC")))
   val device1 =
     DeviceGenerators.genDeviceT
       .retryUntil(_.deviceUuid.isDefined)
       .sample
       .get
-      .copy(deviceId = Some(DeviceId("deviceDEF")))
+      .copy(deviceId = Some(DeviceOemId("deviceDEF")))
 
   override def beforeAll(): Unit = {
     super.beforeAll()

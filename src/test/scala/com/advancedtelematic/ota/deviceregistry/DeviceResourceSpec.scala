@@ -82,7 +82,7 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
   }
 
   property("GET request with ?deviceId after creating yields same device.") {
-    forAll { (deviceId: DeviceId, devicePre: DeviceT) =>
+    forAll { (deviceId: DeviceOemId, devicePre: DeviceT) =>
       val uuid = createDeviceOk(devicePre.copy(deviceId = Some(deviceId)))
       fetchByDeviceId(deviceId) ~> route ~> check {
         status shouldBe OK
@@ -617,9 +617,9 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
 
   property("counts devices that satisfy a dynamic group expression") {
     val testDevices = Map(
-      Refined.unsafeApply[String, ValidDeviceName]("device1") -> DeviceId("abc123"),
-      Refined.unsafeApply[String, ValidDeviceName]("device2") -> DeviceId("123abc456"),
-      Refined.unsafeApply[String, ValidDeviceName]("device3") -> DeviceId("123aba456")
+      Refined.unsafeApply[String, ValidDeviceName]("device1") -> DeviceOemId("abc123"),
+      Refined.unsafeApply[String, ValidDeviceName]("device2") -> DeviceOemId("123abc456"),
+      Refined.unsafeApply[String, ValidDeviceName]("device3") -> DeviceOemId("123aba456")
     )
     testDevices
       .map(t => (Gen.const(t._1), Gen.const(t._2)))

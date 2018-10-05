@@ -16,7 +16,7 @@ import cats.Show
 import cats.syntax.show._
 import com.advancedtelematic.libats.data.DataType.Namespace
 import com.advancedtelematic.ota.deviceregistry.data
-import com.advancedtelematic.ota.deviceregistry.data.Device.{DeviceId, DeviceName, DeviceType}
+import com.advancedtelematic.ota.deviceregistry.data.Device.{DeviceOemId, DeviceName, DeviceType}
 import com.advancedtelematic.ota.deviceregistry.data.DeviceStatus._
 import eu.timepit.refined.api.{Refined, Validate}
 import io.circe.{Decoder, Encoder}
@@ -24,7 +24,7 @@ import io.circe.{Decoder, Encoder}
 final case class Device(namespace: Namespace,
                         uuid: DeviceUUID,
                         deviceName: DeviceName,
-                        deviceId: Option[DeviceId] = None,
+                        deviceId: Option[DeviceOemId] = None,
                         deviceType: DeviceType = DeviceType.Other,
                         lastSeen: Option[Instant] = None,
                         createdAt: Instant,
@@ -37,10 +37,9 @@ final case class Device(namespace: Namespace,
 
 object Device {
 
-  // TODO:SM Rename to DeviceVin ?
-  final case class DeviceId(underlying: String) extends AnyVal
-  implicit val showDeviceId = new Show[DeviceId] {
-    def show(deviceId: DeviceId) = deviceId.underlying
+  final case class DeviceOemId(underlying: String) extends AnyVal
+  implicit val showDeviceOemId = new Show[DeviceOemId] {
+    def show(deviceId: DeviceOemId) = deviceId.underlying
   }
 
   case class ValidDeviceName()
@@ -88,8 +87,8 @@ object Device {
     io.circe.generic.semiauto.deriveDecoder[Device]
   }
 
-  implicit val DeviceIdOrdering: Ordering[DeviceId] = new Ordering[DeviceId] {
-    override def compare(id1: DeviceId, id2: DeviceId): Int = id1.underlying compare id2.underlying
+  implicit val DeviceIdOrdering: Ordering[DeviceOemId] = new Ordering[DeviceOemId] {
+    override def compare(id1: DeviceOemId, id2: DeviceOemId): Int = id1.underlying compare id2.underlying
   }
 
   implicit def DeviceOrdering(implicit ord: Ordering[UUID]): Ordering[Device] =

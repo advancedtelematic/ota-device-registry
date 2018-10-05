@@ -9,7 +9,7 @@
 package com.advancedtelematic.ota.deviceregistry.data
 
 import cats.syntax.show._
-import com.advancedtelematic.ota.deviceregistry.data.Device.DeviceId
+import com.advancedtelematic.ota.deviceregistry.data.Device.DeviceOemId
 import org.scalacheck.{Arbitrary, Gen}
 
 /**
@@ -23,18 +23,18 @@ trait DeviceIdGenerators {
     *
     * @see [[https://www.scalacheck.org/]]
     */
-  val genVin: Gen[DeviceId] =
+  val genVin: Gen[DeviceOemId] =
     for {
       vin <- SemanticVin.genSemanticVin
-    } yield DeviceId(vin.show)
+    } yield DeviceOemId(vin.show)
 
-  implicit lazy val arbVin: Arbitrary[DeviceId] =
+  implicit lazy val arbVin: Arbitrary[DeviceOemId] =
     Arbitrary(genVin)
 
   val genVinChar: Gen[Char] =
     Gen.oneOf('A' to 'Z' diff List('I', 'O', 'Q'))
 
-  val genInvalidDeviceId: Gen[DeviceId] = {
+  val genInvalidDeviceId: Gen[DeviceOemId] = {
 
     val genTooLongVin: Gen[String] = for {
       n  <- Gen.choose(18, 100) // scalastyle:ignore magic.number
@@ -55,9 +55,9 @@ trait DeviceIdGenerators {
 
     Gen
       .oneOf(genTooLongVin, genTooShortVin, genNotAlphaNumVin)
-      .map(DeviceId)
+      .map(DeviceOemId)
   }
 
-  def getInvalidVin: DeviceId =
+  def getInvalidVin: DeviceOemId =
     genInvalidDeviceId.sample.getOrElse(getInvalidVin)
 }
