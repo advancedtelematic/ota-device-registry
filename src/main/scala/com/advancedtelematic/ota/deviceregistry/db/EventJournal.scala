@@ -9,7 +9,6 @@
 package com.advancedtelematic.ota.deviceregistry.db
 
 import java.time.Instant
-
 import com.advancedtelematic.libats.slick.db.SlickExtensions.MappedColumnExtensions
 import com.advancedtelematic.libats.messaging_datatype.DataType.{Event, EventType, DeviceId => DeviceUUID}
 import com.advancedtelematic.ota.deviceregistry.data.Uuid
@@ -25,8 +24,10 @@ import org.slf4j.LoggerFactory
 import cats.syntax.show._
 import com.advancedtelematic.ota.deviceregistry.data.DataType._
 import com.advancedtelematic.libats.slick.db.SlickCirceMapper._
+import com.advancedtelematic.libats.slick.db.SlickAnyVal._
 
 import scala.concurrent.{ExecutionContext, Future}
+
 
 object EventJournal {
   class EventJournalTable(tag: Tag) extends Table[Event](tag, "EventJournal") {

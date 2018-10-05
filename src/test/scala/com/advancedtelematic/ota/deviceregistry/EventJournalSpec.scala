@@ -76,7 +76,7 @@ class EventJournalSpec extends ResourcePropSpec with ScalaFutures with Eventuall
 
   val installCompleteEventGen: Gen[(EventPayload, CorrelationId)] = for {
     event <- EventGen
-    correlationId <- Gen.uuid.map(CorrelationId.apply)
+    correlationId <- Gen.uuid.map(uuid => CorrelationId(s"ota:update:uuid:$uuid"))
     json = Json.obj("correlationId" -> correlationId.asJson)
   } yield event.copy(event = json, eventType = EventType("InstallationComplete", 0)) -> correlationId
 
@@ -85,11 +85,6 @@ class EventJournalSpec extends ResourcePropSpec with ScalaFutures with Eventuall
   new DeviceEventListener(system.settings.config, db, MetricsSupport.metricRegistry).start()
 
   implicit def noShrink[T]: Shrink[T] = Shrink.shrinkAny
-
-  property("indexes an event if an index can be extracted") {
-    pending
-    fail("should do it")
-  }
 
   property("events can be recorded in journal and retrieved") {
     forAll { (device: DeviceT, events: List[EventPayload]) =>

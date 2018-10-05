@@ -12,6 +12,7 @@ import io.circe.syntax._
 import org.scalacheck.Gen
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.{EitherValues, FunSuite, Matchers}
+import com.advancedtelematic.circe.CirceInstances._
 
 class EventIndexSpec extends FunSuite with ScalaFutures with DatabaseSpec with Matchers with EitherValues {
   val downloadCompleteEventGen: Gen[Event] = for {
@@ -24,7 +25,7 @@ class EventIndexSpec extends FunSuite with ScalaFutures with DatabaseSpec with M
 
   val installCompleteEventGen: Gen[(Event, CorrelationId)] = for {
     event <- downloadCompleteEventGen
-    correlationId <- Gen.uuid.map(CorrelationId.apply)
+    correlationId <- Gen.uuid.map(uuid => CorrelationId(s"ota:update:uuid:$uuid"))
     json = Json.obj("correlationId" -> correlationId.asJson)
   } yield event.copy(eventType = EventType("InstallationComplete", 0), payload = json) -> correlationId
 

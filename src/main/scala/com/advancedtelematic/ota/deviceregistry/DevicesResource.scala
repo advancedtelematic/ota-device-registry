@@ -67,13 +67,12 @@ class DevicesResource(
   import com.advancedtelematic.libats.http.RefinedMarshallingSupport._
   import UuidDirectives._
   import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
+  import com.advancedtelematic.libats.http.AnyvalMarshallingSupport._
 
   val extractPackageId: Directive1[PackageId] =
     pathPrefix(Segment / Segment).as(PackageId.apply)
 
   val eventJournal = new EventJournal()
-
-  implicit val correlationIdUnmarshaller = CorrelationId.unmarshaller
 
   implicit val groupIdUnmarshaller = GroupId.unmarshaller
 

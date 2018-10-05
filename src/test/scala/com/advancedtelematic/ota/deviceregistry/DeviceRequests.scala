@@ -157,7 +157,7 @@ trait DeviceRequests { self: ResourceSpec =>
     Post(Resource.uri(api, deviceUuid.show, "events"), events)
 
   def getEvents(deviceUuid: Uuid, correlationId: Option[CorrelationId] = None): HttpRequest = {
-    val query = Query(correlationId.map("correlationId" -> _.show).toMap)
+    val query = Query(correlationId.map("correlationId" -> _.id).toMap)
     Get(Resource.uri(api, deviceUuid.show, "events").withQuery(query))
   }
 
