@@ -8,27 +8,27 @@
 
 package com.advancedtelematic.ota.deviceregistry
 
-import java.time.{Instant, OffsetDateTime}
 import java.time.temporal.ChronoUnit
+import java.time.{Instant, OffsetDateTime}
 import java.util.UUID
 
 import akka.http.scaladsl.model.StatusCodes._
-import com.advancedtelematic.libats.data.PaginationResult
+import com.advancedtelematic.libats.data.{ErrorRepresentation, PaginationResult}
 import com.advancedtelematic.libats.http.monitoring.MetricsSupport
 import com.advancedtelematic.libats.messaging.MessageBusPublisher
 import com.advancedtelematic.libats.messaging_datatype.DataType
 import com.advancedtelematic.libats.messaging_datatype.Messages.DeviceSeen
-import com.advancedtelematic.ota.deviceregistry.common.PackageStat
+import com.advancedtelematic.ota.deviceregistry.common.{Errors, PackageStat}
 import com.advancedtelematic.ota.deviceregistry.daemon.{DeleteDeviceHandler, DeviceSeenListener}
-import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
-import com.advancedtelematic.ota.deviceregistry.data.{Device, DeviceStatus, DeviceT, PackageId, Uuid}
-import com.advancedtelematic.ota.deviceregistry.db.{DeviceRepository, InstalledPackages}
+import com.advancedtelematic.ota.deviceregistry.data.Group.{GroupExpression, GroupId}
+import com.advancedtelematic.ota.deviceregistry.data.{Device, DeviceStatus, DeviceT, PackageId, Uuid, _}
 import com.advancedtelematic.ota.deviceregistry.db.InstalledPackages.{DevicesCount, InstalledPackage}
-import io.circe.{Json, KeyDecoder}
+import com.advancedtelematic.ota.deviceregistry.db.{DeviceRepository, InstalledPackages}
+import eu.timepit.refined.api.Refined
 import io.circe.generic.auto._
-import com.advancedtelematic.ota.deviceregistry.data._
-import org.scalacheck.{Gen, Shrink}
+import io.circe.{Json, KeyDecoder}
 import org.scalacheck.Arbitrary._
+import org.scalacheck.{Gen, Shrink}
 import org.scalatest.concurrent.{Eventually, ScalaFutures}
 import org.scalatest.time.{Millis, Seconds, Span}
 
@@ -38,8 +38,8 @@ import org.scalatest.time.{Millis, Seconds, Span}
 class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventually {
 
   import Device._
-  import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
   import GeneratorOps._
+  import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
 
   private val deviceNumber  = DeviceRepository.defaultLimit + 10
   private implicit val exec = system.dispatcher
@@ -611,6 +611,32 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
       groups.total should be(2)
       groups.values should contain(groupId1)
       groups.values should contain(groupId2)
+    }
+  }
+
+  property("counts devices that satisfy a dynamic group expression") {
+    val testDevices = Map(
+      Refined.unsafeApply[String, ValidDeviceName]("device1") -> DeviceId("abc123"),
+      Refined.unsafeApply[String, ValidDeviceName]("device2") -> DeviceId("123abc456"),
+      Refined.unsafeApply[String, ValidDeviceName]("device3") -> DeviceId("123aba456")
+    )
+    testDevices
+      .map(t => (Gen.const(t._1), Gen.const(t._2)))
+      .map((genDeviceTWith _).tupled(_))
+      .map(_.sample.get)
+      .map(createDeviceOk)
+
+    val expression: GroupExpression = Refined.unsafeApply("deviceid contains abc and deviceid position(5) is b")
+    countDevicesForExpression(Some(expression)) ~> route ~> check {
+      status shouldBe OK
+      responseAs[Int] shouldBe 1
+    }
+  }
+
+  property("counting devices that satisfy a dynamic group expression fails if no expression is given") {
+    countDevicesForExpression(None) ~> route ~> check {
+      status shouldBe BadRequest
+      responseAs[ErrorRepresentation].code shouldBe Errors.Codes.InvalidGroupExpression
     }
   }
 

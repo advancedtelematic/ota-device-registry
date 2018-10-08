@@ -113,6 +113,13 @@ object DeviceRepository {
       .result
   }
 
+  def countDevicesForExpression(ns: Namespace, exp: GroupExpression)(implicit db: Database, ec: ExecutionContext): DBIO[Int] =
+    devices
+      .filter(_.namespace === ns)
+      .filter(GroupExpressionAST.compileToSlick(exp))
+      .length
+      .result
+
   def search(ns: Namespace,
              regEx: Option[String Refined Regex],
              groupId: Option[GroupId],
