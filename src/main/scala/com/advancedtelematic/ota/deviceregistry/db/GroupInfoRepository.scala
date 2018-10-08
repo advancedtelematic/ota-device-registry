@@ -15,7 +15,7 @@ import com.advancedtelematic.libats.data.PaginationResult
 import com.advancedtelematic.libats.slick.codecs.SlickRefined._
 import com.advancedtelematic.libats.slick.db.SlickExtensions._
 import com.advancedtelematic.libats.slick.db.SlickUUIDKey._
-import com.advancedtelematic.ota.deviceregistry.common.{Errors, SlickJsonHelper}
+import com.advancedtelematic.ota.deviceregistry.common.Errors
 import com.advancedtelematic.ota.deviceregistry.data
 import com.advancedtelematic.ota.deviceregistry.data.Group
 import com.advancedtelematic.ota.deviceregistry.data.Group.{GroupExpression, GroupId, Name}
@@ -25,12 +25,10 @@ import com.advancedtelematic.ota.deviceregistry.db.DbOps.sortBySlickOrderedConve
 import com.advancedtelematic.ota.deviceregistry.db.SlickMappings._
 import slick.jdbc.MySQLProfile.api._
 
+
 import scala.concurrent.{ExecutionContext, Future}
 
-object GroupInfoRepository extends SlickJsonHelper with ColumnTypes {
-
-  private[this] val defaultLimit = 50L
-
+object GroupInfoRepository {
   // scalastyle:off
   class GroupInfoTable(tag: Tag) extends Table[Group](tag, "DeviceGroup") {
     def id         = column[GroupId]("id", O.PrimaryKey)

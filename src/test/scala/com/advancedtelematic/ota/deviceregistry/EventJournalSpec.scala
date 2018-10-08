@@ -8,10 +8,12 @@
 
 package com.advancedtelematic.ota.deviceregistry
 
+import org.scalatest.time.SpanSugar._
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 import java.util.UUID
 
+import cats.syntax.option._
 import akka.http.scaladsl.model.StatusCodes
 import com.advancedtelematic.libats.http.monitoring.MetricsSupport
 import com.advancedtelematic.libats.messaging_datatype.DataType.EventType
@@ -24,6 +26,7 @@ import org.scalacheck.{Arbitrary, Gen, Shrink}
 import org.scalatest.concurrent.{Eventually, ScalaFutures}
 import com.advancedtelematic.libats.messaging_datatype.MessageCodecs._
 import com.advancedtelematic.libats.codecs.CirceCodecs._
+import com.advancedtelematic.ota.deviceregistry.data.DataType.CorrelationId
 import io.circe.generic.semiauto._
 
 object EventJournalSpec {
@@ -57,7 +60,7 @@ class EventJournalSpec extends ResourcePropSpec with ScalaFutures with Eventuall
 
   private[this] val EventTypeGen: Gen[EventType] =
     for {
-      id  <- Gen.oneOf("DownloadComplete", "InsallationComplete")
+      id  <- Gen.oneOf("DownloadComplete", "InstallationComplete")
       ver <- Gen.chooseNum(1, 10)
     } yield EventType(id, ver)
 
@@ -70,6 +73,12 @@ class EventJournalSpec extends ResourcePropSpec with ScalaFutures with Eventuall
 
   implicit val EventsGen: Gen[List[EventPayload]] =
     Gen.chooseNum(1, 10).flatMap(Gen.listOfN(_, EventGen))
+
+  val installCompleteEventGen: Gen[(EventPayload, CorrelationId)] = for {
+    event <- EventGen
+    correlationId <- Gen.uuid.map(uuid => CorrelationId(s"ota:update:uuid:$uuid"))
+    json = Json.obj("correlationId" -> correlationId.asJson)
+  } yield event.copy(event = json, eventType = EventType("InstallationComplete", 0)) -> correlationId
 
   implicit val ArbitraryEvents = Arbitrary(EventsGen)
 
@@ -85,7 +94,6 @@ class EventJournalSpec extends ResourcePropSpec with ScalaFutures with Eventuall
         status shouldBe StatusCodes.NoContent
       }
 
-      import org.scalatest.time.SpanSugar._
       eventually(timeout(5.seconds), interval(100.millis)) {
         getEvents(deviceUuid) ~> route ~> check {
           status should equal(StatusCodes.OK)
@@ -98,4 +106,24 @@ class EventJournalSpec extends ResourcePropSpec with ScalaFutures with Eventuall
     }
   }
 
+  property("indexes an event by type") {
+    val deviceUuid = createDeviceOk(genDeviceT.generate)
+    val (event0, correlationId0) = installCompleteEventGen.generate
+    val event1 = EventGen.retryUntil(_.eventType.id != "InstallationComplete").generate
+
+    recordEvents(deviceUuid, List(event0, event1).asJson) ~> route ~> check {
+      status shouldBe StatusCodes.NoContent
+    }
+
+    eventually(timeout(3.seconds), interval(100.millis)) {
+      getEvents(deviceUuid, correlationId0.some) ~> route ~> check {
+        status should equal(StatusCodes.OK)
+
+        val events = responseAs[List[EventPayload]].map(_.id)
+
+        events should contain(event0.id)
+        events shouldNot contain(event1.id)
+      }
+    }
+  }
 }

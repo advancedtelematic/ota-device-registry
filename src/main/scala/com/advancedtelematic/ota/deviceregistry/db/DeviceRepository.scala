@@ -22,11 +22,12 @@ import com.advancedtelematic.ota.deviceregistry.data.Group.{GroupExpression, Gro
 import com.advancedtelematic.ota.deviceregistry.data._
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.string.Regex
+import SlickMappings._
 import slick.jdbc.MySQLProfile.api._
 
 import scala.concurrent.ExecutionContext
 
-object DeviceRepository extends ColumnTypes {
+object DeviceRepository {
   val defaultLimit = 50
   val maxLimit     = 1000
 

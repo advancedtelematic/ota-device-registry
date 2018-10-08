@@ -36,7 +36,7 @@ import scala.concurrent.{ExecutionContext, Future}
 import com.advancedtelematic.libats.messaging_datatype.DataType.{Event, EventType, DeviceId => DeviceUUID}
 import com.advancedtelematic.libats.messaging_datatype.Messages.DeviceEventMessage
 import com.advancedtelematic.libats.messaging_datatype.MessageCodecs._
-
+import com.advancedtelematic.ota.deviceregistry.data.DataType.CorrelationId
 
 
 object DevicesResource {
@@ -67,11 +67,12 @@ class DevicesResource(
   import com.advancedtelematic.libats.http.RefinedMarshallingSupport._
   import UuidDirectives._
   import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
+  import com.advancedtelematic.libats.http.AnyvalMarshallingSupport._
 
   val extractPackageId: Directive1[PackageId] =
     pathPrefix(Segment / Segment).as(PackageId.apply)
 
-  val eventJournal = new EventJournal(db)
+  val eventJournal = new EventJournal()
 
   implicit val groupIdUnmarshaller = GroupId.unmarshaller
 
@@ -211,8 +212,8 @@ class DevicesResource(
               }
             }
           } ~
-          (get & pathEnd) {
-            val events = eventJournal.getEvents(uuid)
+          (get & parameter('correlationId.as[CorrelationId].?) & pathEnd) { correlationId =>
+            val events = eventJournal.getEvents(uuid, correlationId)
             complete(events)
           }
         }

@@ -13,19 +13,35 @@ import cats.data.State
 import cats.implicits._
 import com.advancedtelematic.libats.data.DataType.Namespace
 import com.advancedtelematic.libats.slick.db.SlickExtensions._
-import com.advancedtelematic.ota.deviceregistry.common.{Errors, SlickJsonHelper}
+import com.advancedtelematic.ota.deviceregistry.common.Errors
 import com.advancedtelematic.ota.deviceregistry.data.Uuid
 import io.circe.Json
+import org.slf4j.LoggerFactory
 import slick.jdbc.MySQLProfile.api._
 
 import scala.concurrent.ExecutionContext
 import scala.util.{Failure, Success}
 
-object SystemInfoRepository extends SlickJsonHelper {
+object SystemInfoRepository {
   import com.advancedtelematic.libats.slick.db.SlickAnyVal._
 
   type SystemInfoType = Json
   case class SystemInfo(uuid: Uuid, systemInfo: SystemInfoType)
+
+  private val _log = LoggerFactory.getLogger(this.getClass)
+
+  private implicit val lenientJsonMapper = MappedColumnType.base[Json, String](
+    _.noSpaces
+    ,
+    { str =>
+      io.circe.parser.parse(str) match {
+        case Left(err) =>
+          _log.warn(s"Could not decode json string from database: $err")
+          Json.Null
+        case Right(v) => v
+      }
+    }
+  )
 
   // scalastyle:off
   class SystemInfoTable(tag: Tag) extends Table[SystemInfo](tag, "DeviceSystem") {
@@ -133,5 +149,4 @@ object SystemInfoRepository extends SlickJsonHelper {
 
   def delete(uuid: Uuid)(implicit ec: ExecutionContext): DBIO[Int] =
     systemInfos.filter(_.uuid === uuid).delete
-
 }
