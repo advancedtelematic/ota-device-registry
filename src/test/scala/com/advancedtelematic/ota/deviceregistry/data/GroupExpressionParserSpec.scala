@@ -253,18 +253,45 @@ class GroupExpressionRunSpec extends FunSuite with Matchers with DatabaseSpec wi
     runGroupExpression(s"deviceid position(8) is B") shouldBe Seq(device0.deviceUuid.get)
   }
 
+  test("returns matching 'deviceid position is not'") {
+    runGroupExpression(s"deviceid position(1) is not x") shouldBe Seq(device0.deviceUuid.get, device1.deviceUuid.get)
+    runGroupExpression(s"deviceid position(8) is not B") shouldBe Seq(device1.deviceUuid.get)
+  }
+
+  test("'deviceid position is' and 'deviceid position is not' cancel out") {
+    runGroupExpression(s"deviceid position(1) is d and deviceid position(1) is not d") shouldBe empty
+  }
+
+  test("'deviceid position is' or 'deviceid position is not' behaves as a tautology") {
+    runGroupExpression(s"deviceid position(8) is B or deviceid position(8) is not B") shouldBe Seq(device0.deviceUuid.get, device1.deviceUuid.get)
+  }
+
   test("returns matching 'deviceid position is' is case-insensitive") {
     runGroupExpression(s"deviceid position(1) is D") shouldBe Seq(device0.deviceUuid.get, device1.deviceUuid.get)
     runGroupExpression(s"deviceid position(8) is b") shouldBe Seq(device0.deviceUuid.get)
+  }
+
+  test("returns matching 'deviceid position is not' is case-insensitive") {
+    runGroupExpression(s"deviceid position(1) is not X") shouldBe Seq(device0.deviceUuid.get, device1.deviceUuid.get)
+    runGroupExpression(s"deviceid position(8) is not b") shouldBe Seq(device1.deviceUuid.get)
   }
 
   test("does not match 'deviceid position is' when different char at position") {
     runGroupExpression(s"deviceid position(8) is Z") shouldBe empty
   }
 
+  test("does not match 'deviceid position is not' when that char at position") {
+    runGroupExpression(s"deviceid position(1) is not d") shouldBe empty
+  }
+
   test("does not match 'deviceid position is' when position is out of bounds") {
     runGroupExpression(s"deviceid position(9) is X") shouldBe empty
     runGroupExpression(s"deviceid position(1000) is Y") shouldBe empty
+  }
+
+  test("matches all 'deviceid position is not' when position is out of bounds") {
+    runGroupExpression(s"deviceid position(9) is not X") shouldBe Seq(device0.deviceUuid.get, device1.deviceUuid.get)
+    runGroupExpression(s"deviceid position(1000) is not Y") shouldBe Seq(device0.deviceUuid.get, device1.deviceUuid.get)
   }
 
   test("returns matching 'deviceid position is' with or") {
@@ -275,30 +302,28 @@ class GroupExpressionRunSpec extends FunSuite with Matchers with DatabaseSpec wi
     runGroupExpression(s"deviceid position(7) is D and deviceid position(8) is E") shouldBe Seq(device1.deviceUuid.get)
   }
 
-  test("returns matching 'deviceid contains' or 'deviceid position is' when either condition is true") {
-    runGroupExpression(s"deviceid contains evic or deviceid position(9) is Z") shouldBe Seq(device0.deviceUuid.get,
-                                                                                            device1.deviceUuid.get)
-    runGroupExpression(s"deviceid contains nope or deviceid position(9) is C") shouldBe Seq(device0.deviceUuid.get)
-    runGroupExpression(s"deviceid position(9) is Z or deviceid contains evic") shouldBe Seq(device0.deviceUuid.get,
-                                                                                            device1.deviceUuid.get)
-    runGroupExpression(s"deviceid position(9) is C or deviceid contains nope") shouldBe Seq(device0.deviceUuid.get)
+  test("returns matching 'deviceid position is not' with and") {
+    runGroupExpression(s"deviceid position(7) is not D and deviceid position(8) is not E") shouldBe Seq(device0.deviceUuid.get)
   }
 
-  test("does not match 'deviceid contains' or 'deviceid position is' when both conditions are false") {
-    runGroupExpression(s"deviceid contains nope or deviceid position(9) is Z") shouldBe empty
-    runGroupExpression(s"deviceid position(9) is Z or deviceid contains nope") shouldBe empty
+  test("returns matching 'deviceid contains' or 'deviceid position is' or 'deviceid position is not' when either condition is true") {
+    runGroupExpression(s"deviceid contains evic or deviceid position(9) is Z or deviceid position(9) is not X") shouldBe Seq(device0.deviceUuid.get, device1.deviceUuid.get)
+    runGroupExpression(s"deviceid contains nope or deviceid position(9) is C or deviceid position(9) is not F") shouldBe Seq(device0.deviceUuid.get)
+    runGroupExpression(s"deviceid contains nope or deviceid position(9) is Z or deviceid position(9) is not C") shouldBe Seq(device1.deviceUuid.get)
   }
 
-  test("returns matching 'deviceid contains' and 'deviceid position is' when both conditions are true") {
-    runGroupExpression(s"deviceid contains evic and deviceid position(9) is C") shouldBe Seq(device0.deviceUuid.get)
-    runGroupExpression(s"deviceid position(9) is C and deviceid contains evic") shouldBe Seq(device0.deviceUuid.get)
+  test("does not match 'deviceid contains' or 'deviceid position is' or 'deviceid position is not' when all conditions are false") {
+    runGroupExpression(s"deviceid contains nope or deviceid position(9) is Z or deviceid position(1) is not D") shouldBe empty
   }
 
-  test("does not match 'deviceid contains' and 'deviceid position is' when either condition is false") {
-    runGroupExpression(s"deviceid contains evic and deviceid position(9) is Z") shouldBe empty
-    runGroupExpression(s"deviceid contains nope and deviceid position(9) is C") shouldBe empty
-    runGroupExpression(s"deviceid position(9) is Z and deviceid contains evic") shouldBe empty
-    runGroupExpression(s"deviceid position(9) is C and deviceid contains nope") shouldBe empty
+  test("returns matching 'deviceid contains' and 'deviceid position is' and 'deviceid position is not' when all conditions are true") {
+    runGroupExpression(s"deviceid contains evic and deviceid position(9) is C and deviceid position(8) is not C") shouldBe Seq(device0.deviceUuid.get)
+  }
+
+  test("does not match 'deviceid contains' and 'deviceid position is' and 'deviceid position is not' when either condition is false") {
+    runGroupExpression(s"deviceid contains nope and deviceid position(9) is C and deviceid position(8) is not C") shouldBe empty
+    runGroupExpression(s"deviceid contains evic and deviceid position(9) is Z and deviceid position(8) is not C") shouldBe empty
+    runGroupExpression(s"deviceid contains evic and deviceid position(9) is C and deviceid position(8) is not B") shouldBe empty
   }
 
 }
