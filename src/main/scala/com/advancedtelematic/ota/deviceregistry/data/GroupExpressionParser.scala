@@ -17,9 +17,9 @@ object GroupExpressionAST {
   sealed trait Expression
   case class DeviceIdContains(word: String) extends Expression
   case class DeviceIdCharAt(char: Char, position: Int) extends Expression
-  case class DeviceIdCharAtNot(char: Char, position: Int) extends Expression
   case class Or(cond: NonEmptyList[Expression])  extends Expression
   case class And(cond: NonEmptyList[Expression]) extends Expression
+  case class Not(exp: Expression) extends Expression
 
   def compileToSlick(groupExpression: GroupExpression): DeviceTable => Rep[Boolean] =
     compileString(groupExpression.value, eval)
@@ -37,16 +37,16 @@ object GroupExpressionAST {
     case DeviceIdCharAt(c, p) =>
       (d: Device) => d.deviceId.exists(id => p < id.underlying.length && id.underlying.charAt(p).toLower == c.toLower)
 
-    case DeviceIdCharAtNot(c, p) =>
-      evalToScala(DeviceIdCharAt(c, p)).andThen(!_)
-
-    case Or(conds) =>
-      val evaledConds = conds.map(evalToScala)
+    case Or(cond) =>
+      val evaledConds = cond.map(evalToScala)
       evaledConds.reduceLeft { (a, b) => (d: Device) => a(d) || b(d) }
 
-    case And(conds) =>
-      val evaledConds = conds.map(evalToScala)
+    case And(cond) =>
+      val evaledConds = cond.map(evalToScala)
       evaledConds.reduceLeft { (a, b) => (d: Device) => a(d) && b(d) }
+
+    case Not(e) =>
+      evalToScala(e).andThen(!_)
   }
 
   def eval(exp: Expression): DeviceTable => Rep[Boolean] = exp match {
@@ -56,16 +56,16 @@ object GroupExpressionAST {
     case DeviceIdCharAt(c, p) =>
       (d: DeviceTable) => d.deviceId.mappedTo[String].substring(p, p + 1).toLowerCase.mappedTo[Char] === c.toLower
 
-    case DeviceIdCharAtNot(c, p) =>
-      eval(DeviceIdCharAt(c, p)).andThen(!_)
-
-    case Or(conds) =>
-      val evaledConds = conds.map(eval)
+    case Or(cond) =>
+      val evaledConds = cond.map(eval)
       evaledConds.reduceLeft { (a, b) => (d: DeviceTable) => a(d) || b(d) }
 
-    case And(conds) =>
-      val evaledConds = conds.map(eval)
+    case And(cond) =>
+      val evaledConds = cond.map(eval)
       evaledConds.reduceLeft { (a, b) => (d: DeviceTable) => a(d) && b(d) }
+
+    case Not(e) =>
+      eval(e).andThen(!_)
   }
 }
 
@@ -77,7 +77,8 @@ object GroupExpressionParser {
 
   private lazy val leftExpression: Parser[Expression] = deviceIdExpression | brackets
 
-  private lazy val deviceIdExpression: Parser[Expression] = deviceIdCons ~> (deviceIdContains | deviceIdCharAtIsOrIsNot)
+  private lazy val deviceIdExpression
+    : Parser[Expression] = deviceIdCons ~> (deviceIdContains | deviceIdCharAtIsNot | deviceIdCharAtIs)
 
   private lazy val brackets: Parser[Expression] = parens(expression)
 
@@ -90,17 +91,23 @@ object GroupExpressionParser {
     str <- takeWhile1(c => c.isLetterOrDigit || c == '-')
   } yield DeviceIdContains(str)
 
-  private lazy val deviceIdCharAtIsOrIsNot: Parser[Expression] = for {
+  private lazy val deviceIdCharAt: Parser[Int] = for {
     _ <- string("position")
     pos <- parens(int.filter(_ > 0))
     _ <- skipWhitespace
     _ <- token(string("is"))
-    not <- opt(token(string("not")))
+  } yield pos - 1
+
+  private lazy val deviceIdCharAtIs: Parser[Expression] = for {
+    pos  <- deviceIdCharAt
     char <- letterOrDigit
-  } yield not match {
-      case Some(_) => DeviceIdCharAtNot(char, pos - 1)
-      case None    => DeviceIdCharAt(char, pos - 1)
-  }
+  } yield DeviceIdCharAt(char, pos)
+
+  private lazy val deviceIdCharAtIsNot: Parser[Expression] = for {
+    pos  <- deviceIdCharAt
+    _    <- token(string("not"))
+    char <- letterOrDigit
+  } yield Not(DeviceIdCharAt(char, pos))
 
   private lazy val and: Parser[Expression] = for {
     a <- leftExpression
