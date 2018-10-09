@@ -4,9 +4,6 @@ import io.circe.{Decoder, Encoder}
 import com.advancedtelematic.libats.codecs.CirceCodecs.{refinedDecoder, refinedEncoder}
 
 object Codecs {
-  //    implicit val DecoderInstance = io.circe.Decoder.enumDecoder(UpdateStatus)
-  //    implicit val EncoderInstance = io.circe.Encoder.enumEncoder(UpdateStatus)
-
   private[this] implicit val deviceIdEncoder = Encoder.encodeString.contramap[Device.DeviceOemId](_.underlying)
   private[this] implicit val deviceIdDecoder = Decoder.decodeString.map(Device.DeviceOemId.apply)
 
