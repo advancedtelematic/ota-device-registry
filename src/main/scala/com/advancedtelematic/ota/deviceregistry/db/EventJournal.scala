@@ -104,7 +104,7 @@ class EventJournal()(implicit db: Database, ec: ExecutionContext) {
     EventJournal.events
       .filter(_.deviceUuid === deviceUuid)
       .join(EventJournal.indexedEvents)
-      .on { case (ej, ie) => ej.deviceUuid.mappedTo[String] === ie.deviceUuid.mappedTo[String] && ej.eventId === ie.eventId }
+      .on { case (ej, ie) => ej.deviceUuid === ie.deviceUuid && ej.eventId === ie.eventId }
       .map(_._1)
       .result
   }

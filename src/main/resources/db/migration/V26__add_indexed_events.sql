@@ -1,6 +1,6 @@
 CREATE TABLE IndexedEvents (
   device_uuid char(36) COLLATE utf8_bin NOT NULL,
-  event_id char(36) NOT NULL,
+  event_id char(36) COLLATE utf8_unicode_ci NOT NULL,
   correlation_id varchar(256) NOT NULL,
   `event_type` varchar(256) DEFAULT NULL,
 
