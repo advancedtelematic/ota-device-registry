@@ -11,9 +11,10 @@ package com.advancedtelematic.ota.deviceregistry.data
 import eu.timepit.refined.api.Refined
 import org.scalacheck.{Arbitrary, Gen}
 import java.time.Instant
-import com.advancedtelematic.libats.messaging_datatype.DataType.{DeviceId => DeviceUUID}
 
+import com.advancedtelematic.libats.messaging_datatype.DataType.{DeviceId => DeviceUUID}
 import com.advancedtelematic.ota.deviceregistry.data
+import com.advancedtelematic.ota.deviceregistry.data.DataType.DeviceT
 
 trait DeviceGenerators {
 

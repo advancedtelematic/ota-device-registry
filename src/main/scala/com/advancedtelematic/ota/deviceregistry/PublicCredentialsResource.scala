@@ -20,13 +20,14 @@ import com.advancedtelematic.libats.auth.{AuthedNamespaceScope, Scopes}
 import com.advancedtelematic.libats.data.DataType.Namespace
 import com.advancedtelematic.libats.messaging.MessageBusPublisher
 import com.advancedtelematic.ota.deviceregistry.common.Errors
-import com.advancedtelematic.ota.deviceregistry.data.{CredentialsType, DeviceT}
+import com.advancedtelematic.ota.deviceregistry.data.CredentialsType
 import com.advancedtelematic.ota.deviceregistry.data.CredentialsType.CredentialsType
 import com.advancedtelematic.ota.deviceregistry.db.{DeviceRepository, PublicCredentialsRepository}
 import com.advancedtelematic.ota.deviceregistry.messages.{DeviceCreated, DevicePublicCredentialsSet}
 import slick.jdbc.MySQLProfile.api._
 import com.advancedtelematic.libats.messaging_datatype.DataType.{DeviceId => DeviceUUID}
 import com.advancedtelematic.ota.deviceregistry.data.Codecs._
+import com.advancedtelematic.ota.deviceregistry.data.DataType.DeviceT
 
 import scala.concurrent.{ExecutionContext, Future}
 

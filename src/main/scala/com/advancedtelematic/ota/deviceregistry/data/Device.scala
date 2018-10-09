@@ -15,8 +15,8 @@ import com.advancedtelematic.libats.messaging_datatype.DataType.{DeviceId => Dev
 import cats.Show
 import cats.syntax.show._
 import com.advancedtelematic.libats.data.DataType.Namespace
-import com.advancedtelematic.ota.deviceregistry.data
-import com.advancedtelematic.ota.deviceregistry.data.Device.{DeviceOemId, DeviceName, DeviceType}
+import com.advancedtelematic.ota.deviceregistry.data.DataType.DeviceT
+import com.advancedtelematic.ota.deviceregistry.data.Device.{DeviceName, DeviceOemId, DeviceType}
 import com.advancedtelematic.ota.deviceregistry.data.DeviceStatus._
 import eu.timepit.refined.api.{Refined, Validate}
 import io.circe.{Decoder, Encoder}
@@ -31,8 +31,7 @@ final case class Device(namespace: Namespace,
                         activatedAt: Option[Instant] = None,
                         deviceStatus: DeviceStatus = NotSeen) {
 
-  // TODO: Use org.genivi.sota.core.data.client.ResponseEncoder
-  def toResponse: DeviceT = data.DeviceT(deviceName, Some(uuid), deviceId, deviceType)
+  def toResponse: DeviceT = DeviceT(deviceName, Some(uuid), deviceId, deviceType)
 }
 
 object Device {

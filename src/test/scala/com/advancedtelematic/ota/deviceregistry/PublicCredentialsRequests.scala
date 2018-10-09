@@ -11,7 +11,6 @@ package com.advancedtelematic.ota.deviceregistry
 import java.util.Base64
 
 import akka.http.scaladsl.model.{HttpRequest, StatusCodes}
-import com.advancedtelematic.ota.deviceregistry.data.{DeviceT, Uuid}
 import com.advancedtelematic.ota.deviceregistry.data.CredentialsType.CredentialsType
 import com.advancedtelematic.ota.deviceregistry.PublicCredentialsResource.FetchPublicCredentials
 import eu.timepit.refined.api.Refined
@@ -19,6 +18,7 @@ import eu.timepit.refined.api.Refined
 import scala.concurrent.ExecutionContext
 import com.advancedtelematic.libats.messaging_datatype.DataType.{DeviceId => DeviceUUID}
 import com.advancedtelematic.ota.deviceregistry.data.Codecs._
+import com.advancedtelematic.ota.deviceregistry.data.DataType.DeviceT
 
 trait PublicCredentialsRequests { self: ResourceSpec =>
   import StatusCodes._
@@ -37,8 +37,7 @@ trait PublicCredentialsRequests { self: ResourceSpec =>
 
   def fetchPublicCredentialsOk(device: DeviceUUID): Array[Byte] =
     fetchPublicCredentials(device) ~> route ~> check {
-      implicit val CredentialsDecoder =
-        io.circe.generic.semiauto.deriveDecoder[FetchPublicCredentials]
+      implicit val CredentialsDecoder = io.circe.generic.semiauto.deriveDecoder[FetchPublicCredentials]
       status shouldBe OK
       val resp = responseAs[FetchPublicCredentials]
       base64Decoder.decode(resp.credentials)
@@ -50,11 +49,12 @@ trait PublicCredentialsRequests { self: ResourceSpec =>
   def updatePublicCredentials(device: DeviceOemId, creds: Array[Byte], cType: Option[CredentialsType])(
       implicit ec: ExecutionContext
   ): HttpRequest = {
-    val devT = data.DeviceT(Refined.unsafeApply(device.underlying),
-                            None,
-                            Some(device),
-                            credentials = Some(base64Encoder.encodeToString(creds)),
-                            credentialsType = cType)
+    val devT = DeviceT(
+      Refined.unsafeApply(device.underlying),
+      None,
+      Some(device),
+      credentials = Some(base64Encoder.encodeToString(creds)),
+      credentialsType = cType)
     createDeviceWithCredentials(devT)
   }
 

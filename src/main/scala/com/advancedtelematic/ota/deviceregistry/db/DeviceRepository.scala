@@ -25,6 +25,7 @@ import eu.timepit.refined.string.Regex
 import SlickMappings._
 import slick.jdbc.MySQLProfile.api._
 import com.advancedtelematic.libats.messaging_datatype.DataType.{DeviceId => DeviceUUID}
+import com.advancedtelematic.ota.deviceregistry.data.DataType.DeviceT
 
 import scala.concurrent.ExecutionContext
 

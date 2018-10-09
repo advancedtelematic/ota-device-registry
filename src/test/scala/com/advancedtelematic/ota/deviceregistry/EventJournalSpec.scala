@@ -18,7 +18,6 @@ import akka.http.scaladsl.model.StatusCodes
 import com.advancedtelematic.libats.http.monitoring.MetricsSupport
 import com.advancedtelematic.libats.messaging_datatype.DataType.EventType
 import com.advancedtelematic.ota.deviceregistry.daemon.DeviceEventListener
-import com.advancedtelematic.ota.deviceregistry.data.DeviceT
 import com.advancedtelematic.ota.deviceregistry.EventJournalSpec.EventPayload
 import io.circe.{Decoder, Json}
 import io.circe.testing.ArbitraryInstances
@@ -26,7 +25,7 @@ import org.scalacheck.{Arbitrary, Gen, Shrink}
 import org.scalatest.concurrent.{Eventually, ScalaFutures}
 import com.advancedtelematic.libats.messaging_datatype.MessageCodecs._
 import com.advancedtelematic.libats.codecs.CirceCodecs._
-import com.advancedtelematic.ota.deviceregistry.data.DataType.CorrelationId
+import com.advancedtelematic.ota.deviceregistry.data.DataType.{CorrelationId, DeviceT}
 import io.circe.generic.semiauto._
 
 object EventJournalSpec {

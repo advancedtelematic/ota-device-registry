@@ -8,11 +8,11 @@
 
 package com.advancedtelematic.ota.deviceregistry
 
-import com.advancedtelematic.ota.deviceregistry.data.DeviceT
 import com.advancedtelematic.ota.deviceregistry.db.SystemInfoRepository.removeIdNrs
 import io.circe.Json
 import org.scalacheck.Shrink
 import com.advancedtelematic.libats.messaging_datatype.DataType.{DeviceId => DeviceUUID}
+import com.advancedtelematic.ota.deviceregistry.data.DataType.DeviceT
 
 class SystemInfoResourceSpec extends ResourcePropSpec {
   import akka.http.scaladsl.model.StatusCodes._

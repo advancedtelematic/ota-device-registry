@@ -9,11 +9,12 @@
 package com.advancedtelematic.ota.deviceregistry
 
 import akka.http.scaladsl.model.StatusCodes._
-import com.advancedtelematic.ota.deviceregistry.data.{CredentialsType, Device, DeviceT, Uuid}
+import com.advancedtelematic.ota.deviceregistry.data.{CredentialsType, Device, Uuid}
 import com.advancedtelematic.ota.deviceregistry.PublicCredentialsResource.FetchPublicCredentials
 import io.circe.generic.auto._
 import org.scalacheck.{Arbitrary, Gen}
 import com.advancedtelematic.libats.messaging_datatype.DataType.{DeviceId => DeviceUUID}
+import com.advancedtelematic.ota.deviceregistry.data.DataType.DeviceT
 
 class PublicCredentialsResourceSpec extends ResourcePropSpec {
   import Device._
