@@ -29,9 +29,11 @@ import com.advancedtelematic.ota.deviceregistry.data.Uuid
 import com.advancedtelematic.ota.deviceregistry.db.DeviceRepository
 import com.advancedtelematic.ota.deviceregistry.messages.UpdateSpec
 import slick.jdbc.MySQLProfile.api._
+import com.advancedtelematic.libats.messaging_datatype.DataType.{DeviceId => DeviceUUID}
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Try
+import UUIDKeyAkka._
 
 /**
   * Base API routing class.
@@ -39,7 +41,7 @@ import scala.util.Try
   */
 class DeviceRegistryRoutes(
     namespaceExtractor: Directive1[AuthedNamespaceScope],
-    deviceNamespaceAuthorizer: Directive1[Uuid],
+    deviceNamespaceAuthorizer: Directive1[DeviceUUID],
     messageBus: MessageBusPublisher
 )(implicit db: Database, system: ActorSystem, mat: ActorMaterializer, exec: ExecutionContext)
     extends Directives {
@@ -69,16 +71,15 @@ object Boot
     with AkkaHttpRequestMetrics
     with PrometheusMetricsSupport {
 
-  import UuidDirectives._
   import VersionDirectives._
 
   implicit val _db = db
 
   val authNamespace = NamespaceDirectives.fromConfig()
 
-  private val namespaceAuthorizer = allowExtractor(authNamespace, extractUuid, deviceAllowed)
+  private val namespaceAuthorizer = AllowUUIDPath.deviceUUID(authNamespace, deviceAllowed)
 
-  private def deviceAllowed(deviceId: Uuid): Future[Namespace] =
+  private def deviceAllowed(deviceId: DeviceUUID): Future[Namespace] =
     db.run(DeviceRepository.deviceNamespace(deviceId))
 
   lazy val messageBus = MessageBus.publisher(system, config)

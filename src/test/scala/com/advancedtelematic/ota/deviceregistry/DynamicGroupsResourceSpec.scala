@@ -4,7 +4,8 @@ import akka.http.scaladsl.model.StatusCodes._
 import cats.syntax.show._
 import com.advancedtelematic.libats.data.{ErrorCodes, ErrorRepresentation, PaginationResult}
 import com.advancedtelematic.ota.deviceregistry.data.Group.{GroupExpression, ValidExpression}
-import com.advancedtelematic.ota.deviceregistry.data.{Group, GroupType, Uuid}
+import com.advancedtelematic.ota.deviceregistry.data.{Group, GroupType}
+import com.advancedtelematic.libats.messaging_datatype.DataType.{DeviceId => DeviceUUID}
 import com.advancedtelematic.ota.deviceregistry.db.DeviceRepository
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
 import org.scalatest.FunSuite
@@ -13,7 +14,7 @@ import eu.timepit.refined.refineV
 import cats.syntax.either._
 import eu.timepit.refined.api.Refined
 import Group._
-import com.advancedtelematic.ota.deviceregistry.data.Device.DeviceId
+import com.advancedtelematic.ota.deviceregistry.data.Device.DeviceOemId
 
 class DynamicGroupsResourceSpec extends FunSuite with ResourceSpec {
 
@@ -22,7 +23,7 @@ class DynamicGroupsResourceSpec extends FunSuite with ResourceSpec {
 
   private[this] implicit val GroupDecoder = deriveDecoder[Group]
 
-  implicit class DeviceIdToExpression(value: DeviceId) {
+  implicit class DeviceIdToExpression(value: DeviceOemId) {
     def toValidExp: GroupExpression =
       refineV[ValidExpression](s"deviceid contains ${value.underlying}").valueOr(err => throw new IllegalArgumentException(err))
   }
@@ -40,7 +41,7 @@ class DynamicGroupsResourceSpec extends FunSuite with ResourceSpec {
 
     listDevicesInGroup(groupId) ~> route ~> check {
       status shouldBe OK
-      val devices = responseAs[PaginationResult[Uuid]]
+      val devices = responseAs[PaginationResult[DeviceUUID]]
       devices.values should have size 1
       devices.values.contains(deviceUuid) shouldBe true
     }
@@ -52,7 +53,7 @@ class DynamicGroupsResourceSpec extends FunSuite with ResourceSpec {
 
     listDevicesInGroup(groupId) ~> route ~> check {
       status shouldBe OK
-      val devices = responseAs[PaginationResult[Uuid]]
+      val devices = responseAs[PaginationResult[DeviceUUID]]
       devices.values should be(empty)
     }
   }
@@ -110,14 +111,14 @@ class DynamicGroupsResourceSpec extends FunSuite with ResourceSpec {
     val groupId    = createDynamicGroupOk(group.groupName, deviceT.deviceId.get.toValidExp)
     listDevicesInGroup(groupId) ~> route ~> check {
       status shouldBe OK
-      responseAs[PaginationResult[Uuid]].values should contain(deviceUuid)
+      responseAs[PaginationResult[DeviceUUID]].values should contain(deviceUuid)
     }
 
     db.run(DeviceRepository.delete(group.namespace, deviceUuid)).futureValue
 
     listDevicesInGroup(groupId) ~> route ~> check {
       status shouldBe OK
-      responseAs[PaginationResult[Uuid]].values should be(empty)
+      responseAs[PaginationResult[DeviceUUID]].values should be(empty)
     }
   }
 

@@ -20,16 +20,19 @@ import com.advancedtelematic.libats.auth.{AuthedNamespaceScope, Scopes}
 import com.advancedtelematic.libats.data.DataType.Namespace
 import com.advancedtelematic.libats.messaging.MessageBusPublisher
 import com.advancedtelematic.ota.deviceregistry.common.Errors
-import com.advancedtelematic.ota.deviceregistry.data.{CredentialsType, DeviceT, Uuid}
+import com.advancedtelematic.ota.deviceregistry.data.CredentialsType
 import com.advancedtelematic.ota.deviceregistry.data.CredentialsType.CredentialsType
 import com.advancedtelematic.ota.deviceregistry.db.{DeviceRepository, PublicCredentialsRepository}
 import com.advancedtelematic.ota.deviceregistry.messages.{DeviceCreated, DevicePublicCredentialsSet}
 import slick.jdbc.MySQLProfile.api._
+import com.advancedtelematic.libats.messaging_datatype.DataType.{DeviceId => DeviceUUID}
+import com.advancedtelematic.ota.deviceregistry.data.Codecs._
+import com.advancedtelematic.ota.deviceregistry.data.DataType.DeviceT
 
 import scala.concurrent.{ExecutionContext, Future}
 
 object PublicCredentialsResource {
-  final case class FetchPublicCredentials(uuid: Uuid, credentialsType: CredentialsType, credentials: String)
+  final case class FetchPublicCredentials(uuid: DeviceUUID, credentialsType: CredentialsType, credentials: String)
   implicit val fetchPublicCredentialsEncoder =
     io.circe.generic.semiauto.deriveEncoder[FetchPublicCredentials]
 }
@@ -37,14 +40,14 @@ object PublicCredentialsResource {
 class PublicCredentialsResource(
     authNamespace: Directive1[AuthedNamespaceScope],
     messageBus: MessageBusPublisher,
-    deviceNamespaceAuthorizer: Directive1[Uuid]
+    deviceNamespaceAuthorizer: Directive1[DeviceUUID]
 )(implicit db: Database, mat: ActorMaterializer, ec: ExecutionContext) {
   import PublicCredentialsResource._
   import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
   lazy val base64Decoder = Base64.getDecoder()
   lazy val base64Encoder = Base64.getEncoder()
 
-  def fetchPublicCredentials(uuid: Uuid): Route =
+  def fetchPublicCredentials(uuid: DeviceUUID): Route =
     complete(db.run(PublicCredentialsRepository.findByUuid(uuid)).map { creds =>
       FetchPublicCredentials(uuid, creds.typeCredentials, new String(creds.credentials))
     })

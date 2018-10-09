@@ -22,6 +22,7 @@ import eu.timepit.refined.string.Regex
 
 import scala.concurrent.ExecutionContext
 import scala.util.Random
+import com.advancedtelematic.libats.messaging_datatype.DataType.{DeviceId => DeviceUUID}
 
 trait GroupRequests {
   self: ResourceSpec =>
@@ -78,16 +79,16 @@ trait GroupRequests {
       responseAs[GroupId]
     }
 
-  def addDeviceToGroup(groupId: GroupId, deviceUuid: Uuid)(implicit ec: ExecutionContext): HttpRequest =
+  def addDeviceToGroup(groupId: GroupId, deviceUuid: DeviceUUID)(implicit ec: ExecutionContext): HttpRequest =
     Post(Resource.uri(groupsApi, groupId.show, "devices", deviceUuid.show))
 
-  def addDeviceToGroupOk(groupId: GroupId, deviceUuid: Uuid)(implicit ec: ExecutionContext): Unit =
+  def addDeviceToGroupOk(groupId: GroupId, deviceUuid: DeviceUUID)(implicit ec: ExecutionContext): Unit =
     addDeviceToGroup(groupId, deviceUuid) ~> route ~> check {
       status shouldBe OK
     }
 
-  def removeDeviceFromGroup(groupId: GroupId, deviceId: Uuid)(implicit ec: ExecutionContext): HttpRequest =
-    Delete(Resource.uri(groupsApi, groupId.show, "devices", deviceId.underlying.value))
+  def removeDeviceFromGroup(groupId: GroupId, deviceId: DeviceUUID)(implicit ec: ExecutionContext): HttpRequest =
+    Delete(Resource.uri(groupsApi, groupId.show, "devices", deviceId.show))
 
   def renameGroup(groupId: GroupId, newGroupName: Name)(implicit ec: ExecutionContext): HttpRequest =
     Put(

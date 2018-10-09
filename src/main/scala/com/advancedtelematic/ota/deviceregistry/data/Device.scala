@@ -9,35 +9,36 @@
 package com.advancedtelematic.ota.deviceregistry.data
 
 import java.time.{Instant, OffsetDateTime}
+import java.util.UUID
 
+import com.advancedtelematic.libats.messaging_datatype.DataType.{DeviceId => DeviceUUID}
 import cats.Show
 import cats.syntax.show._
 import com.advancedtelematic.libats.data.DataType.Namespace
-import com.advancedtelematic.ota.deviceregistry.data
-import com.advancedtelematic.ota.deviceregistry.data.Device.{DeviceId, DeviceName, DeviceType}
+import com.advancedtelematic.ota.deviceregistry.data.DataType.DeviceT
+import com.advancedtelematic.ota.deviceregistry.data.Device.{DeviceName, DeviceOemId, DeviceType}
 import com.advancedtelematic.ota.deviceregistry.data.DeviceStatus._
 import eu.timepit.refined.api.{Refined, Validate}
 import io.circe.{Decoder, Encoder}
 
 final case class Device(namespace: Namespace,
-                        uuid: Uuid,
+                        uuid: DeviceUUID,
                         deviceName: DeviceName,
-                        deviceId: Option[DeviceId] = None,
+                        deviceId: Option[DeviceOemId] = None,
                         deviceType: DeviceType = DeviceType.Other,
                         lastSeen: Option[Instant] = None,
                         createdAt: Instant,
                         activatedAt: Option[Instant] = None,
                         deviceStatus: DeviceStatus = NotSeen) {
 
-  // TODO: Use org.genivi.sota.core.data.client.ResponseEncoder
-  def toResponse: DeviceT = data.DeviceT(deviceName, Some(uuid), deviceId, deviceType)
+  def toResponse: DeviceT = DeviceT(deviceName, Some(uuid), deviceId, deviceType)
 }
 
 object Device {
 
-  final case class DeviceId(underlying: String) extends AnyVal
-  implicit val showDeviceId = new Show[DeviceId] {
-    def show(deviceId: DeviceId) = deviceId.underlying
+  final case class DeviceOemId(underlying: String) extends AnyVal
+  implicit val showDeviceOemId = new Show[DeviceOemId] {
+    def show(deviceId: DeviceOemId) = deviceId.underlying
   }
 
   case class ValidDeviceName()
@@ -85,13 +86,13 @@ object Device {
     io.circe.generic.semiauto.deriveDecoder[Device]
   }
 
-  implicit val DeviceIdOrdering: Ordering[DeviceId] = new Ordering[DeviceId] {
-    override def compare(id1: DeviceId, id2: DeviceId): Int = id1.underlying compare id2.underlying
+  implicit val DeviceIdOrdering: Ordering[DeviceOemId] = new Ordering[DeviceOemId] {
+    override def compare(id1: DeviceOemId, id2: DeviceOemId): Int = id1.underlying compare id2.underlying
   }
 
-  implicit def DeviceOrdering(implicit ord: Ordering[Uuid]): Ordering[Device] =
+  implicit def DeviceOrdering(implicit ord: Ordering[UUID]): Ordering[Device] =
     new Ordering[Device] {
-      override def compare(d1: Device, d2: Device): Int = ord.compare(d1.uuid, d2.uuid)
+      override def compare(d1: Device, d2: Device): Int = ord.compare(d1.uuid.uuid, d2.uuid.uuid)
     }
 
   implicit val showOffsetDateTable = new Show[OffsetDateTime] {

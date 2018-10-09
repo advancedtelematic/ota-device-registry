@@ -9,10 +9,12 @@
 package com.advancedtelematic.ota.deviceregistry
 
 import akka.http.scaladsl.model.StatusCodes._
-import com.advancedtelematic.ota.deviceregistry.data.{CredentialsType, Device, DeviceT, Uuid}
+import com.advancedtelematic.ota.deviceregistry.data.{CredentialsType, Device, Uuid}
 import com.advancedtelematic.ota.deviceregistry.PublicCredentialsResource.FetchPublicCredentials
 import io.circe.generic.auto._
 import org.scalacheck.{Arbitrary, Gen}
+import com.advancedtelematic.libats.messaging_datatype.DataType.{DeviceId => DeviceUUID}
+import com.advancedtelematic.ota.deviceregistry.data.DataType.DeviceT
 
 class PublicCredentialsResourceSpec extends ResourcePropSpec {
   import Device._
@@ -26,13 +28,13 @@ class PublicCredentialsResourceSpec extends ResourcePropSpec {
   )
 
   property("GET requests fails on non-existent device") {
-    forAll { (uuid: Uuid) =>
+    forAll { (uuid: DeviceUUID) =>
       fetchPublicCredentials(uuid) ~> route ~> check { status shouldBe NotFound }
     }
   }
 
   property("GET request after PUT yields same credentials") {
-    forAll { (deviceId: DeviceId, creds: Array[Byte]) =>
+    forAll { (deviceId: DeviceOemId, creds: Array[Byte]) =>
       val uuid = updatePublicCredentialsOk(deviceId, creds)
 
       fetchPublicCredentialsOk(uuid) shouldBe creds
@@ -40,7 +42,7 @@ class PublicCredentialsResourceSpec extends ResourcePropSpec {
   }
 
   property("PUT uses existing uuid if device exists") {
-    forAll { (devId: DeviceId, mdevT: DeviceT, creds: Array[Byte]) =>
+    forAll { (devId: DeviceOemId, mdevT: DeviceT, creds: Array[Byte]) =>
       val devT = mdevT.copy(deviceId = Some(devId))
       val uuid = createDeviceOk(devT)
       uuid shouldBe updatePublicCredentialsOk(devId, creds)
@@ -57,7 +59,7 @@ class PublicCredentialsResourceSpec extends ResourcePropSpec {
   }
 
   property("Latest PUT is the one that wins") {
-    forAll { (deviceId: DeviceId, creds1: Array[Byte], creds2: Array[Byte]) =>
+    forAll { (deviceId: DeviceOemId, creds1: Array[Byte], creds2: Array[Byte]) =>
       val uuid = updatePublicCredentialsOk(deviceId, creds1)
       updatePublicCredentialsOk(deviceId, creds2)
 
@@ -66,11 +68,11 @@ class PublicCredentialsResourceSpec extends ResourcePropSpec {
   }
 
   property("Type of credentials is set correctly") {
-    forAll { (deviceId: DeviceId, mdevT: DeviceT, creds: String, cType: CredentialsType.CredentialsType) =>
+    forAll { (deviceId: DeviceOemId, mdevT: DeviceT, creds: String, cType: CredentialsType.CredentialsType) =>
       val devT = mdevT.copy(deviceId = Some(deviceId), credentials = Some(creds), credentialsType = Some(cType))
       val uuid = createDeviceWithCredentials(devT) ~> route ~> check {
         status shouldBe OK
-        responseAs[Uuid]
+        responseAs[DeviceUUID]
       }
 
       fetchPublicCredentials(uuid) ~> route ~> check {

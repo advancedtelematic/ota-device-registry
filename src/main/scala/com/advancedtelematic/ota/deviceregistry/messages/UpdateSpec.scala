@@ -15,6 +15,7 @@ import com.advancedtelematic.libats.data.DataType.Namespace
 import com.advancedtelematic.libats.messaging_datatype.MessageLike
 import com.advancedtelematic.ota.deviceregistry.data.Uuid
 import com.advancedtelematic.ota.deviceregistry.messages.UpdateStatus.UpdateStatus
+import com.advancedtelematic.libats.messaging_datatype.DataType.{DeviceId => DeviceUUID}
 
 object UpdateStatus extends Enumeration {
   type UpdateStatus = Value
@@ -26,7 +27,7 @@ object UpdateStatus extends Enumeration {
 }
 
 final case class UpdateSpec(namespace: Namespace,
-                            device: Uuid,
+                            device: DeviceUUID,
                             packageUuid: UUID,
                             status: UpdateStatus,
                             timestamp: Instant = Instant.now())
@@ -36,5 +37,5 @@ object UpdateSpec {
 
   implicit val DecoderInstance       = io.circe.generic.semiauto.deriveDecoder[UpdateSpec]
   implicit val EncoderInstance       = io.circe.generic.semiauto.deriveEncoder[UpdateSpec]
-  implicit val UpdateSpecMessageLike = MessageLike[UpdateSpec](_.device.underlying.value)
+  implicit val UpdateSpecMessageLike = MessageLike[UpdateSpec](_.device.uuid.toString)
 }

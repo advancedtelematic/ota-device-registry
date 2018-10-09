@@ -26,7 +26,7 @@ object DeviceSeenListener {
 
   def action(messageBus: MessageBusPublisher)(msg: DeviceSeen)(implicit db: Database,
                                                                ec: ExecutionContext): Future[Done] =
-    db.run(DeviceRepository.updateLastSeen(Uuid.fromJava(msg.uuid.uuid), msg.lastSeen))
+    db.run(DeviceRepository.updateLastSeen(msg.uuid, msg.lastSeen))
       .flatMap {
         case (activated, ns) =>
           if (activated) {
@@ -34,7 +34,7 @@ object DeviceSeenListener {
               .publishSafe(DeviceActivated(ns, Uuid.fromJava(msg.uuid.uuid), msg.lastSeen))
               .flatMap { _ =>
                 db.run(
-                  DeviceRepository.setDeviceStatus(Uuid.fromJava(msg.uuid.uuid), DeviceStatus.UpToDate)
+                  DeviceRepository.setDeviceStatus(msg.uuid, DeviceStatus.UpToDate)
                 )
               }
           } else {

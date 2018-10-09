@@ -8,17 +8,18 @@
 
 package com.advancedtelematic.ota.deviceregistry
 
-import com.advancedtelematic.ota.deviceregistry.data.{DeviceT, Uuid}
 import com.advancedtelematic.ota.deviceregistry.db.SystemInfoRepository.removeIdNrs
 import io.circe.Json
 import org.scalacheck.Shrink
+import com.advancedtelematic.libats.messaging_datatype.DataType.{DeviceId => DeviceUUID}
+import com.advancedtelematic.ota.deviceregistry.data.DataType.DeviceT
 
 class SystemInfoResourceSpec extends ResourcePropSpec {
   import akka.http.scaladsl.model.StatusCodes._
   import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
 
   property("GET /system_info request fails on non-existent device") {
-    forAll { (uuid: Uuid, json: Json) =>
+    forAll { (uuid: DeviceUUID, json: Json) =>
       fetchSystemInfo(uuid) ~> route ~> check { status shouldBe NotFound }
       createSystemInfo(uuid, json) ~> route ~> check { status shouldBe NotFound }
       updateSystemInfo(uuid, json) ~> route ~> check { status shouldBe NotFound }
@@ -26,7 +27,7 @@ class SystemInfoResourceSpec extends ResourcePropSpec {
   }
 
   property("GET /system_info/network returns 404 NotFound on non-existent device") {
-    forAll { (uuid: Uuid) =>
+    forAll { (uuid: DeviceUUID) =>
       fetchNetworkInfo(uuid) ~> route ~> check { status shouldBe NotFound }
     }
   }
@@ -55,7 +56,7 @@ class SystemInfoResourceSpec extends ResourcePropSpec {
 
   property("GET /system_info return empty if device have not set system_info") {
     forAll { device: DeviceT =>
-      val uuid: Uuid = createDeviceOk(device)
+      val uuid = createDeviceOk(device)
 
       fetchSystemInfo(uuid) ~> route ~> check {
         status shouldBe OK
@@ -68,7 +69,7 @@ class SystemInfoResourceSpec extends ResourcePropSpec {
 
   property("GET system_info after POST should return what was posted.") {
     forAll { (device: DeviceT, json0: Json) =>
-      val uuid: Uuid  = createDeviceOk(device)
+      val uuid  = createDeviceOk(device)
       val json1: Json = removeIdNrs(json0)
 
       createSystemInfo(uuid, json1) ~> route ~> check {
@@ -85,7 +86,7 @@ class SystemInfoResourceSpec extends ResourcePropSpec {
 
   property("GET system_info after PUT should return what was updated.") {
     forAll { (device: DeviceT, json1: Json, json2: Json) =>
-      val uuid: Uuid = createDeviceOk(device)
+      val uuid = createDeviceOk(device)
 
       createSystemInfo(uuid, json1) ~> route ~> check {
         status shouldBe Created
@@ -105,7 +106,7 @@ class SystemInfoResourceSpec extends ResourcePropSpec {
 
   property("PUT system_info if not previously created should create it.") {
     forAll { (device: DeviceT, json: Json) =>
-      val uuid: Uuid = createDeviceOk(device)
+      val uuid = createDeviceOk(device)
 
       updateSystemInfo(uuid, json) ~> route ~> check {
         status shouldBe OK
@@ -136,7 +137,7 @@ class SystemInfoResourceSpec extends ResourcePropSpec {
                          })
 
     forAll { (device: DeviceT, json0: Json) =>
-      val uuid: Uuid = createDeviceOk(device)
+      val uuid = createDeviceOk(device)
       val json       = removeIdNrs(json0)
 
       updateSystemInfo(uuid, json) ~> route ~> check {

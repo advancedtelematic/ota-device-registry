@@ -17,7 +17,6 @@ import com.advancedtelematic.ota.deviceregistry.data.DataType.IndexedEventType.I
 import io.circe.Json
 import slick.jdbc.MySQLProfile.api._
 import com.advancedtelematic.ota.deviceregistry.data.DataType.{CorrelationId, IndexedEvent}
-import eu.timepit.refined.refineV
 import SlickMappings._
 import com.advancedtelematic.libats.slick.db.SlickUUIDKey._
 import org.slf4j.LoggerFactory
@@ -28,10 +27,9 @@ import com.advancedtelematic.libats.slick.db.SlickAnyVal._
 
 import scala.concurrent.{ExecutionContext, Future}
 
-
 object EventJournal {
   class EventJournalTable(tag: Tag) extends Table[Event](tag, "EventJournal") {
-    def deviceUuid       = column[Uuid]("device_uuid")
+    def deviceUuid       = column[DeviceUUID]("device_uuid")
     def eventId          = column[String]("event_id")
     def deviceTime       = column[Instant]("device_time")
     def eventTypeId      = column[String]("event_type_id")
@@ -42,16 +40,16 @@ object EventJournal {
     def pk = primaryKey("events_pk", (deviceUuid, eventId))
 
     private def fromEvent(e: Event) =
-      Some((Uuid(refineV[Uuid.Valid](e.deviceUuid.uuid.toString).right.get),
+      Some(e.deviceUuid,
            e.eventId,
            e.eventType.id,
            e.eventType.version,
            e.deviceTime,
            e.receivedAt,
-           e.payload))
+           e.payload)
 
-    private def toEvent(x: (Uuid, String, String, Int, Instant, Instant, Json)): Event =
-      Event(DeviceUUID(x._1.toJava), x._2, EventType(x._3, x._4), x._5, x._6, x._7)
+    private def toEvent(x: (DeviceUUID, String, String, Int, Instant, Instant, Json)): Event =
+      Event(x._1, x._2, EventType(x._3, x._4), x._5, x._6, x._7)
 
     override def * =
       (deviceUuid, eventId, eventTypeId, eventTypeVersion, deviceTime, receivedAt, event).shaped <> (toEvent, fromEvent)
@@ -72,7 +70,7 @@ object EventJournal {
 
   protected [db] val indexedEvents = TableQuery[IndexedEventTable]
 
-  def deleteEvents(deviceUuid: Uuid)(implicit ec: ExecutionContext): DBIO[Int] =
+  def deleteEvents(deviceUuid: DeviceUUID)(implicit ec: ExecutionContext): DBIO[Int] =
     events.filter(_.deviceUuid === deviceUuid).delete
 }
 
@@ -95,15 +93,14 @@ class EventJournal()(implicit db: Database, ec: ExecutionContext) {
     db.run(io).map(_ => ())
   }
 
-  def getEvents(deviceUuid: Uuid, correlationId: Option[CorrelationId]): Future[Seq[Event]] =
+  def getEvents(deviceUuid: DeviceUUID, correlationId: Option[CorrelationId]): Future[Seq[Event]] =
     if(correlationId.isDefined)
       db.run(findEventsByCorrelationId(deviceUuid, correlationId.get))
     else
       db.run(events.filter(_.deviceUuid === deviceUuid).result)
 
 
-  // TODO:SM MappedTo, use DeviceId in Device instead
-  protected [db] def findEventsByCorrelationId(deviceUuid: Uuid, correlationId: CorrelationId): DBIO[Seq[Event]] = {
+  protected [db] def findEventsByCorrelationId(deviceUuid: DeviceUUID, correlationId: CorrelationId): DBIO[Seq[Event]] = {
     EventJournal.events
       .filter(_.deviceUuid === deviceUuid)
       .join(EventJournal.indexedEvents)
@@ -112,3 +109,4 @@ class EventJournal()(implicit db: Database, ec: ExecutionContext) {
       .result
   }
 }
+
