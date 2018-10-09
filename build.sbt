@@ -8,7 +8,8 @@ lazy val `ota-device-registry` =
     .enablePlugins(GitVersioning, BuildInfoPlugin, DockerPlugin, JavaAppPackaging)
     .settings(settings)
     .settings(
-      resolvers += "Sonatype Nexus Repository Manager" at "http://nexus.advancedtelematic.com:8081/content/repositories/releases"
+      resolvers += "Sonatype Nexus Repository Manager" at "http://nexus.advancedtelematic.com:8081/content/repositories/releases",
+      resolvers += "Central" at "http://nexus.advancedtelematic.com:8081/content/repositories/central"
     )
     .settings(
       libraryDependencies ++= Seq(

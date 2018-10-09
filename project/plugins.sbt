@@ -6,5 +6,6 @@ addSbtPlugin("com.typesafe.sbt" % "sbt-native-packager" % "1.3.2")
 addSbtPlugin("net.vonbuchholtz" % "sbt-dependency-check" % "0.1.10")
 addSbtPlugin("net.virtual-void" % "sbt-dependency-graph" % "0.9.0")
 resolvers += "Flyway" at "https://davidmweber.github.io/flyway-sbt.repo"
+resolvers += "Central" at "http://nexus.advancedtelematic.com:8081/content/repositories/central"
 addSbtPlugin("org.flywaydb" % "flyway-sbt" % "4.2.0")
 libraryDependencies += "org.slf4j" % "slf4j-nop" % "1.7.25" // Needed by sbt-git
