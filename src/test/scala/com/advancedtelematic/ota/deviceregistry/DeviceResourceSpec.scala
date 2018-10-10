@@ -23,10 +23,9 @@ import com.advancedtelematic.ota.deviceregistry.data.DataType.DeviceT
 import com.advancedtelematic.ota.deviceregistry.data.Group.{GroupExpression, GroupId}
 import com.advancedtelematic.ota.deviceregistry.data.{Device, DeviceStatus, PackageId, _}
 import com.advancedtelematic.ota.deviceregistry.db.InstalledPackages.{DevicesCount, InstalledPackage}
-import com.advancedtelematic.ota.deviceregistry.db.{DeviceRepository, InstalledPackages}
+import com.advancedtelematic.ota.deviceregistry.db.InstalledPackages
 import eu.timepit.refined.api.Refined
 import io.circe.generic.auto._
-import io.circe.Json
 import org.scalacheck.Arbitrary._
 import org.scalacheck.{Gen, Shrink}
 import org.scalatest.concurrent.{Eventually, ScalaFutures}
@@ -41,7 +40,6 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
   import GeneratorOps._
   import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
 
-  private val deviceNumber  = DeviceRepository.defaultLimit + 10
   private implicit val exec = system.dispatcher
   private val publisher     = DeviceSeenListener.action(MessageBusPublisher.ignore)(_)
 
@@ -59,7 +57,7 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
     publisher(DeviceSeen(defaultNs, uuid, Instant.now())).futureValue
 
   property("GET, PUT, DELETE, and POST '/ping' request fails on non-existent device") {
-    forAll { (uuid: DeviceId, device: DeviceT, json: Json) =>
+    forAll { (uuid: DeviceId, device: DeviceT) =>
       fetchDevice(uuid) ~> route ~> check { status shouldBe NotFound }
       updateDevice(uuid, device) ~> route ~> check { status shouldBe NotFound }
       deleteDevice(uuid) ~> route ~> check { status shouldBe NotFound }
@@ -330,7 +328,7 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
 
   property("can list devices with custom pagination limit") {
     val limit                = 30
-    val deviceTs             = genConflictFreeDeviceTs(deviceNumber).sample.get
+    val deviceTs             = genConflictFreeDeviceTs(limit * 2).sample.get
     deviceTs.foreach(createDeviceOk)
 
     searchDevice("", limit = limit) ~> route ~> check {
@@ -343,14 +341,14 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
   property("can list devices with custom pagination limit and offset") {
     val limit                = 30
     val offset               = 10
-    val deviceTs             = genConflictFreeDeviceTs(deviceNumber).sample.get
-    deviceTs.foreach(createDeviceOk(_))
+    val deviceTs             = genConflictFreeDeviceTs(limit * 2).sample.get
+    deviceTs.foreach(createDeviceOk)
 
     searchDevice("", offset = offset, limit = limit) ~> route ~> check {
       status shouldBe OK
-      val devices = responseAs[PaginationResult[Device]]
-      devices.values.length shouldBe limit
-      devices.values.zip(devices.values.tail).foreach {
+      val devices = responseAs[PaginationResult[Device]].values
+      devices.length shouldBe limit
+      devices.zip(devices.tail).foreach {
         case (device1, device2) =>
           device1.deviceName.value.compareTo(device2.deviceName.value) should be <= 0
       }
@@ -441,7 +439,7 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
     val limit  = 30
     val offset = 10
 
-    val deviceTs             = genConflictFreeDeviceTs(deviceNumber).generate
+    val deviceTs             = genConflictFreeDeviceTs(limit * 2).generate
     val deviceIds = deviceTs.map(createDeviceOk)
 
     // the database is case-insensitve so when we need to take that in to account when sorting in scala

@@ -15,14 +15,17 @@ import com.advancedtelematic.libats.data.PaginationResult
 import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
 import com.advancedtelematic.libats.slick.codecs.SlickRefined._
 import com.advancedtelematic.libats.slick.db.Operators.regex
+import com.advancedtelematic.libats.slick.db.SlickAnyVal._
 import com.advancedtelematic.libats.slick.db.SlickExtensions._
 import com.advancedtelematic.libats.slick.db.SlickUUIDKey._
 import com.advancedtelematic.ota.deviceregistry.common.Errors
 import com.advancedtelematic.ota.deviceregistry.data.DataType.DeviceT
+import com.advancedtelematic.ota.deviceregistry.data.Device._
 import com.advancedtelematic.ota.deviceregistry.data.DeviceStatus.DeviceStatus
 import com.advancedtelematic.ota.deviceregistry.data.Group.{GroupExpression, GroupId}
 import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
 import com.advancedtelematic.ota.deviceregistry.data._
+import com.advancedtelematic.ota.deviceregistry.db.DbOps.PaginationResultOps
 import com.advancedtelematic.ota.deviceregistry.db.SlickMappings._
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.string.Regex
@@ -31,11 +34,6 @@ import slick.jdbc.MySQLProfile.api._
 import scala.concurrent.ExecutionContext
 
 object DeviceRepository {
-  val defaultLimit = 50
-  val maxLimit     = 1000
-
-  import Device._
-  import com.advancedtelematic.libats.slick.db.SlickAnyVal._
 
   private[this] implicit val DeviceStatusColumnType =
     MappedColumnType.base[DeviceStatus.Value, String](_.toString, DeviceStatus.withName)
@@ -133,9 +131,7 @@ object DeviceRepository {
 
   def search(ns: Namespace, rx: Option[String Refined Regex], groupId: Option[GroupId], offset: Option[Long], limit: Option[Long])
             (implicit ec: ExecutionContext): DBIO[PaginationResult[Device]] =
-    searchQuery(ns, rx, groupId).paginateAndSortResult(_.deviceName,
-                                            offset.getOrElse(0L),
-                                            limit.getOrElse[Long](defaultLimit).min(maxLimit))
+    searchQuery(ns, rx, groupId).paginateAndSortResult(_.deviceName, offset.orDefaultOffset, limit.orDefaultLimit)
 
   def searchGrouped(ns: Namespace, groupType: Option[GroupType], offset: Option[Long], limit: Option[Long])
                    (implicit ec: ExecutionContext): DBIO[PaginationResult[Device]] =
@@ -146,7 +142,7 @@ object DeviceRepository {
       .join(DeviceRepository.devices)
       .on(_._2.deviceUuid === _.uuid)
       .map(_._2)
-      .paginateResult(offset.getOrElse(0L), limit.getOrElse[Long](defaultLimit).min(maxLimit))
+      .paginateResult(offset.orDefaultOffset, limit.orDefaultLimit)
 
   def searchUngrouped(ns: Namespace, rx: Option[String Refined Regex], offset: Option[Long], limit: Option[Long])
                      (implicit ec: ExecutionContext): DBIO[PaginationResult[Device]] = {
@@ -160,7 +156,7 @@ object DeviceRepository {
 
     ungroupedDevicesQuery
       .filter(_.uuid.in(regexQuery))
-      .paginateResult(offset.getOrElse(0L), limit.getOrElse[Long](defaultLimit).min(maxLimit))
+      .paginateResult(offset.orDefaultOffset, limit.orDefaultLimit)
   }
 
   def updateDeviceName(ns: Namespace, uuid: DeviceId, deviceName: DeviceName)(implicit ec: ExecutionContext): DBIO[Unit] =
