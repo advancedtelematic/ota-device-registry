@@ -54,12 +54,8 @@ protected class StaticMembership(implicit db: Database, ec: ExecutionContext) ex
   override def removeMember(group: Group, deviceId: DeviceId): Future[Unit] =
     db.run(GroupMemberRepository.removeGroupMember(group.id, deviceId))
 
-  def create(
-      groupId: GroupId,
-      name: Name,
-      namespace: Namespace
-  ): Future[GroupId] = db.run {
-    GroupInfoRepository.create(groupId, name, namespace, GroupType.static, expression = None)
+  def create(groupId: GroupId, name: Name, namespace: Namespace): Future[GroupId] = db.run {
+    GroupInfoRepository.create(groupId, name, namespace, GroupType.static, None)
   }
 }
 

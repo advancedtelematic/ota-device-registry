@@ -67,11 +67,11 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
   private def createGroupedAndUngroupedDevices(): Map[String, Seq[DeviceId]] = {
     val deviceTs = genConflictFreeDeviceTs(12).sample.get
     val deviceIds    = deviceTs.map(createDeviceOk)
-    val staticGroup = createStaticGroupOk(genGroupName().sample.get)
+    val staticGroup = createStaticGroupOk()
 
     deviceIds.take(4).foreach(addDeviceToGroupOk(staticGroup, _))
     val expr = deviceTs.slice(4, 8).map(_.deviceId.underlying.take(4)).map(n => s"deviceid contains $n").reduce(_ + " or " + _)
-    createDynamicGroupOk(genGroupName().sample.get, Refined.unsafeApply(expr))
+    createDynamicGroupOk(Refined.unsafeApply(expr))
 
     Map("all" -> deviceIds, "groupedStatic" -> deviceIds.take(4),
       "groupedDynamic" -> deviceIds.slice(4, 8), "ungrouped" -> deviceIds.drop(8))
@@ -309,8 +309,8 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
     val groups       = Gen.listOfN(groupNumber, genGroupName()).sample.get
     val pkg          = genPackageId.sample.get
 
-    val deviceIds: Seq[DeviceId]   = deviceTs.map(createDeviceOk)
-    val groupIds: Seq[GroupId] = groups.map(createStaticGroupOk)
+    val deviceIds = deviceTs.map(createDeviceOk)
+    val groupIds = groups.map(createStaticGroupOk)
 
     (0 until deviceNumber).foreach { i =>
       addDeviceToGroupOk(groupIds(i % groupNumber), deviceIds(i))
@@ -384,9 +384,8 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
     val offset               = 10
     val deviceNumber         = 50
     val deviceTs             = genConflictFreeDeviceTs(deviceNumber).sample.get
-    val deviceIds: Seq[DeviceId] = deviceTs.map(createDeviceOk)
-    val group                = genGroupName().sample.get
-    val groupId              = createStaticGroupOk(group)
+    val deviceIds = deviceTs.map(createDeviceOk)
+    val groupId              = createStaticGroupOk()
 
     deviceIds.foreach { id =>
       addDeviceToGroupOk(groupId, id)
@@ -419,8 +418,7 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
     }
 
     // add devices to group and check that we get less ungrouped devices
-    val group   = genGroupName().sample.get
-    val groupId = createStaticGroupOk(group)
+    val groupId = createStaticGroupOk()
 
     deviceIds.foreach { id =>
       addDeviceToGroupOk(groupId, id)
@@ -525,7 +523,7 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
 
   property("DELETE device removes it from its group") {
     forAll { (devicePre: DeviceT, groupName: Group.Name) =>
-      val uuid: DeviceId = createDeviceOk(devicePre)
+      val uuid = createDeviceOk(devicePre)
       val groupId    = createStaticGroupOk(groupName)
 
       addDeviceToGroupOk(groupId, uuid)
@@ -563,7 +561,7 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
 
     val groupNumber            = 10
     val groups                 = Gen.listOfN(groupNumber, genGroupName()).sample.get
-    val groupIds: Seq[GroupId] = groups.map(m => createStaticGroupOk(m))
+    val groupIds = groups.map(createStaticGroupOk)
 
     (0 until deviceNumber).foreach { i =>
       addDeviceToGroupOk(groupIds(i % groupNumber), deviceIds(i))
@@ -608,10 +606,8 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
   }
 
   property("getting the groups of a device returns the correct static groups") {
-    val groupName1 = genGroupName().sample.get
-    val groupName2 = genGroupName().sample.get
-    val groupId1   = createStaticGroupOk(groupName1)
-    val groupId2   = createStaticGroupOk(groupName2)
+    val groupId1   = createStaticGroupOk()
+    val groupId2   = createStaticGroupOk()
     val deviceUuid = createDeviceOk(genDeviceT.sample.get)
 
     addDeviceToGroup(groupId1, deviceUuid) ~> route ~> check {
