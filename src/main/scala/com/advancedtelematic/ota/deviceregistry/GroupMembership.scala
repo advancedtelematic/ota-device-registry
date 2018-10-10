@@ -29,10 +29,8 @@ protected class DynamicMembership(implicit db: Database, ec: ExecutionContext) e
     GroupInfoRepository
       .create(groupId, name, namespace, GroupType.dynamic, Some(expression))
       .andThen {
-        DeviceRepository.searchByDeviceIdContains(namespace, expression).flatMap { devices =>
-          DBIO.sequence(devices.map { d =>
-            GroupMemberRepository.addGroupMember(groupId, d)
-          })
+        DeviceRepository.searchByExpression(namespace, expression).flatMap { devices =>
+          DBIO.sequence(devices.map(d => GroupMemberRepository.addGroupMember(groupId, d)))
         }
       }
       .map(_ => groupId)

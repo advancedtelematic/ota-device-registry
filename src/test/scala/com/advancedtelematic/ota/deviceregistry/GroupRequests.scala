@@ -56,7 +56,6 @@ trait GroupRequests {
     Get(Resource.uri(groupsApi).withQuery(Query(m)))
   }
 
-  // TODO easier if expression comes in as a String
   def createGroup(groupType: GroupType, expression: Option[GroupExpression], groupName: Option[Name] = None)
                  (implicit ec: ExecutionContext): HttpRequest = {
     val name = groupName.getOrElse(genGroupName().sample.get)

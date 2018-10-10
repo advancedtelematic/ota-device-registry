@@ -101,18 +101,13 @@ object DeviceRepository {
       .filter(d => d.namespace === ns && d.deviceId === deviceId)
       .result
 
-  def searchByDeviceIdContains(ns: Namespace, expression: GroupExpression)(
-      implicit db: Database,
-      ec: ExecutionContext
-  ): DBIO[Seq[DeviceId]] = {
-    val filter = GroupExpressionAST.compileToSlick(expression)
-
+  def searchByExpression(ns: Namespace, expression: GroupExpression)
+                        (implicit db: Database, ec: ExecutionContext): DBIO[Seq[DeviceId]] =
     devices
       .filter(_.namespace === ns)
-      .filter(filter)
+      .filter(GroupExpressionAST.compileToSlick(expression))
       .map(_.uuid)
       .result
-  }
 
   def countDevicesForExpression(ns: Namespace, exp: GroupExpression)(implicit db: Database, ec: ExecutionContext): DBIO[Int] =
     devices

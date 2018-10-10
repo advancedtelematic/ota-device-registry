@@ -44,8 +44,8 @@ object PublicCredentialsRepository {
   def update(uuid: DeviceId, cType: CredentialsType, creds: Array[Byte])(
       implicit ec: ExecutionContext
   ): DBIO[Unit] =
-    (allPublicCredentials
-      .insertOrUpdate(DevicePublicCredentials(uuid, cType, creds)))
+    allPublicCredentials
+      .insertOrUpdate(DevicePublicCredentials(uuid, cType, creds))
       .map(_ => ())
 
   def delete(uuid: DeviceId)(implicit ec: ExecutionContext): DBIO[Int] =

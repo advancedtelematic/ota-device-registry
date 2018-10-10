@@ -185,6 +185,9 @@ class DevicesResource(
   def api: Route = namespaceExtractor { ns =>
     val scope = Scopes.devices(ns)
     pathPrefix("devices") {
+      (scope.post & entity(as[DeviceT]) & pathEnd) { device =>
+        createDevice(ns.namespace, device)
+      } ~
       scope.get {
         (path("count") & parameter('expression.as[GroupExpression].?)) {
           case None      => complete(Errors.InvalidGroupExpression(""))
@@ -234,9 +237,6 @@ class DevicesResource(
             complete(events)
           }
         }
-      } ~
-      (scope.post & entity(as[DeviceT]) & pathEndOrSingleSlash) { device =>
-        createDevice(ns.namespace, device)
       }
     } ~
     (scope.get & pathPrefix("device_count") & extractPackageId) { pkg =>
