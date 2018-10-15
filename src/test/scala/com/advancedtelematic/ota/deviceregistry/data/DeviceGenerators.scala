@@ -42,25 +42,25 @@ trait DeviceGenerators {
     millis <- Gen.chooseNum[Long](0, 10000000000000L)
   } yield Instant.ofEpochMilli(millis)
 
-  def genDeviceWith(deviceNameGen: Gen[DeviceName], deviceIdGen: Gen[DeviceOemId]): Gen[Device] =
+  def genDeviceWith(deviceNameGen: Gen[DeviceName], oemIdGen: Gen[DeviceOemId]): Gen[Device] =
     for {
       uuid       <- genDeviceUUID
+      oemId   <- oemIdGen
       name       <- deviceNameGen
-      deviceId   <- deviceIdGen.map(Some.apply)
       deviceType <- genDeviceType
       lastSeen   <- Gen.option(genInstant)
       activated  <- Gen.option(genInstant)
-    } yield data.Device(Namespaces.defaultNs, uuid, name, deviceId, deviceType, lastSeen, Instant.now(), activated)
+    } yield data.Device(Namespaces.defaultNs, uuid, oemId, name, deviceType, lastSeen, Instant.now(), activated)
 
   val genDevice: Gen[Device] = genDeviceWith(genDeviceName, genDeviceId)
 
-  def genDeviceTWith(deviceNameGen: Gen[DeviceName], deviceIdGen: Gen[DeviceOemId]): Gen[DeviceT] =
+  def genDeviceTWith(deviceNameGen: Gen[DeviceName], oemIdGen: Gen[DeviceOemId]): Gen[DeviceT] =
     for {
+      uuid <- Gen.option(genDeviceUUID)
+      oemId   <- oemIdGen
       name       <- deviceNameGen
-      deviceId   <- deviceIdGen.map(Some.apply)
-      deviceUuid <- Gen.option(genDeviceUUID)
       deviceType <- genDeviceType
-    } yield DeviceT(name, deviceUuid, deviceId, deviceType)
+    } yield DeviceT(uuid, oemId, name, deviceType)
 
   val genDeviceT: Gen[DeviceT] = genDeviceTWith(genDeviceName, genDeviceId)
 
@@ -93,9 +93,9 @@ object DeviceGenerators extends DeviceGenerators
 object InvalidDeviceGenerators extends DeviceGenerators with DeviceIdGenerators {
   val genInvalidVehicle: Gen[Device] = for {
     // TODO: for now, just generate an invalid VIN with a valid namespace
-    deviceId <- genInvalidDeviceId
+    oemId <- genInvalidDeviceId
     d        <- genDevice
-  } yield d.copy(deviceId = Option(deviceId), namespace = Namespaces.defaultNs)
+  } yield d.copy(oemId = oemId, namespace = Namespaces.defaultNs)
 
   def getInvalidVehicle: Device = genInvalidVehicle.sample.getOrElse(getInvalidVehicle)
 }

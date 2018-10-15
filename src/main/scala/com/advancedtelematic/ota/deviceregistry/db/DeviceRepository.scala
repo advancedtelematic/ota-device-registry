@@ -43,8 +43,8 @@ object DeviceRepository {
   class DeviceTable(tag: Tag) extends Table[Device](tag, "Device") {
     def namespace    = column[Namespace]("namespace")
     def uuid         = column[DeviceUUID]("uuid")
-    def deviceName   = column[DeviceName]("device_name")
-    def deviceId     = column[Option[DeviceOemId]]("device_id")
+    def deviceId     = column[DeviceOemId]("device_id")
+    def name   = column[DeviceName]("device_name")
     def deviceType   = column[DeviceType]("device_type")
     def lastSeen     = column[Option[Instant]]("last_seen")
     def createdAt    = column[Instant]("created_at")
@@ -52,7 +52,7 @@ object DeviceRepository {
     def deviceStatus = column[DeviceStatus]("device_status")
 
     def * =
-      (namespace, uuid, deviceName, deviceId, deviceType, lastSeen, createdAt, activatedAt, deviceStatus).shaped <> ((Device.apply _).tupled, Device.unapply)
+      (namespace, uuid, deviceId, name, deviceType, lastSeen, createdAt, activatedAt, deviceStatus).shaped <> ((Device.apply _).tupled, Device.unapply)
 
     def pk = primaryKey("uuid", uuid)
   }
@@ -61,14 +61,9 @@ object DeviceRepository {
   val devices = TableQuery[DeviceTable]
 
   def create(ns: Namespace, device: DeviceT)(implicit ec: ExecutionContext): DBIO[DeviceUUID] = {
-    val uuid = device.deviceUuid.getOrElse(DeviceUUID.generate)
+    val uuid = device.uuid.getOrElse(DeviceUUID.generate)
 
-    val dbDevice = Device(ns,
-      uuid,
-      device.deviceName,
-      device.deviceId,
-      device.deviceType,
-      createdAt = Instant.now())
+    val dbDevice = Device(ns, uuid, device.oemId, device.name, device.deviceType, createdAt = Instant.now())
 
     val dbIO = devices += dbDevice
     dbIO
@@ -129,7 +124,7 @@ object DeviceRepository {
              limit: Option[Long])(implicit ec: ExecutionContext): DBIO[PaginationResult[Device]] = {
     val byNamespace = devices.filter(d => d.namespace === ns)
     val byOptionalRegex = regEx match {
-      case Some(re) => byNamespace.filter(d => regex(d.deviceName, re))
+      case Some(re) => byNamespace.filter(d => regex(d.name, re))
       case None     => byNamespace
     }
     val byOptionalGroupId = groupId match {
@@ -141,7 +136,7 @@ object DeviceRepository {
       case None => byOptionalRegex
     }
 
-    byOptionalGroupId.paginateAndSortResult(_.deviceName,
+    byOptionalGroupId.paginateAndSortResult(_.name,
                                             offset.getOrElse(0L),
                                             limit.getOrElse[Long](defaultLimit).min(maxLimit))
   }
@@ -154,13 +149,13 @@ object DeviceRepository {
   )(implicit ec: ExecutionContext): DBIO[PaginationResult[Device]] = {
     val byNamespace = devices.filter(_.namespace === ns)
     val byOptionalRegex = regEx match {
-      case Some(re) => byNamespace.filter(d => regex(d.deviceName, re))
+      case Some(re) => byNamespace.filter(d => regex(d.name, re))
       case None     => byNamespace
     }
     val grouped     = GroupMemberRepository.groupMembers.map(_.deviceUuid)
     val byUngrouped = byOptionalRegex.filterNot(_.uuid in grouped)
 
-    byUngrouped.paginateAndSortResult(_.deviceName,
+    byUngrouped.paginateAndSortResult(_.name,
                                       offset.getOrElse(0L),
                                       limit.getOrElse[Long](defaultLimit).min(maxLimit))
   }
@@ -170,7 +165,7 @@ object DeviceRepository {
   ): DBIO[Unit] =
     devices
       .filter(_.uuid === uuid)
-      .map(r => r.deviceName)
+      .map(d => d.name)
       .update(deviceName)
       .handleIntegrityErrors(Errors.ConflictingDevice)
       .handleSingleUpdateError(Errors.MissingDevice)

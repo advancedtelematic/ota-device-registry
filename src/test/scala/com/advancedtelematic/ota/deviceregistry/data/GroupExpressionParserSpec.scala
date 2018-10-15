@@ -182,16 +182,16 @@ class GroupExpressionRunSpec extends FunSuite with Matchers with DatabaseSpec wi
 
   val device0 =
     DeviceGenerators.genDeviceT
-      .retryUntil(_.deviceUuid.isDefined)
+      .retryUntil(_.uuid.isDefined)
       .sample
       .get
-      .copy(deviceId = Some(DeviceOemId("deviceABC")))
+      .copy(oemId = DeviceOemId("deviceABC"))
   val device1 =
     DeviceGenerators.genDeviceT
-      .retryUntil(_.deviceUuid.isDefined)
+      .retryUntil(_.uuid.isDefined)
       .sample
       .get
-      .copy(deviceId = Some(DeviceOemId("deviceDEF")))
+      .copy(oemId = DeviceOemId("deviceDEF"))
 
   override def beforeAll(): Unit = {
     super.beforeAll()
@@ -219,13 +219,13 @@ class GroupExpressionRunSpec extends FunSuite with Matchers with DatabaseSpec wi
   }
 
   test("returns matching device") {
-    runGroupExpression(s"deviceid contains ABC") shouldBe Seq(device0.deviceUuid.get)
+    runGroupExpression(s"deviceid contains ABC") shouldBe Seq(device0.uuid.get)
   }
 
   test("returns matching devices with or") {
     val res = runGroupExpression(s"(deviceid contains A) or (deviceid contains D)")
-    res should contain(device0.deviceUuid.get)
-    res should contain(device1.deviceUuid.get)
+    res should contain(device0.uuid.get)
+    res should contain(device1.uuid.get)
   }
 
   test("does not match devices that do not contain value") {
@@ -233,30 +233,30 @@ class GroupExpressionRunSpec extends FunSuite with Matchers with DatabaseSpec wi
   }
 
   test("matches both expressions when using and") {
-    runGroupExpression(s"(deviceid contains A) and (deviceid contains C)") shouldBe Seq(device0.deviceUuid.get)
+    runGroupExpression(s"(deviceid contains A) and (deviceid contains C)") shouldBe Seq(device0.uuid.get)
     runGroupExpression(s"(deviceid contains A) and (deviceid contains D)") should be(empty)
   }
 
   test("matches all expressions when using and") {
     runGroupExpression(s"((deviceid contains A) and (deviceid contains B)) and (deviceid contains C)") shouldBe Seq(
-      device0.deviceUuid.get
+      device0.uuid.get
     )
   }
 
   test("matches all expressions when using and without parens") {
     runGroupExpression(s"deviceid contains A and deviceid contains B and (deviceid contains C)") shouldBe Seq(
-      device0.deviceUuid.get
+      device0.uuid.get
     )
   }
 
   test("returns matching 'deviceid position is'") {
-    runGroupExpression(s"deviceid position(1) is d") shouldBe Seq(device0.deviceUuid.get, device1.deviceUuid.get)
-    runGroupExpression(s"deviceid position(8) is B") shouldBe Seq(device0.deviceUuid.get)
+    runGroupExpression(s"deviceid position(1) is d") shouldBe Seq(device0.uuid.get, device1.uuid.get)
+    runGroupExpression(s"deviceid position(8) is B") shouldBe Seq(device0.uuid.get)
   }
 
   test("returns matching 'deviceid position is not'") {
-    runGroupExpression(s"deviceid position(1) is not x") shouldBe Seq(device0.deviceUuid.get, device1.deviceUuid.get)
-    runGroupExpression(s"deviceid position(8) is not B") shouldBe Seq(device1.deviceUuid.get)
+    runGroupExpression(s"deviceid position(1) is not x") shouldBe Seq(device0.uuid.get, device1.uuid.get)
+    runGroupExpression(s"deviceid position(8) is not B") shouldBe Seq(device1.uuid.get)
   }
 
   test("'deviceid position is' and 'deviceid position is not' cancel out") {
@@ -264,17 +264,17 @@ class GroupExpressionRunSpec extends FunSuite with Matchers with DatabaseSpec wi
   }
 
   test("'deviceid position is' or 'deviceid position is not' behaves as a tautology") {
-    runGroupExpression(s"deviceid position(8) is B or deviceid position(8) is not B") shouldBe Seq(device0.deviceUuid.get, device1.deviceUuid.get)
+    runGroupExpression(s"deviceid position(8) is B or deviceid position(8) is not B") shouldBe Seq(device0.uuid.get, device1.uuid.get)
   }
 
   test("returns matching 'deviceid position is' is case-insensitive") {
-    runGroupExpression(s"deviceid position(1) is D") shouldBe Seq(device0.deviceUuid.get, device1.deviceUuid.get)
-    runGroupExpression(s"deviceid position(8) is b") shouldBe Seq(device0.deviceUuid.get)
+    runGroupExpression(s"deviceid position(1) is D") shouldBe Seq(device0.uuid.get, device1.uuid.get)
+    runGroupExpression(s"deviceid position(8) is b") shouldBe Seq(device0.uuid.get)
   }
 
   test("returns matching 'deviceid position is not' is case-insensitive") {
-    runGroupExpression(s"deviceid position(1) is not X") shouldBe Seq(device0.deviceUuid.get, device1.deviceUuid.get)
-    runGroupExpression(s"deviceid position(8) is not b") shouldBe Seq(device1.deviceUuid.get)
+    runGroupExpression(s"deviceid position(1) is not X") shouldBe Seq(device0.uuid.get, device1.uuid.get)
+    runGroupExpression(s"deviceid position(8) is not b") shouldBe Seq(device1.uuid.get)
   }
 
   test("does not match 'deviceid position is' when different char at position") {
@@ -291,26 +291,26 @@ class GroupExpressionRunSpec extends FunSuite with Matchers with DatabaseSpec wi
   }
 
   test("matches all 'deviceid position is not' when position is out of bounds") {
-    runGroupExpression(s"deviceid position(9) is not X") shouldBe Seq(device0.deviceUuid.get, device1.deviceUuid.get)
-    runGroupExpression(s"deviceid position(1000) is not Y") shouldBe Seq(device0.deviceUuid.get, device1.deviceUuid.get)
+    runGroupExpression(s"deviceid position(9) is not X") shouldBe Seq(device0.uuid.get, device1.uuid.get)
+    runGroupExpression(s"deviceid position(1000) is not Y") shouldBe Seq(device0.uuid.get, device1.uuid.get)
   }
 
   test("returns matching 'deviceid position is' with or") {
-    runGroupExpression(s"deviceid position(7) is E or deviceid position(8) is E") shouldBe Seq(device1.deviceUuid.get)
+    runGroupExpression(s"deviceid position(7) is E or deviceid position(8) is E") shouldBe Seq(device1.uuid.get)
   }
 
   test("returns matching 'deviceid position is' with and") {
-    runGroupExpression(s"deviceid position(7) is D and deviceid position(8) is E") shouldBe Seq(device1.deviceUuid.get)
+    runGroupExpression(s"deviceid position(7) is D and deviceid position(8) is E") shouldBe Seq(device1.uuid.get)
   }
 
   test("returns matching 'deviceid position is not' with and") {
-    runGroupExpression(s"deviceid position(7) is not D and deviceid position(8) is not E") shouldBe Seq(device0.deviceUuid.get)
+    runGroupExpression(s"deviceid position(7) is not D and deviceid position(8) is not E") shouldBe Seq(device0.uuid.get)
   }
 
   test("returns matching 'deviceid contains' or 'deviceid position is' or 'deviceid position is not' when either condition is true") {
-    runGroupExpression(s"deviceid contains evic or deviceid position(9) is Z or deviceid position(9) is not X") shouldBe Seq(device0.deviceUuid.get, device1.deviceUuid.get)
-    runGroupExpression(s"deviceid contains nope or deviceid position(9) is C or deviceid position(9) is not F") shouldBe Seq(device0.deviceUuid.get)
-    runGroupExpression(s"deviceid contains nope or deviceid position(9) is Z or deviceid position(9) is not C") shouldBe Seq(device1.deviceUuid.get)
+    runGroupExpression(s"deviceid contains evic or deviceid position(9) is Z or deviceid position(9) is not X") shouldBe Seq(device0.uuid.get, device1.uuid.get)
+    runGroupExpression(s"deviceid contains nope or deviceid position(9) is C or deviceid position(9) is not F") shouldBe Seq(device0.uuid.get)
+    runGroupExpression(s"deviceid contains nope or deviceid position(9) is Z or deviceid position(9) is not C") shouldBe Seq(device1.uuid.get)
   }
 
   test("does not match 'deviceid contains' or 'deviceid position is' or 'deviceid position is not' when all conditions are false") {
@@ -318,7 +318,7 @@ class GroupExpressionRunSpec extends FunSuite with Matchers with DatabaseSpec wi
   }
 
   test("returns matching 'deviceid contains' and 'deviceid position is' and 'deviceid position is not' when all conditions are true") {
-    runGroupExpression(s"deviceid contains evic and deviceid position(9) is C and deviceid position(8) is not C") shouldBe Seq(device0.deviceUuid.get)
+    runGroupExpression(s"deviceid contains evic and deviceid position(9) is C and deviceid position(8) is not C") shouldBe Seq(device0.uuid.get)
   }
 
   test("does not match 'deviceid contains' and 'deviceid position is' and 'deviceid position is not' when either condition is false") {

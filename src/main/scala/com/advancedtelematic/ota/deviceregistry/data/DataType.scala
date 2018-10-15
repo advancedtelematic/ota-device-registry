@@ -17,9 +17,9 @@ object DataType {
     val DownloadComplete, InstallationComplete = Value
   }
 
-  final case class DeviceT(deviceName: DeviceName,
-                           deviceUuid: Option[DeviceUUID] = None,
-                           deviceId: Option[Device.DeviceOemId] = None,
+  final case class DeviceT(uuid: Option[DeviceUUID] = None,
+                           oemId: Device.DeviceOemId,
+                           name: DeviceName,
                            deviceType: Device.DeviceType = Device.DeviceType.Other,
                            credentials: Option[String] = None,
                            credentialsType: Option[CredentialsType] = None)

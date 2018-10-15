@@ -19,7 +19,7 @@ import com.advancedtelematic.libats.messaging_datatype.DataType.{DeviceId => Dev
 final case class DeviceCreated(namespace: Namespace,
                                uuid: DeviceUUID,
                                deviceName: DeviceName,
-                               deviceId: Option[DeviceOemId],
+                               deviceId: DeviceOemId,
                                deviceType: DeviceType,
                                timestamp: Instant = Instant.now())
 

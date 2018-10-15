@@ -23,23 +23,21 @@ import io.circe.{Decoder, Encoder}
 
 final case class Device(namespace: Namespace,
                         uuid: DeviceUUID,
-                        deviceName: DeviceName,
-                        deviceId: Option[DeviceOemId] = None,
+                        oemId: DeviceOemId,
+                        name: DeviceName,
                         deviceType: DeviceType = DeviceType.Other,
                         lastSeen: Option[Instant] = None,
                         createdAt: Instant,
                         activatedAt: Option[Instant] = None,
                         deviceStatus: DeviceStatus = NotSeen) {
 
-  def toResponse: DeviceT = DeviceT(deviceName, Some(uuid), deviceId, deviceType)
+  def toResponse: DeviceT = DeviceT(Some(uuid), oemId, name, deviceType)
 }
 
 object Device {
 
   final case class DeviceOemId(underlying: String) extends AnyVal
-  implicit val showDeviceOemId = new Show[DeviceOemId] {
-    def show(deviceId: DeviceOemId) = deviceId.underlying
-  }
+  implicit val showDeviceOemId: Show[DeviceOemId] = deviceOemId => deviceOemId.underlying
 
   case class ValidDeviceName()
   type DeviceName = Refined[String, ValidDeviceName]
@@ -73,7 +71,7 @@ object Device {
 
   implicit val showDevice: Show[Device] = Show.show[Device] {
     case d if d.deviceType == DeviceType.Vehicle =>
-      s"Vehicle: uuid=${d.uuid.show}, VIN=${d.deviceId}, lastSeen=${d.lastSeen}"
+      s"Vehicle: uuid=${d.uuid.show}, VIN=${d.oemId}, lastSeen=${d.lastSeen}"
     case d => s"Device: uuid=${d.uuid.show}, lastSeen=${d.lastSeen}"
   }
 
@@ -86,18 +84,12 @@ object Device {
     io.circe.generic.semiauto.deriveDecoder[Device]
   }
 
-  implicit val DeviceIdOrdering: Ordering[DeviceOemId] = new Ordering[DeviceOemId] {
-    override def compare(id1: DeviceOemId, id2: DeviceOemId): Int = id1.underlying compare id2.underlying
-  }
+  implicit val DeviceIdOrdering: Ordering[DeviceOemId] = (id1, id2) => id1.underlying compare id2.underlying
 
   implicit def DeviceOrdering(implicit ord: Ordering[UUID]): Ordering[Device] =
-    new Ordering[Device] {
-      override def compare(d1: Device, d2: Device): Int = ord.compare(d1.uuid.uuid, d2.uuid.uuid)
-    }
+    (d1, d2) => ord.compare(d1.uuid.uuid, d2.uuid.uuid)
 
-  implicit val showOffsetDateTable = new Show[OffsetDateTime] {
-    def show(odt: OffsetDateTime) = odt.toString
-  }
+  implicit val showOffsetDateTable: Show[OffsetDateTime] = odt => odt.toString
 
   case class ActiveDeviceCount(deviceCount: Int) extends AnyVal
 

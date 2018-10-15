@@ -27,7 +27,6 @@ object Errors {
     val MissingGroupInfo                   = ErrorCode("missing_group_info")
     val GroupAlreadyExists                 = ErrorCode("group_already_exists")
     val MemberAlreadyExists                = ErrorCode("device_already_a_group_member")
-    val RequestNeedsDeviceId               = ErrorCode("request_needs_deviceid")
     val RequestNeedsCredentials            = ErrorCode("request_needs_credentials")
     val CannotAddDeviceToDynamicGroup      = ErrorCode("cannot_add_device_to_dynamic_group")
     val CannotRemoveDeviceFromDynamicGroup = ErrorCode("cannot_remove_device_from_dynamic_group")
@@ -53,8 +52,6 @@ object Errors {
   val MemberAlreadyExists = EntityAlreadyExists[GroupMember]
 
   val MissingDevicePublicCredentials = MissingEntity[DevicePublicCredentials]
-  val RequestNeedsDeviceId =
-    RawError(Codes.RequestNeedsDeviceId, StatusCodes.BadRequest, "request should contain deviceId")
   val RequestNeedsCredentials =
     RawError(Codes.RequestNeedsCredentials, StatusCodes.BadRequest, "request should contain credentials")
 
