@@ -120,10 +120,6 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
   property("POST request creates a new device.") {
     forAll { devicePre: DeviceT =>
       val uuid = createDeviceOk(devicePre)
-      devicePre.uuid.foreach { x =>
-        uuid should equal(x)
-      }
-
       fetchDevice(uuid) ~> route ~> check {
         status shouldBe OK
         val devicePost: Device = responseAs[Device]
@@ -135,7 +131,7 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
   }
 
   property("POST request on 'ping' should update 'lastSeen' field for device.") {
-    forAll { (uuid: DeviceUUID, devicePre: DeviceT) =>
+    forAll { devicePre: DeviceT =>
       val uuid: DeviceUUID = createDeviceOk(devicePre)
 
       sendDeviceSeen(uuid)

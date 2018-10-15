@@ -43,7 +43,7 @@ object DeviceRepository {
   class DeviceTable(tag: Tag) extends Table[Device](tag, "Device") {
     def namespace    = column[Namespace]("namespace")
     def uuid         = column[DeviceUUID]("uuid")
-    def deviceId     = column[DeviceOemId]("device_id")
+    def oemId     = column[DeviceOemId]("device_id")
     def name   = column[DeviceName]("device_name")
     def deviceType   = column[DeviceType]("device_type")
     def lastSeen     = column[Option[Instant]]("last_seen")
@@ -52,7 +52,7 @@ object DeviceRepository {
     def deviceStatus = column[DeviceStatus]("device_status")
 
     def * =
-      (namespace, uuid, deviceId, name, deviceType, lastSeen, createdAt, activatedAt, deviceStatus).shaped <> ((Device.apply _).tupled, Device.unapply)
+      (namespace, uuid, oemId, name, deviceType, lastSeen, createdAt, activatedAt, deviceStatus).shaped <> ((Device.apply _).tupled, Device.unapply)
 
     def pk = primaryKey("uuid", uuid)
   }
@@ -61,8 +61,7 @@ object DeviceRepository {
   val devices = TableQuery[DeviceTable]
 
   def create(ns: Namespace, device: DeviceT)(implicit ec: ExecutionContext): DBIO[DeviceUUID] = {
-    val uuid = device.uuid.getOrElse(DeviceUUID.generate)
-
+    val uuid = DeviceUUID.generate
     val dbDevice = Device(ns, uuid, device.oemId, device.name, device.deviceType, createdAt = Instant.now())
 
     val dbIO = devices += dbDevice
@@ -94,7 +93,7 @@ object DeviceRepository {
 
   def findByDeviceId(ns: Namespace, deviceId: DeviceOemId)(implicit ec: ExecutionContext): DBIO[Seq[Device]] =
     devices
-      .filter(d => d.namespace === ns && d.deviceId === deviceId)
+      .filter(d => d.namespace === ns && d.oemId === deviceId)
       .result
 
   def searchByDeviceIdContains(ns: Namespace, expression: GroupExpression)(

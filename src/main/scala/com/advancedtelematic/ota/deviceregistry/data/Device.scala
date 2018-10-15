@@ -11,7 +11,7 @@ package com.advancedtelematic.ota.deviceregistry.data
 import java.time.{Instant, OffsetDateTime}
 import java.util.UUID
 
-import com.advancedtelematic.libats.messaging_datatype.DataType.{DeviceId => DeviceUUID}
+import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
 import cats.Show
 import cats.syntax.show._
 import com.advancedtelematic.libats.data.DataType.Namespace
@@ -22,7 +22,7 @@ import eu.timepit.refined.api.{Refined, Validate}
 import io.circe.{Decoder, Encoder}
 
 final case class Device(namespace: Namespace,
-                        uuid: DeviceUUID,
+                        uuid: DeviceId,
                         oemId: DeviceOemId,
                         name: DeviceName,
                         deviceType: DeviceType = DeviceType.Other,
@@ -31,7 +31,7 @@ final case class Device(namespace: Namespace,
                         activatedAt: Option[Instant] = None,
                         deviceStatus: DeviceStatus = NotSeen) {
 
-  def toResponse: DeviceT = DeviceT(Some(uuid), oemId, name, deviceType)
+  def toResponse: DeviceT = DeviceT(oemId, name, deviceType)
 }
 
 object Device {
@@ -43,7 +43,7 @@ object Device {
   type DeviceName = Refined[String, ValidDeviceName]
   implicit val validDeviceName: Validate.Plain[String, ValidDeviceName] =
     Validate.fromPredicate(
-      name => name.size < 200,
+      name => name.length < 200,
       name => s"$name is not a valid DeviceName since it is longer than 200 characters",
       ValidDeviceName()
     )

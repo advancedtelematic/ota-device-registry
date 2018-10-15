@@ -51,10 +51,10 @@ object GroupExpressionAST {
 
   def eval(exp: Expression): DeviceTable => Rep[Boolean] = exp match {
     case DeviceIdContains(word) =>
-      (d: DeviceTable) => d.deviceId.mappedTo[String].like("%" + word + "%")
+      (d: DeviceTable) => d.oemId.mappedTo[String].like("%" + word + "%")
 
     case DeviceIdCharAt(c, p) =>
-      (d: DeviceTable) => d.deviceId.mappedTo[String].substring(p, p + 1).toLowerCase.mappedTo[Char] === c.toLower
+      (d: DeviceTable) => d.oemId.mappedTo[String].substring(p, p + 1).toLowerCase.mappedTo[Char] === c.toLower
 
     case Or(cond) =>
       val evaledConds = cond.map(eval)
