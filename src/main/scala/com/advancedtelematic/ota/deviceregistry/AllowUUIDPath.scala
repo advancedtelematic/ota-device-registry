@@ -14,16 +14,16 @@ import com.advancedtelematic.libats.auth.AuthedNamespaceScope
 import com.advancedtelematic.libats.data.DataType.Namespace
 import com.advancedtelematic.libats.data.UUIDKey.{UUIDKey, UUIDKeyObj}
 import com.advancedtelematic.libats.http.UUIDKeyAkka._
-import com.advancedtelematic.libats.messaging_datatype.DataType.{DeviceId => DeviceUUID}
+import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
 
 import scala.concurrent.Future
 
 object AllowUUIDPath {
-  def deviceUUID(namespaceExtractor: Directive1[AuthedNamespaceScope], allowFn: (DeviceUUID => Future[Namespace])): Directive1[DeviceUUID] =
-    apply(DeviceUUID)(namespaceExtractor, allowFn)
+  def deviceUUID(namespaceExtractor: Directive1[AuthedNamespaceScope], allowFn: DeviceId => Future[Namespace] ): Directive1[DeviceId] =
+    apply(DeviceId)(namespaceExtractor, allowFn)
 
   def apply[T <: UUIDKey](idValue: UUIDKeyObj[T])
-                         (namespaceExtractor: Directive1[AuthedNamespaceScope], allowFn: (T => Future[Namespace]))
+                         (namespaceExtractor: Directive1[AuthedNamespaceScope], allowFn: T => Future[Namespace] )
                          (implicit gen : idValue.SelfGen): Directive1[T] =
     (Directives.pathPrefix(idValue.Path(gen)) & namespaceExtractor).tflatMap {
       case (value, ans) =>

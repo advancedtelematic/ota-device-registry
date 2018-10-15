@@ -11,7 +11,6 @@ package com.advancedtelematic.ota.deviceregistry.db
 import java.time.Instant
 import com.advancedtelematic.libats.slick.db.SlickExtensions.MappedColumnExtensions
 import com.advancedtelematic.libats.messaging_datatype.DataType.{Event, EventType, DeviceId => DeviceUUID}
-import com.advancedtelematic.ota.deviceregistry.data.Uuid
 import com.advancedtelematic.libats.slick.db.SlickExtensions.javaInstantMapping
 import com.advancedtelematic.ota.deviceregistry.data.DataType.IndexedEventType.IndexedEventType
 import io.circe.Json

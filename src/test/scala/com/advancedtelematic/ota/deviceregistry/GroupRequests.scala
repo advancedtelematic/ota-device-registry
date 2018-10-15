@@ -16,9 +16,8 @@ import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId._
 import com.advancedtelematic.ota.deviceregistry.data.Group.{GroupExpression, GroupId, Name}
 import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
 import com.advancedtelematic.ota.deviceregistry.data.SortBy.SortBy
-import com.advancedtelematic.ota.deviceregistry.data.{GroupType, Uuid}
+import com.advancedtelematic.ota.deviceregistry.data.GroupType
 import eu.timepit.refined.api.Refined
-import eu.timepit.refined.string.Regex
 
 import scala.concurrent.ExecutionContext
 import scala.util.Random

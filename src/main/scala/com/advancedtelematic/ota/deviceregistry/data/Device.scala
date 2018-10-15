@@ -22,7 +22,7 @@ import eu.timepit.refined.api.{Refined, Validate}
 import io.circe.{Decoder, Encoder}
 
 final case class Device(namespace: Namespace,
-                        uuid: DeviceId,
+                        id: DeviceId,
                         oemId: DeviceOemId,
                         name: DeviceName,
                         deviceType: DeviceType = DeviceType.Other,
@@ -71,8 +71,8 @@ object Device {
 
   implicit val showDevice: Show[Device] = Show.show[Device] {
     case d if d.deviceType == DeviceType.Vehicle =>
-      s"Vehicle: uuid=${d.uuid.show}, VIN=${d.oemId}, lastSeen=${d.lastSeen}"
-    case d => s"Device: uuid=${d.uuid.show}, lastSeen=${d.lastSeen}"
+      s"Vehicle: uuid=${d.id.show}, VIN=${d.oemId}, lastSeen=${d.lastSeen}"
+    case d => s"Device: uuid=${d.id.show}, lastSeen=${d.lastSeen}"
   }
 
   implicit val EncoderInstance = {
@@ -87,7 +87,7 @@ object Device {
   implicit val DeviceIdOrdering: Ordering[DeviceOemId] = (id1, id2) => id1.underlying compare id2.underlying
 
   implicit def DeviceOrdering(implicit ord: Ordering[UUID]): Ordering[Device] =
-    (d1, d2) => ord.compare(d1.uuid.uuid, d2.uuid.uuid)
+    (d1, d2) => ord.compare(d1.id.uuid, d2.id.uuid)
 
   implicit val showOffsetDateTable: Show[OffsetDateTime] = odt => odt.toString
 

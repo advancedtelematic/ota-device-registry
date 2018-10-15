@@ -9,11 +9,11 @@
 package com.advancedtelematic.ota.deviceregistry
 
 import akka.http.scaladsl.model.StatusCodes._
-import com.advancedtelematic.ota.deviceregistry.data.{CredentialsType, Device, Uuid}
+import com.advancedtelematic.ota.deviceregistry.data.{CredentialsType, Device}
 import com.advancedtelematic.ota.deviceregistry.PublicCredentialsResource.FetchPublicCredentials
 import io.circe.generic.auto._
 import org.scalacheck.{Arbitrary, Gen}
-import com.advancedtelematic.libats.messaging_datatype.DataType.{DeviceId => DeviceUUID}
+import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
 import com.advancedtelematic.ota.deviceregistry.data.DataType.DeviceT
 
 class PublicCredentialsResourceSpec extends ResourcePropSpec {
@@ -28,7 +28,7 @@ class PublicCredentialsResourceSpec extends ResourcePropSpec {
   )
 
   property("GET requests fails on non-existent device") {
-    forAll { (uuid: DeviceUUID) =>
+    forAll { uuid: DeviceId =>
       fetchPublicCredentials(uuid) ~> route ~> check { status shouldBe NotFound }
     }
   }
@@ -44,7 +44,7 @@ class PublicCredentialsResourceSpec extends ResourcePropSpec {
   property("PUT uses existing uuid if device exists") {
     forAll { (oemId: DeviceOemId, mdevT: DeviceT, creds: Array[Byte]) =>
       val devT = mdevT.copy(oemId = oemId)
-      val uuid: DeviceUUID = createDeviceOk(devT)
+      val uuid: DeviceId = createDeviceOk(devT)
       uuid shouldBe updatePublicCredentialsOk(oemId, creds)
 
       // updatePublicCredentials didn't change the device
@@ -72,7 +72,7 @@ class PublicCredentialsResourceSpec extends ResourcePropSpec {
       val devT: DeviceT = mdevT.copy(oemId = oemId, credentials = Some(creds), credentialsType = Some(cType))
       val uuid = createDeviceWithCredentials(devT) ~> route ~> check {
         status shouldBe OK
-        responseAs[DeviceUUID]
+        responseAs[DeviceId]
       }
 
       fetchPublicCredentials(uuid) ~> route ~> check {

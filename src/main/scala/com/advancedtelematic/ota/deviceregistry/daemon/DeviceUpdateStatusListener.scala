@@ -64,13 +64,13 @@ object DeviceUpdateStatusListener {
     val f = for {
       device <- DeviceRepository.findByUuid(msg.device)
       status = currentDeviceStatus(device.lastSeen, Seq((Instant.now(), msg.status)))
-      _ <- DeviceRepository.setDeviceStatus(device.uuid, status)
+      _ <- DeviceRepository.setDeviceStatus(device.id, status)
     } yield (device, status)
 
     db.run(f).flatMap {
       case (device, status) =>
         messageBus
-          .publish(DeviceUpdateStatus(device.namespace, device.uuid, status, Instant.now()))
+          .publish(DeviceUpdateStatus(device.namespace, device.id, status, Instant.now()))
     }
   }
 

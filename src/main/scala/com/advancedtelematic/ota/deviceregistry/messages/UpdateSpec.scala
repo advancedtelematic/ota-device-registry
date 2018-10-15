@@ -13,7 +13,6 @@ import java.util.UUID
 
 import com.advancedtelematic.libats.data.DataType.Namespace
 import com.advancedtelematic.libats.messaging_datatype.MessageLike
-import com.advancedtelematic.ota.deviceregistry.data.Uuid
 import com.advancedtelematic.ota.deviceregistry.messages.UpdateStatus.UpdateStatus
 import com.advancedtelematic.libats.messaging_datatype.DataType.{DeviceId => DeviceUUID}
 

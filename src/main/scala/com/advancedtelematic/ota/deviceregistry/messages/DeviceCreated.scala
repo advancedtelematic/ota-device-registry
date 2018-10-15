@@ -12,7 +12,6 @@ import java.time.Instant
 
 import com.advancedtelematic.libats.data.DataType.Namespace
 import com.advancedtelematic.libats.messaging_datatype.MessageLike
-import com.advancedtelematic.ota.deviceregistry.data.Uuid
 import com.advancedtelematic.ota.deviceregistry.data.Device.{DeviceOemId, DeviceName, DeviceType}
 import com.advancedtelematic.libats.messaging_datatype.DataType.{DeviceId => DeviceUUID}
 
