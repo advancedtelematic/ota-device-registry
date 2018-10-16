@@ -102,7 +102,7 @@ class DevicesResource(
       .andThen {
         case scala.util.Success(uuid) =>
           messageBus.publish(
-            DeviceCreated(ns, uuid, device.deviceName, device.deviceId, device.deviceType, Instant.now())
+            DeviceCreated(ns, uuid, device.name, device.oemId, device.deviceType, Instant.now())
           )
       }
 
@@ -122,7 +122,7 @@ class DevicesResource(
     complete(db.run(DeviceRepository.findByUuid(uuid)))
 
   def updateDevice(ns: Namespace, uuid: DeviceUUID, device: DeviceT): Route =
-    complete(db.run(DeviceRepository.updateDeviceName(ns, uuid, device.deviceName)))
+    complete(db.run(DeviceRepository.updateDeviceName(ns, uuid, device.name)))
 
   def countDynamicGroupCandidates(ns: Namespace, expression: GroupExpression): Route =
     complete(db.run(DeviceRepository.countDevicesForExpression(ns, expression)))

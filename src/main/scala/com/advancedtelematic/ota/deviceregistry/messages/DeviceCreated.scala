@@ -12,14 +12,13 @@ import java.time.Instant
 
 import com.advancedtelematic.libats.data.DataType.Namespace
 import com.advancedtelematic.libats.messaging_datatype.MessageLike
-import com.advancedtelematic.ota.deviceregistry.data.Uuid
 import com.advancedtelematic.ota.deviceregistry.data.Device.{DeviceOemId, DeviceName, DeviceType}
 import com.advancedtelematic.libats.messaging_datatype.DataType.{DeviceId => DeviceUUID}
 
 final case class DeviceCreated(namespace: Namespace,
                                uuid: DeviceUUID,
                                deviceName: DeviceName,
-                               deviceId: Option[DeviceOemId],
+                               deviceId: DeviceOemId,
                                deviceType: DeviceType,
                                timestamp: Instant = Instant.now())
 

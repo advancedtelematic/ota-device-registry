@@ -46,23 +46,15 @@ trait PublicCredentialsRequests { self: ResourceSpec =>
   def createDeviceWithCredentials(devT: DeviceT)(implicit ec: ExecutionContext): HttpRequest =
     Put(Resource.uri(credentialsApi), devT)
 
-  def updatePublicCredentials(device: DeviceOemId, creds: Array[Byte], cType: Option[CredentialsType])(
-      implicit ec: ExecutionContext
-  ): HttpRequest = {
-    val devT = DeviceT(
-      Refined.unsafeApply(device.underlying),
-      None,
-      Some(device),
-      credentials = Some(base64Encoder.encodeToString(creds)),
-      credentialsType = cType)
+  def updatePublicCredentials(oemId: DeviceOemId, creds: Array[Byte], cType: Option[CredentialsType])
+                             (implicit ec: ExecutionContext): HttpRequest = {
+    val devT = DeviceT(oemId, Refined.unsafeApply(oemId.underlying),
+      credentials = Some(base64Encoder.encodeToString(creds)), credentialsType = cType)
     createDeviceWithCredentials(devT)
   }
 
-  def updatePublicCredentialsOk(
-                                 device: DeviceOemId,
-                                 creds: Array[Byte],
-                                 cType: Option[CredentialsType] = None
-  )(implicit ec: ExecutionContext): DeviceUUID =
+  def updatePublicCredentialsOk(device: DeviceOemId, creds: Array[Byte], cType: Option[CredentialsType] = None)
+                               (implicit ec: ExecutionContext): DeviceUUID =
     updatePublicCredentials(device, creds, cType) ~> route ~> check {
       val uuid = responseAs[DeviceUUID]
       status shouldBe OK

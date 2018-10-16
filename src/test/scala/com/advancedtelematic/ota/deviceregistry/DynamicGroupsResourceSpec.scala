@@ -37,7 +37,7 @@ class DynamicGroupsResourceSpec extends FunSuite with ResourceSpec {
     val group      = genStaticGroup.sample.get
     val deviceT    = genDeviceT.sample.get
     val deviceUuid = createDeviceOk(deviceT)
-    val groupId    = createDynamicGroupOk(group.groupName, deviceT.deviceId.get.toValidExp)
+    val groupId    = createDynamicGroupOk(group.groupName, deviceT.oemId.toValidExp)
 
     listDevicesInGroup(groupId) ~> route ~> check {
       status shouldBe OK
@@ -74,7 +74,7 @@ class DynamicGroupsResourceSpec extends FunSuite with ResourceSpec {
     val group      = genStaticGroup.sample.get
     val deviceT    = genDeviceT.sample.get
     val deviceUuid = createDeviceOk(deviceT)
-    val groupId    = createDynamicGroupOk(group.groupName, deviceT.deviceId.get.toValidExp)
+    val groupId    = createDynamicGroupOk(group.groupName, deviceT.oemId.toValidExp)
 
     addDeviceToGroup(groupId, deviceUuid) ~> route ~> check {
       status shouldBe BadRequest
@@ -85,7 +85,7 @@ class DynamicGroupsResourceSpec extends FunSuite with ResourceSpec {
     val group   = genStaticGroup.sample.get
     val deviceT = genDeviceT.sample.get
     val _       = createDeviceOk(deviceT)
-    val groupId = createDynamicGroupOk(group.groupName, deviceT.deviceId.get.toValidExp)
+    val groupId = createDynamicGroupOk(group.groupName, deviceT.oemId.toValidExp)
 
     countDevicesInGroup(groupId) ~> route ~> check {
       status shouldBe OK
@@ -97,7 +97,7 @@ class DynamicGroupsResourceSpec extends FunSuite with ResourceSpec {
     val group      = genStaticGroup.sample.get
     val deviceT    = genDeviceT.sample.get
     val deviceUuid = createDeviceOk(deviceT)
-    val groupId    = createDynamicGroupOk(group.groupName, deviceT.deviceId.get.toValidExp)
+    val groupId    = createDynamicGroupOk(group.groupName, deviceT.oemId.toValidExp)
 
     removeDeviceFromGroup(groupId, deviceUuid) ~> route ~> check {
       status shouldBe BadRequest
@@ -108,7 +108,7 @@ class DynamicGroupsResourceSpec extends FunSuite with ResourceSpec {
     val group      = genStaticGroup.sample.get
     val deviceT    = genDeviceT.sample.get
     val deviceUuid = createDeviceOk(deviceT)
-    val groupId    = createDynamicGroupOk(group.groupName, deviceT.deviceId.get.toValidExp)
+    val groupId    = createDynamicGroupOk(group.groupName, deviceT.oemId.toValidExp)
     listDevicesInGroup(groupId) ~> route ~> check {
       status shouldBe OK
       responseAs[PaginationResult[DeviceUUID]].values should contain(deviceUuid)
@@ -126,8 +126,8 @@ class DynamicGroupsResourceSpec extends FunSuite with ResourceSpec {
     val groupName1 = genGroupName().sample.get
     val groupName2 = genGroupName().sample.get
 
-    val deviceT = genDeviceT.sample.get.copy(deviceName = Refined.unsafeApply("12347890800808"))
-    val deviceId   = deviceT.deviceId.get
+    val deviceT = genDeviceT.sample.get.copy(name = Refined.unsafeApply("12347890800808"))
+    val deviceId   = deviceT.oemId
     val deviceUuid = createDeviceOk(deviceT)
 
     val expression1: GroupExpression = Refined.unsafeApply(s"deviceid contains ${deviceId.show.substring(0, 5)}") // To test "starts with"
@@ -148,8 +148,8 @@ class DynamicGroupsResourceSpec extends FunSuite with ResourceSpec {
     val groupName1 = genGroupName().sample.get
     val groupName2 = genGroupName().sample.get
 
-    val deviceT = genDeviceT.sample.get.copy(deviceName = Refined.unsafeApply("ABCDEFGHIJ"))
-    val deviceId   = deviceT.deviceId.get
+    val deviceT = genDeviceT.sample.get.copy(name = Refined.unsafeApply("ABCDEFGHIJ"))
+    val deviceId   = deviceT.oemId
     val deviceUuid = createDeviceOk(deviceT)
 
     val expression1: GroupExpression = Refined.unsafeApply(s"deviceid contains ${deviceId.show.substring(0, 3)} and deviceid contains ${deviceId.show.substring(6, 9)}")
@@ -166,8 +166,8 @@ class DynamicGroupsResourceSpec extends FunSuite with ResourceSpec {
   }
 
   test("getting the groups of a device returns the correct groups (dynamic and static)") {
-    val deviceT = genDeviceT.sample.get.copy(deviceName = Refined.unsafeApply("ABCDE"))
-    val deviceId   = deviceT.deviceId.get
+    val deviceT = genDeviceT.sample.get.copy(name = Refined.unsafeApply("ABCDE"))
+    val deviceId   = deviceT.oemId
     val deviceUuid = createDeviceOk(deviceT)
 
     // Add the device to a static group
