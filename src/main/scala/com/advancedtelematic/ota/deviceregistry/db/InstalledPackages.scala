@@ -185,7 +185,6 @@ object InstalledPackages {
       .filter(_._2.namespace === ns)
       .groupBy(_._1.version)
       .map { case (version, installedPkg) => (version, installedPkg.length) }
-      .drop(0) //workaround for slick issue: https://github.com/slick/slick/issues/1355
 
     val pagedquery = query.paginate(offset, limit)
     val pkgResult = pagedquery.result.map(_.map {
