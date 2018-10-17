@@ -14,11 +14,11 @@ import akka.http.scaladsl.model.Uri.{Path, Query}
 import akka.http.scaladsl.model.{HttpRequest, StatusCodes, Uri}
 import akka.http.scaladsl.server.Route
 import cats.syntax.show._
-import com.advancedtelematic.libats.messaging_datatype.DataType.{DeviceId => DeviceUUID}
+import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
 import com.advancedtelematic.ota.deviceregistry.data.Codecs._
 import com.advancedtelematic.ota.deviceregistry.data.DataType.{CorrelationId, DeviceT}
 import com.advancedtelematic.ota.deviceregistry.data.Group.{GroupExpression, GroupId}
-import com.advancedtelematic.ota.deviceregistry.data.{Device, PackageId}
+import com.advancedtelematic.ota.deviceregistry.data.PackageId
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
 import io.circe.Json
 
@@ -45,7 +45,7 @@ trait DeviceRequests { self: ResourceSpec =>
 
   val api = "devices"
 
-  def fetchDevice(uuid: DeviceUUID): HttpRequest =
+  def fetchDevice(uuid: DeviceId): HttpRequest =
     Get(Resource.uri(api, uuid.show))
 
   def listDevices(): HttpRequest =
@@ -58,7 +58,7 @@ trait DeviceRequests { self: ResourceSpec =>
         .withQuery(Query("regex" -> regex, "offset" -> offset.toString, "limit" -> limit.toString))
     )
 
-  def fetchByDeviceId(deviceId: Device.DeviceOemId, regex: Option[String] = None): HttpRequest = {
+  def fetchByDeviceId(deviceId: DeviceOemId, regex: Option[String] = None): HttpRequest = {
     val m = Map("deviceId" -> deviceId.show)
     val params = regex.fold(m)(r => m + ("regex" -> r))
     Get(Resource.uri(api).withQuery(Query(params)))
@@ -82,10 +82,10 @@ trait DeviceRequests { self: ResourceSpec =>
         )
     )
 
-  def updateDevice(uuid: DeviceUUID, device: DeviceT)(implicit ec: ExecutionContext): HttpRequest =
+  def updateDevice(uuid: DeviceId, device: DeviceT)(implicit ec: ExecutionContext): HttpRequest =
     Put(Resource.uri(api, uuid.show), device)
 
-  def updateDeviceOk(uuid: DeviceUUID, device: DeviceT)(implicit ec: ExecutionContext): Unit =
+  def updateDeviceOk(uuid: DeviceId, device: DeviceT)(implicit ec: ExecutionContext): Unit =
     updateDevice(uuid, device) ~> route ~> check {
       status shouldBe OK
     }
@@ -93,41 +93,41 @@ trait DeviceRequests { self: ResourceSpec =>
   def createDevice(device: DeviceT)(implicit ec: ExecutionContext): HttpRequest =
     Post(Resource.uri(api), device)
 
-  def createDeviceOk(device: DeviceT)(implicit ec: ExecutionContext): DeviceUUID =
+  def createDeviceOk(device: DeviceT)(implicit ec: ExecutionContext): DeviceId =
     createDevice(device) ~> route ~> check {
       status shouldBe Created
-      responseAs[DeviceUUID]
+      responseAs[DeviceId]
   }
 
-  def deleteDevice(uuid: DeviceUUID)(implicit ec: ExecutionContext): HttpRequest =
+  def deleteDevice(uuid: DeviceId)(implicit ec: ExecutionContext): HttpRequest =
     Delete(Resource.uri(api, uuid.show))
 
-  def fetchSystemInfo(uuid: DeviceUUID): HttpRequest =
+  def fetchSystemInfo(uuid: DeviceId): HttpRequest =
     Get(Resource.uri(api, uuid.show, "system_info"))
 
-  def createSystemInfo(uuid: DeviceUUID, json: Json)(implicit ec: ExecutionContext): HttpRequest =
+  def createSystemInfo(uuid: DeviceId, json: Json)(implicit ec: ExecutionContext): HttpRequest =
     Post(Resource.uri(api, uuid.show, "system_info"), json)
 
-  def updateSystemInfo(uuid: DeviceUUID, json: Json)(implicit ec: ExecutionContext): HttpRequest =
+  def updateSystemInfo(uuid: DeviceId, json: Json)(implicit ec: ExecutionContext): HttpRequest =
     Put(Resource.uri(api, uuid.show, "system_info"), json)
 
-  def fetchNetworkInfo(uuid: DeviceUUID)(implicit ec: ExecutionContext): HttpRequest = {
+  def fetchNetworkInfo(uuid: DeviceId)(implicit ec: ExecutionContext): HttpRequest = {
     val uri = Resource.uri(api, uuid.show, "system_info", "network")
     Get(uri)
   }
 
-  def listGroupsForDevice(device: DeviceUUID)(implicit ec: ExecutionContext): HttpRequest =
+  def listGroupsForDevice(device: DeviceId)(implicit ec: ExecutionContext): HttpRequest =
     Get(Resource.uri(api, device.show, "groups"))
 
-  def installSoftware(device: DeviceUUID, packages: Set[PackageId]): HttpRequest =
+  def installSoftware(device: DeviceId, packages: Set[PackageId]): HttpRequest =
     Put(Resource.uri("mydevice", device.show, "packages"), packages)
 
-  def installSoftwareOk(device: DeviceUUID, packages: Set[PackageId])(implicit route: Route): Unit =
+  def installSoftwareOk(device: DeviceId, packages: Set[PackageId])(implicit route: Route): Unit =
     installSoftware(device, packages) ~> route ~> check {
       status shouldBe StatusCodes.NoContent
     }
 
-  def listPackages(device: DeviceUUID, regex: Option[String] = None)(implicit ec: ExecutionContext): HttpRequest =
+  def listPackages(device: DeviceId, regex: Option[String] = None)(implicit ec: ExecutionContext): HttpRequest =
     regex match {
       case Some(r) =>
         Get(Resource.uri("devices", device.show, "packages").withQuery(Query("regex" -> r)))
@@ -155,16 +155,16 @@ trait DeviceRequests { self: ResourceSpec =>
   def getPackageStats(name: PackageId.Name): HttpRequest =
     Get(Resource.uri("device_packages", name))
 
-  def recordEvents(deviceUuid: DeviceUUID, events: Json): HttpRequest =
+  def recordEvents(deviceUuid: DeviceId, events: Json): HttpRequest =
     Post(Resource.uri(api, deviceUuid.show, "events"), events)
 
   def countDevicesForExpression(expression: Option[GroupExpression]): HttpRequest =
     Get(Resource.uri(api, "count").withQuery(Query(expression.map("expression" -> _.value).toMap)))
 
-  def getEvents(deviceUuid: DeviceUUID, correlationId: Option[CorrelationId] = None): HttpRequest = {
+  def getEvents(deviceUuid: DeviceId, correlationId: Option[CorrelationId] = None): HttpRequest = {
     val query = Query(correlationId.map("correlationId" -> _.id).toMap)
     Get(Resource.uri(api, deviceUuid.show, "events").withQuery(query))
   }
 
-  def getGroupsOfDevice(deviceUuid: DeviceUUID): HttpRequest = Get(Resource.uri(api, deviceUuid.show, "groups"))
+  def getGroupsOfDevice(deviceUuid: DeviceId): HttpRequest = Get(Resource.uri(api, deviceUuid.show, "groups"))
 }

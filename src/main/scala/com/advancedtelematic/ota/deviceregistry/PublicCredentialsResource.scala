@@ -25,14 +25,14 @@ import com.advancedtelematic.ota.deviceregistry.data.CredentialsType.Credentials
 import com.advancedtelematic.ota.deviceregistry.db.{DeviceRepository, PublicCredentialsRepository}
 import com.advancedtelematic.ota.deviceregistry.messages.{DeviceCreated, DevicePublicCredentialsSet}
 import slick.jdbc.MySQLProfile.api._
-import com.advancedtelematic.libats.messaging_datatype.DataType.{DeviceId => DeviceUUID}
+import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
 import com.advancedtelematic.ota.deviceregistry.data.Codecs._
 import com.advancedtelematic.ota.deviceregistry.data.DataType.DeviceT
 
 import scala.concurrent.{ExecutionContext, Future}
 
 object PublicCredentialsResource {
-  final case class FetchPublicCredentials(uuid: DeviceUUID, credentialsType: CredentialsType, credentials: String)
+  final case class FetchPublicCredentials(uuid: DeviceId, credentialsType: CredentialsType, credentials: String)
   implicit val fetchPublicCredentialsEncoder =
     io.circe.generic.semiauto.deriveEncoder[FetchPublicCredentials]
 }
@@ -40,24 +40,24 @@ object PublicCredentialsResource {
 class PublicCredentialsResource(
     authNamespace: Directive1[AuthedNamespaceScope],
     messageBus: MessageBusPublisher,
-    deviceNamespaceAuthorizer: Directive1[DeviceUUID]
+    deviceNamespaceAuthorizer: Directive1[DeviceId]
 )(implicit db: Database, mat: ActorMaterializer, ec: ExecutionContext) {
   import PublicCredentialsResource._
   import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
   lazy val base64Decoder = Base64.getDecoder()
   lazy val base64Encoder = Base64.getEncoder()
 
-  def fetchPublicCredentials(uuid: DeviceUUID): Route =
+  def fetchPublicCredentials(uuid: DeviceId): Route =
     complete(db.run(PublicCredentialsRepository.findByUuid(uuid)).map { creds =>
       FetchPublicCredentials(uuid, creds.typeCredentials, new String(creds.credentials))
     })
 
   def createDeviceWithPublicCredentials(ns: Namespace, devT: DeviceT): Route = {
-    val act = (devT.oemId, devT.credentials) match {
-      case (devId, Some(credentials)) => {
+    val act = devT.credentials match {
+      case Some(credentials) => {
         val cType = devT.credentialsType.getOrElse(CredentialsType.PEM)
         val dbact = for {
-          (created, uuid) <- DeviceRepository.findUuidFromUniqueDeviceIdOrCreate(ns, devId, devT)
+          (created, uuid) <- DeviceRepository.findUuidFromUniqueDeviceIdOrCreate(ns, devT.deviceId, devT)
           _               <- PublicCredentialsRepository.update(uuid, cType, credentials.getBytes)
         } yield (created, uuid)
 
@@ -65,7 +65,7 @@ class PublicCredentialsResource(
           (created, uuid) <- db.run(dbact.transactionally)
           _ <- if (created) {
             messageBus.publish(
-              DeviceCreated(ns, uuid, devT.name, devT.oemId, devT.deviceType, Instant.now())
+              DeviceCreated(ns, uuid, devT.deviceName, devT.deviceId, devT.deviceType, Instant.now())
             )
           } else { Future.successful(()) }
           _ <- messageBus.publish(
@@ -73,7 +73,7 @@ class PublicCredentialsResource(
           )
         } yield uuid
       }
-      case (_, None) => FastFuture.failed(Errors.RequestNeedsCredentials)
+      case None => FastFuture.failed(Errors.RequestNeedsCredentials)
     }
     complete(act)
   }

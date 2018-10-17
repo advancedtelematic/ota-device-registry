@@ -10,13 +10,12 @@ package com.advancedtelematic.ota.deviceregistry
 
 import java.time.temporal.ChronoUnit
 import java.time.{Instant, OffsetDateTime}
-import java.util.UUID
 
+import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
 import akka.http.scaladsl.model.StatusCodes._
 import com.advancedtelematic.libats.data.{ErrorRepresentation, PaginationResult}
 import com.advancedtelematic.libats.http.monitoring.MetricsSupport
 import com.advancedtelematic.libats.messaging.MessageBusPublisher
-import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
 import com.advancedtelematic.libats.messaging_datatype.Messages.DeviceSeen
 import com.advancedtelematic.ota.deviceregistry.common.{Errors, PackageStat}
 import com.advancedtelematic.ota.deviceregistry.daemon.{DeleteDeviceHandler, DeviceSeenListener}
@@ -27,7 +26,7 @@ import com.advancedtelematic.ota.deviceregistry.db.InstalledPackages.{DevicesCou
 import com.advancedtelematic.ota.deviceregistry.db.{DeviceRepository, InstalledPackages}
 import eu.timepit.refined.api.Refined
 import io.circe.generic.auto._
-import io.circe.{Json, KeyDecoder}
+import io.circe.Json
 import org.scalacheck.Arbitrary._
 import org.scalacheck.{Gen, Shrink}
 import org.scalatest.concurrent.{Eventually, ScalaFutures}
@@ -74,7 +73,7 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
       fetchDevice(uuid) ~> route ~> check {
         status shouldBe OK
         val devicePost: Device = responseAs[Device]
-        devicePost.oemId shouldBe devicePre.oemId
+        devicePost.deviceId shouldBe devicePre.deviceId
         devicePost.deviceType shouldBe devicePre.deviceType
         devicePost.lastSeen shouldBe None
       }
@@ -82,9 +81,9 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
   }
 
   property("GET request with ?deviceId after creating yields same device.") {
-    forAll { (oemId: DeviceOemId, devicePre: DeviceT) =>
-      val uuid = createDeviceOk(devicePre.copy(oemId = oemId))
-      fetchByDeviceId(oemId) ~> route ~> check {
+    forAll { (deviceId: DeviceOemId, devicePre: DeviceT) =>
+      val uuid = createDeviceOk(devicePre.copy(deviceId = deviceId))
+      fetchByDeviceId(deviceId) ~> route ~> check {
         status shouldBe OK
         val devicePost1: Device = responseAs[Seq[Device]].head
         fetchDevice(uuid) ~> route ~> check {
@@ -107,11 +106,11 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
           fetchDevice(uuid) ~> route ~> check {
             status shouldBe OK
             val devicePost: Device = responseAs[Device]
-            devicePost.id shouldBe uuid
-            devicePost.oemId shouldBe d1.oemId
+            devicePost.uuid shouldBe uuid
+            devicePost.deviceId shouldBe d1.deviceId
             devicePost.deviceType shouldBe d1.deviceType
             devicePost.lastSeen shouldBe None
-            devicePost.name shouldBe d2.name
+            devicePost.deviceName shouldBe d2.deviceName
           }
         }
     }
@@ -123,8 +122,8 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
       fetchDevice(uuid) ~> route ~> check {
         status shouldBe OK
         val devicePost: Device = responseAs[Device]
-        devicePost.id shouldBe uuid
-        devicePost.oemId shouldBe devicePre.oemId
+        devicePost.uuid shouldBe uuid
+        devicePost.deviceId shouldBe devicePre.deviceId
         devicePost.deviceType shouldBe devicePre.deviceType
       }
     }
@@ -150,9 +149,9 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
     forAll(genConflictFreeDeviceTs(2)) {
       case Seq(d1, d2) =>
         val name       = arbitrary[DeviceName].sample.get
-        createDeviceOk(d1.copy(name = name))
+        createDeviceOk(d1.copy(deviceName = name))
 
-        createDevice(d2.copy(name = name)) ~> route ~> check {
+        createDevice(d2.copy(deviceName = name)) ~> route ~> check {
           status shouldBe Conflict
         }
     }
@@ -162,7 +161,7 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
     forAll(genConflictFreeDeviceTs(2)) {
       case Seq(d1, d2) =>
         createDeviceOk(d1)
-        createDevice(d2.copy(oemId = d1.oemId)) ~> route ~> check {
+        createDevice(d2.copy(deviceId = d1.deviceId)) ~> route ~> check {
           status shouldBe Conflict
         }
     }
@@ -193,7 +192,7 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
   property("POST request on ping gets counted") {
     forAll { devicePre: DeviceT =>
       val start      = OffsetDateTime.now()
-      val uuid: DeviceId = createDeviceOk(devicePre)
+      val uuid = createDeviceOk(devicePre)
       val end        = start.plusHours(1)
 
       sendDeviceSeen(uuid)
@@ -214,7 +213,7 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
           fetchDevice(uuid) ~> route ~> check {
             status shouldBe OK
             val updatedDevice: Device = responseAs[Device]
-            updatedDevice.oemId shouldBe d1.oemId
+            updatedDevice.deviceId shouldBe d1.deviceId
             updatedDevice.deviceType shouldBe d1.deviceType
             updatedDevice.lastSeen shouldBe None
           }
@@ -244,9 +243,9 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
     forAll(genConflictFreeDeviceTs(2)) {
       case Seq(d1, d2) =>
         val uuid1 = createDeviceOk(d1)
-        val uuid2 = createDeviceOk(d2)
+        val _ = createDeviceOk(d2)
 
-        updateDevice(uuid1, d1.copy(name = d2.name)) ~> route ~> check {
+        updateDevice(uuid1, d1.copy(deviceName = d2.deviceName)) ~> route ~> check {
           status shouldBe Conflict
         }
     }
@@ -319,7 +318,7 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
   property("can list devices with custom pagination limit") {
     val limit                = 30
     val deviceTs             = genConflictFreeDeviceTs(deviceNumber).sample.get
-    val deviceIds: Seq[DeviceId] = deviceTs.map(createDeviceOk)
+    deviceTs.foreach(createDeviceOk)
 
     searchDevice("", limit = limit) ~> route ~> check {
       status shouldBe OK
@@ -332,7 +331,7 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
     val limit                = 30
     val offset               = 10
     val deviceTs             = genConflictFreeDeviceTs(deviceNumber).sample.get
-    val deviceIds: Seq[DeviceId] = deviceTs.map(createDeviceOk(_))
+    deviceTs.foreach(createDeviceOk(_))
 
     searchDevice("", offset = offset, limit = limit) ~> route ~> check {
       status shouldBe OK
@@ -340,7 +339,7 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
       devices.values.length shouldBe limit
       devices.values.zip(devices.values.tail).foreach {
         case (device1, device2) =>
-          device1.name.value.compareTo(device2.name.value) should be <= 0
+          device1.deviceName.value.compareTo(device2.deviceName.value) should be <= 0
       }
     }
   }
@@ -349,7 +348,7 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
     val deviceT = genDeviceT.sample.get
     createDeviceOk(deviceT)
 
-    fetchByDeviceId(deviceT.oemId, Some("")) ~> route ~> check {
+    fetchByDeviceId(deviceT.deviceId, Some("")) ~> route ~> check {
       status shouldBe BadRequest
     }
   }
@@ -372,7 +371,7 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
       status shouldBe OK
       val devices = responseAs[PaginationResult[Device]]
       devices.total shouldBe deviceNumber
-      devices.values.map(_.id).toSet shouldBe deviceIds.toSet
+      devices.values.map(_.uuid).toSet shouldBe deviceIds.toSet
     }
 
     // test that the limit works
@@ -386,7 +385,7 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
   property("can list ungrouped devices") {
     val deviceNumber         = 50
     val deviceTs             = genConflictFreeDeviceTs(deviceNumber).sample.get
-    val deviceIds: Seq[DeviceId] = deviceTs.map(createDeviceOk)
+    val deviceIds = deviceTs.map(createDeviceOk)
 
     val beforeGrouping = fetchUngrouped(offset = 0, limit = deviceNumber) ~> route ~> check {
       status shouldBe OK
@@ -415,7 +414,7 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
     val offset = 10
 
     val deviceTs             = genConflictFreeDeviceTs(deviceNumber).generate
-    val deviceIds: Seq[DeviceId] = deviceTs.map(createDeviceOk)
+    val deviceIds = deviceTs.map(createDeviceOk)
 
     // the database is case-insensitve so when we need to take that in to account when sorting in scala
     // furthermore PackageId is not lexicographically ordered so we just use pairs
@@ -519,7 +518,7 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
         fetchByGroupId(groupId, offset = 0, limit = 10) ~> route ~> check {
           status shouldBe OK
           val devices = responseAs[PaginationResult[Device]]
-          devices.values.find(_.id == uuid) shouldBe None
+          devices.values.find(_.uuid == uuid) shouldBe None
         }
       }
 
@@ -555,7 +554,7 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
         fetchByGroupId(groupIds(i), offset = 0, limit = deviceNumber) ~> route ~> check {
           status shouldBe OK
           val devices = responseAs[PaginationResult[Device]]
-          devices.values.find(_.id == uuid) shouldBe None
+          devices.values.find(_.uuid == uuid) shouldBe None
         }
       }
     }

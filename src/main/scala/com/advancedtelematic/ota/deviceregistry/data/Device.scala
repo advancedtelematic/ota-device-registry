@@ -15,29 +15,25 @@ import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
 import cats.Show
 import cats.syntax.show._
 import com.advancedtelematic.libats.data.DataType.Namespace
-import com.advancedtelematic.ota.deviceregistry.data.DataType.DeviceT
 import com.advancedtelematic.ota.deviceregistry.data.Device.{DeviceName, DeviceOemId, DeviceType}
 import com.advancedtelematic.ota.deviceregistry.data.DeviceStatus._
 import eu.timepit.refined.api.{Refined, Validate}
 import io.circe.{Decoder, Encoder}
 
 final case class Device(namespace: Namespace,
-                        id: DeviceId,
-                        oemId: DeviceOemId,
-                        name: DeviceName,
+                        uuid: DeviceId,
+                        deviceName: DeviceName,
+                        deviceId: DeviceOemId,
                         deviceType: DeviceType = DeviceType.Other,
                         lastSeen: Option[Instant] = None,
                         createdAt: Instant,
                         activatedAt: Option[Instant] = None,
-                        deviceStatus: DeviceStatus = NotSeen) {
-
-  def toResponse: DeviceT = DeviceT(oemId, name, deviceType)
-}
+                        deviceStatus: DeviceStatus = NotSeen)
 
 object Device {
 
   final case class DeviceOemId(underlying: String) extends AnyVal
-  implicit val showDeviceOemId: Show[DeviceOemId] = deviceOemId => deviceOemId.underlying
+  implicit val showDeviceOemId: Show[DeviceOemId] = deviceId => deviceId.underlying
 
   case class ValidDeviceName()
   type DeviceName = Refined[String, ValidDeviceName]
@@ -71,8 +67,8 @@ object Device {
 
   implicit val showDevice: Show[Device] = Show.show[Device] {
     case d if d.deviceType == DeviceType.Vehicle =>
-      s"Vehicle: uuid=${d.id.show}, VIN=${d.oemId}, lastSeen=${d.lastSeen}"
-    case d => s"Device: uuid=${d.id.show}, lastSeen=${d.lastSeen}"
+      s"Vehicle: uuid=${d.uuid.show}, VIN=${d.deviceId}, lastSeen=${d.lastSeen}"
+    case d => s"Device: uuid=${d.uuid.show}, lastSeen=${d.lastSeen}"
   }
 
   implicit val EncoderInstance = {
@@ -87,7 +83,7 @@ object Device {
   implicit val DeviceIdOrdering: Ordering[DeviceOemId] = (id1, id2) => id1.underlying compare id2.underlying
 
   implicit def DeviceOrdering(implicit ord: Ordering[UUID]): Ordering[Device] =
-    (d1, d2) => ord.compare(d1.id.uuid, d2.id.uuid)
+    (d1, d2) => ord.compare(d1.uuid.uuid, d2.uuid.uuid)
 
   implicit val showOffsetDateTable: Show[OffsetDateTime] = odt => odt.toString
 

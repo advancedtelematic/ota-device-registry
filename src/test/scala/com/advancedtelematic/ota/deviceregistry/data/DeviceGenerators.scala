@@ -12,7 +12,7 @@ import eu.timepit.refined.api.Refined
 import org.scalacheck.{Arbitrary, Gen}
 import java.time.Instant
 
-import com.advancedtelematic.libats.messaging_datatype.DataType.{DeviceId => DeviceUUID}
+import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
 import com.advancedtelematic.ota.deviceregistry.data
 import com.advancedtelematic.ota.deviceregistry.data.DataType.DeviceT
 
@@ -27,7 +27,7 @@ trait DeviceGenerators {
     name <- Gen.containerOfN[Seq, Char](size, Gen.alphaNumChar)
   } yield Refined.unsafeApply(name.mkString)
 
-  val genDeviceUUID: Gen[DeviceUUID] = Gen.delay(DeviceUUID.generate)
+  val genDeviceUUID: Gen[DeviceId] = Gen.delay(DeviceId.generate)
 
   val genDeviceId: Gen[DeviceOemId] = for {
     size <- Gen.choose(10, 100)
@@ -42,24 +42,24 @@ trait DeviceGenerators {
     millis <- Gen.chooseNum[Long](0, 10000000000000L)
   } yield Instant.ofEpochMilli(millis)
 
-  def genDeviceWith(deviceNameGen: Gen[DeviceName], oemIdGen: Gen[DeviceOemId]): Gen[Device] =
+  def genDeviceWith(deviceNameGen: Gen[DeviceName], deviceIdGen: Gen[DeviceOemId]): Gen[Device] =
     for {
       uuid       <- genDeviceUUID
-      oemId   <- oemIdGen
       name       <- deviceNameGen
+      deviceId   <- deviceIdGen
       deviceType <- genDeviceType
       lastSeen   <- Gen.option(genInstant)
       activated  <- Gen.option(genInstant)
-    } yield data.Device(Namespaces.defaultNs, uuid, oemId, name, deviceType, lastSeen, Instant.now(), activated)
+    } yield data.Device(Namespaces.defaultNs, uuid, name, deviceId, deviceType, lastSeen, Instant.now(), activated)
 
   val genDevice: Gen[Device] = genDeviceWith(genDeviceName, genDeviceId)
 
-  def genDeviceTWith(deviceNameGen: Gen[DeviceName], oemIdGen: Gen[DeviceOemId]): Gen[DeviceT] =
+  def genDeviceTWith(deviceNameGen: Gen[DeviceName], deviceIdGen: Gen[DeviceOemId]): Gen[DeviceT] =
     for {
-      oemId   <- oemIdGen
       name       <- deviceNameGen
+      deviceId   <- deviceIdGen
       deviceType <- genDeviceType
-    } yield DeviceT(oemId, name, deviceType)
+    } yield DeviceT(name, deviceId, deviceType)
 
   val genDeviceT: Gen[DeviceT] = genDeviceTWith(genDeviceName, genDeviceId)
 
@@ -78,7 +78,7 @@ trait DeviceGenerators {
     }
 
   implicit lazy val arbDeviceName: Arbitrary[DeviceName] = Arbitrary(genDeviceName)
-  implicit lazy val arbDeviceUUID: Arbitrary[DeviceUUID] = Arbitrary(genDeviceUUID)
+  implicit lazy val arbDeviceUUID: Arbitrary[DeviceId] = Arbitrary(genDeviceUUID)
   implicit lazy val arbDeviceId: Arbitrary[DeviceOemId]     = Arbitrary(genDeviceId)
   implicit lazy val arbDeviceType: Arbitrary[DeviceType] = Arbitrary(genDeviceType)
   implicit lazy val arbLastSeen: Arbitrary[Instant]      = Arbitrary(genInstant)
@@ -92,9 +92,9 @@ object DeviceGenerators extends DeviceGenerators
 object InvalidDeviceGenerators extends DeviceGenerators with DeviceIdGenerators {
   val genInvalidVehicle: Gen[Device] = for {
     // TODO: for now, just generate an invalid VIN with a valid namespace
-    oemId <- genInvalidDeviceId
+    deviceId <- genInvalidDeviceId
     d        <- genDevice
-  } yield d.copy(oemId = oemId, namespace = Namespaces.defaultNs)
+  } yield d.copy(deviceId = deviceId, namespace = Namespaces.defaultNs)
 
   def getInvalidVehicle: Device = genInvalidVehicle.sample.getOrElse(getInvalidVehicle)
 }

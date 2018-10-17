@@ -11,7 +11,7 @@ package com.advancedtelematic.ota.deviceregistry
 import com.advancedtelematic.ota.deviceregistry.db.SystemInfoRepository.removeIdNrs
 import io.circe.Json
 import org.scalacheck.Shrink
-import com.advancedtelematic.libats.messaging_datatype.DataType.{DeviceId => DeviceUUID}
+import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
 import com.advancedtelematic.ota.deviceregistry.data.DataType.DeviceT
 
 class SystemInfoResourceSpec extends ResourcePropSpec {
@@ -19,7 +19,7 @@ class SystemInfoResourceSpec extends ResourcePropSpec {
   import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
 
   property("GET /system_info request fails on non-existent device") {
-    forAll { (uuid: DeviceUUID, json: Json) =>
+    forAll { (uuid: DeviceId, json: Json) =>
       fetchSystemInfo(uuid) ~> route ~> check { status shouldBe NotFound }
       createSystemInfo(uuid, json) ~> route ~> check { status shouldBe NotFound }
       updateSystemInfo(uuid, json) ~> route ~> check { status shouldBe NotFound }
@@ -27,7 +27,7 @@ class SystemInfoResourceSpec extends ResourcePropSpec {
   }
 
   property("GET /system_info/network returns 404 NotFound on non-existent device") {
-    forAll { (uuid: DeviceUUID) =>
+    forAll { uuid: DeviceId =>
       fetchNetworkInfo(uuid) ~> route ~> check { status shouldBe NotFound }
     }
   }

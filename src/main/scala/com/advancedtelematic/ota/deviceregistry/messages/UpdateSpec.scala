@@ -14,7 +14,7 @@ import java.util.UUID
 import com.advancedtelematic.libats.data.DataType.Namespace
 import com.advancedtelematic.libats.messaging_datatype.MessageLike
 import com.advancedtelematic.ota.deviceregistry.messages.UpdateStatus.UpdateStatus
-import com.advancedtelematic.libats.messaging_datatype.DataType.{DeviceId => DeviceUUID}
+import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
 
 object UpdateStatus extends Enumeration {
   type UpdateStatus = Value
@@ -26,7 +26,7 @@ object UpdateStatus extends Enumeration {
 }
 
 final case class UpdateSpec(namespace: Namespace,
-                            device: DeviceUUID,
+                            device: DeviceId,
                             packageUuid: UUID,
                             status: UpdateStatus,
                             timestamp: Instant = Instant.now())

@@ -10,13 +10,13 @@ package com.advancedtelematic.ota.deviceregistry.messages
 
 import java.time.Instant
 
-import com.advancedtelematic.libats.messaging_datatype.DataType.{DeviceId => DeviceUUID}
+import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
 import com.advancedtelematic.libats.data.DataType.Namespace
 import com.advancedtelematic.libats.messaging_datatype.MessageLike
 import com.advancedtelematic.ota.deviceregistry.data.CredentialsType.CredentialsType
 
 final case class DevicePublicCredentialsSet(namespace: Namespace,
-                                            uuid: DeviceUUID,
+                                            uuid: DeviceId,
                                             credentialsType: CredentialsType,
                                             credentials: String,
                                             timestamp: Instant = Instant.now())

@@ -22,7 +22,7 @@ import com.advancedtelematic.libats.data.DataType.Namespace
 import com.advancedtelematic.libats.http.UUIDKeyAkka._
 import com.advancedtelematic.libats.messaging.MessageBusPublisher
 import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId._
-import com.advancedtelematic.libats.messaging_datatype.DataType.{Event, EventType, DeviceId => DeviceUUID}
+import com.advancedtelematic.libats.messaging_datatype.DataType.{Event, EventType, DeviceId}
 import com.advancedtelematic.libats.messaging_datatype.MessageCodecs._
 import com.advancedtelematic.libats.messaging_datatype.Messages.DeviceEventMessage
 import com.advancedtelematic.ota.deviceregistry.DevicesResource.EventPayload
@@ -43,7 +43,7 @@ import scala.concurrent.{ExecutionContext, Future}
 
 object DevicesResource {
 
-  type EventPayload = (DeviceUUID, Instant) => Event
+  type EventPayload = (DeviceId, Instant) => Event
 
   private[DevicesResource] implicit val EventPayloadDecoder: io.circe.Decoder[EventPayload] =
     io.circe.Decoder.instance { c =>
@@ -53,7 +53,7 @@ object DevicesResource {
         eventType  <- c.get[EventType]("eventType")
         payload    <- c.get[Json]("event")
       } yield
-        (deviceUuid: DeviceUUID, receivedAt: Instant) =>
+        (deviceUuid: DeviceId, receivedAt: Instant) =>
           Event(deviceUuid, id, eventType, deviceTime, receivedAt, payload)
     }
 }
@@ -61,7 +61,7 @@ object DevicesResource {
 class DevicesResource(
     namespaceExtractor: Directive1[AuthedNamespaceScope],
     messageBus: MessageBusPublisher,
-    deviceNamespaceAuthorizer: Directive1[DeviceUUID]
+    deviceNamespaceAuthorizer: Directive1[DeviceId]
 )(implicit system: ActorSystem, db: Database, mat: ActorMaterializer, ec: ExecutionContext) {
 
   import Directives._
@@ -102,7 +102,7 @@ class DevicesResource(
       .andThen {
         case scala.util.Success(uuid) =>
           messageBus.publish(
-            DeviceCreated(ns, uuid, device.name, device.oemId, device.deviceType, Instant.now())
+            DeviceCreated(ns, uuid, device.deviceName, device.deviceId, device.deviceType, Instant.now())
           )
       }
 
@@ -113,26 +113,26 @@ class DevicesResource(
     }
   }
 
-  def deleteDevice(ns: Namespace, uuid: DeviceUUID): Route = {
+  def deleteDevice(ns: Namespace, uuid: DeviceId): Route = {
     val f = messageBus.publish(DeleteDeviceRequest(ns, uuid, Instant.now()))
     onSuccess(f) { complete(StatusCodes.Accepted) }
   }
 
-  def fetchDevice(uuid: DeviceUUID): Route =
+  def fetchDevice(uuid: DeviceId): Route =
     complete(db.run(DeviceRepository.findByUuid(uuid)))
 
-  def updateDevice(ns: Namespace, uuid: DeviceUUID, device: DeviceT): Route =
-    complete(db.run(DeviceRepository.updateDeviceName(ns, uuid, device.name)))
+  def updateDevice(ns: Namespace, uuid: DeviceId, device: DeviceT): Route =
+    complete(db.run(DeviceRepository.updateDeviceName(ns, uuid, device.deviceName)))
 
   def countDynamicGroupCandidates(ns: Namespace, expression: GroupExpression): Route =
     complete(db.run(DeviceRepository.countDevicesForExpression(ns, expression)))
 
-  def getGroupsForDevice(ns: Namespace, uuid: DeviceUUID): Route =
+  def getGroupsForDevice(ns: Namespace, uuid: DeviceId): Route =
     parameters(('offset.as[Long].?, 'limit.as[Long].?)) { (offset, limit) =>
       complete(db.run(GroupMemberRepository.listGroupsForDevice(ns, uuid, offset, limit)))
     }
 
-  def updateInstalledSoftware(device: DeviceUUID): Route =
+  def updateInstalledSoftware(device: DeviceId): Route =
     entity(as[Seq[PackageId]]) { installedSoftware =>
       val f = db.run(InstalledPackages.setInstalled(device, installedSoftware.toSet))
       onSuccess(f) { complete(StatusCodes.NoContent) }
@@ -141,7 +141,7 @@ class DevicesResource(
   def getDevicesCount(pkg: PackageId, ns: Namespace): Route =
     complete(db.run(InstalledPackages.getDevicesCount(pkg, ns)))
 
-  def listPackagesOnDevice(device: DeviceUUID): Route =
+  def listPackagesOnDevice(device: DeviceId): Route =
     parameters(('regex.as[String Refined Regex].?, 'offset.as[Long].?, 'limit.as[Long].?)) { (regex, offset, limit) =>
       complete(db.run(InstalledPackages.installedOn(device, regex, offset, limit)))
     }
@@ -242,7 +242,7 @@ class DevicesResource(
   }
 
   def mydeviceRoutes: Route = namespaceExtractor { authedNs => // Don't use this as a namespace
-    pathPrefix("mydevice" / DeviceUUID.Path) { uuid =>
+    pathPrefix("mydevice" / DeviceId.Path) { uuid =>
       (get & pathEnd & authedNs.oauthScopeReadonly(s"ota-core.${uuid.show}.read")) {
         fetchDevice(uuid)
       } ~
