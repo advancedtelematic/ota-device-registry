@@ -9,19 +9,21 @@
 package com.advancedtelematic.ota.deviceregistry.db
 
 import java.time.Instant
-import com.advancedtelematic.libats.messaging_datatype.DataType.{Event, EventType, DeviceId}
-import com.advancedtelematic.libats.slick.db.SlickExtensions.javaInstantMapping
-import com.advancedtelematic.ota.deviceregistry.data.DataType.IndexedEventType.IndexedEventType
-import io.circe.Json
-import slick.jdbc.MySQLProfile.api._
-import com.advancedtelematic.ota.deviceregistry.data.DataType.{CorrelationId, IndexedEvent}
-import SlickMappings._
-import com.advancedtelematic.libats.slick.db.SlickUUIDKey._
-import org.slf4j.LoggerFactory
+
 import cats.syntax.show._
-import com.advancedtelematic.ota.deviceregistry.data.DataType._
-import com.advancedtelematic.libats.slick.db.SlickCirceMapper._
+import com.advancedtelematic.libats.messaging_datatype.DataType.{DeviceId, EcuSerial, Event, EventType}
+import com.advancedtelematic.libats.slick.codecs.SlickRefined._
 import com.advancedtelematic.libats.slick.db.SlickAnyVal._
+import com.advancedtelematic.libats.slick.db.SlickCirceMapper._
+import com.advancedtelematic.libats.slick.db.SlickExtensions.javaInstantMapping
+import com.advancedtelematic.libats.slick.db.SlickUUIDKey._
+import com.advancedtelematic.ota.deviceregistry.data.DataType.IndexedEventType.IndexedEventType
+import com.advancedtelematic.ota.deviceregistry.data.DataType.{CorrelationId, IndexedEvent, _}
+import com.advancedtelematic.ota.deviceregistry.db.SlickMappings._
+import com.advancedtelematic.libats.slick.db.SlickExtensions._
+import io.circe.Json
+import org.slf4j.LoggerFactory
+import slick.jdbc.MySQLProfile.api._
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -29,11 +31,11 @@ object EventJournal {
   class EventJournalTable(tag: Tag) extends Table[Event](tag, "EventJournal") {
     def deviceUuid       = column[DeviceId]("device_uuid")
     def eventId          = column[String]("event_id")
-    def deviceTime       = column[Instant]("device_time")
     def eventTypeId      = column[String]("event_type_id")
     def eventTypeVersion = column[Int]("event_type_version")
-    def event            = column[Json]("event")
+    def deviceTime       = column[Instant]("device_time")
     def receivedAt       = column[Instant]("received_at")
+    def event            = column[Json]("event")
 
     def pk = primaryKey("events_pk", (deviceUuid, eventId))
 
@@ -60,10 +62,12 @@ object EventJournal {
     def eventId = column[String]("event_id")
     def eventType = column[IndexedEventType]("event_type")
     def correlationId = column[Option[CorrelationId]]("correlation_id")
+    def ecuSerial = column[Option[EcuSerial]]("ecu_serial")
+    def resultCode = column[Option[Int]]("result_code")
 
     def pk = primaryKey("indexed_event_pk", (deviceUuid, eventId))
 
-    def * = (deviceUuid, eventId, eventType, correlationId).shaped <> ((IndexedEvent.apply _).tupled, IndexedEvent.unapply)
+    def * = (deviceUuid, eventId, eventType, correlationId, ecuSerial, resultCode).shaped <> ((IndexedEvent.apply _).tupled, IndexedEvent.unapply)
   }
 
   protected [db] val indexedEvents = TableQuery[IndexedEventTable]
@@ -91,20 +95,23 @@ class EventJournal()(implicit db: Database, ec: ExecutionContext) {
     db.run(io).map(_ => ())
   }
 
-  def getEvents(deviceUuid: DeviceId, correlationId: Option[CorrelationId]): Future[Seq[Event]] =
-    if(correlationId.isDefined)
-      db.run(findEventsByCorrelationId(deviceUuid, correlationId.get))
-    else
-      db.run(events.filter(_.deviceUuid === deviceUuid).result)
+  private def indexedEventsQuery(deviceUuid: Option[DeviceId], correlationId: Option[CorrelationId], ecuSerial: Option[EcuSerial], resultCode: Option[Int]) =
+    indexedEvents
+      .maybeFilter(_.deviceUuid === deviceUuid)
+      .filter(r => r.correlationId === correlationId.bind || r.ecuSerial === ecuSerial.bind || r.resultCode === resultCode.bind)
+      .maybeFilter(_.correlationId === correlationId)
+      .maybeFilter(_.ecuSerial === ecuSerial)
+      .maybeFilter(_.resultCode === resultCode)
+      .join(events)
+      .on{ case (ie, ej) => ie.deviceUuid === ej.deviceUuid && ie.eventId === ej.eventId }
+      .map(_._2)
 
-
-  protected [db] def findEventsByCorrelationId(deviceUuid: DeviceId, correlationId: CorrelationId): DBIO[Seq[Event]] = {
-    EventJournal.events
-      .filter(_.deviceUuid === deviceUuid)
-      .join(EventJournal.indexedEvents)
-      .on { case (ej, ie) => ej.deviceUuid === ie.deviceUuid && ej.eventId === ie.eventId }
-      .map(_._1)
-      .result
+  def getEvents(deviceUuid: Option[DeviceId], correlationId: Option[CorrelationId], ecuSerial: Option[EcuSerial], resultCode: Option[Int]): Future[Seq[Event]] = {
+    val useIndex = Seq(correlationId, ecuSerial, resultCode).exists(_.isDefined)
+    val query =
+      if (useIndex) indexedEventsQuery(deviceUuid, correlationId, ecuSerial, resultCode)
+      else events.maybeFilter(_.deviceUuid === deviceUuid)
+    db.run(query.result)
   }
 }
 

@@ -8,78 +8,23 @@
 
 package com.advancedtelematic.ota.deviceregistry
 
-import org.scalatest.time.SpanSugar._
-import java.time.Instant
-import java.time.temporal.ChronoUnit
-import java.util.UUID
-
-import cats.syntax.option._
-import akka.http.scaladsl.model.StatusCodes
+import akka.http.scaladsl.model.StatusCodes._
 import com.advancedtelematic.libats.http.monitoring.MetricsSupport
-import com.advancedtelematic.libats.messaging_datatype.DataType.EventType
 import com.advancedtelematic.ota.deviceregistry.daemon.DeviceEventListener
-import com.advancedtelematic.ota.deviceregistry.EventJournalSpec.EventPayload
-import io.circe.{Decoder, Json}
+import com.advancedtelematic.ota.deviceregistry.data.DataType.DeviceT
+import com.advancedtelematic.ota.deviceregistry.data.DataType.EventField._
+import com.advancedtelematic.ota.deviceregistry.data.DataType.IndexedEventType._
+import com.advancedtelematic.ota.deviceregistry.data.EventGenerators
+import com.advancedtelematic.ota.deviceregistry.data.EventGenerators.EventPayload
 import io.circe.testing.ArbitraryInstances
-import org.scalacheck.{Arbitrary, Gen, Shrink}
+import org.scalacheck.Shrink
 import org.scalatest.concurrent.{Eventually, ScalaFutures}
-import com.advancedtelematic.libats.messaging_datatype.MessageCodecs._
-import com.advancedtelematic.libats.codecs.CirceCodecs._
-import com.advancedtelematic.ota.deviceregistry.data.DataType.{CorrelationId, DeviceT}
-import io.circe.generic.semiauto._
+import org.scalatest.time.SpanSugar._
 
-object EventJournalSpec {
-  private[EventJournalSpec] final case class EventPayload(id: UUID,
-                                                          deviceTime: Instant,
-                                                          eventType: EventType,
-                                                          event: Json)
-
-  private[EventJournalSpec] implicit val EventPayloadEncoder = deriveEncoder[EventPayload]
-
-  private[EventJournalSpec] implicit val EventPayloadFromResponse: Decoder[EventPayload] =
-    Decoder.instance { c =>
-      for {
-        id         <- c.get[String]("eventId").map(UUID.fromString)
-        deviceTime <- c.get[Instant]("deviceTime")
-        eventType  <- c.get[EventType]("eventType")
-        payload    <- c.get[Json]("payload")
-      } yield EventPayload(id, deviceTime, eventType, payload)
-    }
-}
-
-class EventJournalSpec extends ResourcePropSpec with ScalaFutures with Eventually with ArbitraryInstances {
+class EventJournalSpec extends ResourcePropSpec with ScalaFutures with Eventually with ArbitraryInstances with EventGenerators {
   import com.advancedtelematic.ota.deviceregistry.data.GeneratorOps._
-  import io.circe.syntax._
   import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
-  import EventJournalSpec.EventPayloadEncoder
-
-  private[this] val InstantGen: Gen[Instant] = Gen
-    .chooseNum(0, 2 * 365 * 24 * 60)
-    .map(x => Instant.now.minus(x, ChronoUnit.MINUTES).truncatedTo(ChronoUnit.SECONDS))
-
-  private[this] val EventTypeGen: Gen[EventType] =
-    for {
-      id  <- Gen.oneOf("DownloadComplete", "InstallationComplete")
-      ver <- Gen.chooseNum(1, 10)
-    } yield EventType(id, ver)
-
-  implicit val EventGen = for {
-    id        <- Gen.uuid
-    timestamp <- InstantGen
-    eventType <- EventTypeGen
-    json      <- arbitraryJsonObject.arbitrary
-  } yield EventPayload(id, timestamp, eventType, json.asJson)
-
-  implicit val EventsGen: Gen[List[EventPayload]] =
-    Gen.chooseNum(1, 10).flatMap(Gen.listOfN(_, EventGen))
-
-  val installCompleteEventGen: Gen[(EventPayload, CorrelationId)] = for {
-    event <- EventGen
-    correlationId <- Gen.uuid.map(uuid => CorrelationId(s"ota:update:uuid:$uuid"))
-    json = Json.obj("correlationId" -> correlationId.asJson)
-  } yield event.copy(event = json, eventType = EventType("InstallationComplete", 0)) -> correlationId
-
-  implicit val ArbitraryEvents = Arbitrary(EventsGen)
+  import io.circe.syntax._
 
   new DeviceEventListener(system.settings.config, db, MetricsSupport.metricRegistry).start()
 
@@ -90,38 +35,120 @@ class EventJournalSpec extends ResourcePropSpec with ScalaFutures with Eventuall
       val deviceUuid = createDeviceOk(device)
 
       recordEvents(deviceUuid, events.asJson) ~> route ~> check {
-        status shouldBe StatusCodes.NoContent
+        status shouldBe NoContent
       }
 
       eventually(timeout(5.seconds), interval(100.millis)) {
         getEvents(deviceUuid) ~> route ~> check {
-          status should equal(StatusCodes.OK)
-          val messages = responseAs[List[EventPayload]]
-
-          messages.length should equal(events.length)
-          messages should contain theSameElementsAs events
+          status shouldBe OK
+          responseAs[List[EventPayload]] should contain allElementsOf events
         }
       }
     }
   }
 
-  property("indexes an event by type") {
+  property("indexes and fetches an event by correlationId for any device") {
     val deviceUuid = createDeviceOk(genDeviceT.generate)
-    val (event0, correlationId0) = installCompleteEventGen.generate
-    val event1 = EventGen.retryUntil(_.eventType.id != "InstallationComplete").generate
+    val eventPayloads = Seq(InstallationComplete, InstallationReport, EcuInstallationReport).map(genEventPayload).map(_.generate)
 
-    recordEvents(deviceUuid, List(event0, event1).asJson) ~> route ~> check {
-      status shouldBe StatusCodes.NoContent
+    recordEvents(deviceUuid, eventPayloads.map(_._1).asJson) ~> route ~> check {
+      status shouldBe NoContent
+    }
+
+    eventPayloads.foreach {
+      case (event, m) =>
+        eventually(timeout(3.seconds), interval(100.millis)) {
+          getEvents(CORRELATION_ID -> m(CORRELATION_ID)) ~> route ~> check {
+            status shouldBe OK
+            responseAs[List[EventPayload]].map(_.id) should contain only event.id
+          }
+        }
+    }
+  }
+
+  property("indexes and fetches an event by resultCode for any device") {
+    val deviceUuid = createDeviceOk(genDeviceT.generate)
+    val eventPayloads = Seq(InstallationReport, EcuInstallationReport).map(genEventPayload).map(_.generate)
+
+    recordEvents(deviceUuid, eventPayloads.map(_._1).asJson) ~> route ~> check {
+      status shouldBe NoContent
+    }
+
+    eventPayloads.foreach {
+      case (event, m) =>
+        eventually(timeout(3.seconds), interval(100.millis)) {
+          getEvents(RESULT_CODE -> m(RESULT_CODE)) ~> route ~> check {
+            status shouldBe OK
+            responseAs[List[EventPayload]].map(_.id) should contain only event.id
+          }
+        }
+    }
+  }
+
+  property("indexes and fetches an event by correlationId for a given device") {
+    val deviceUuid = createDeviceOk(genDeviceT.generate)
+    val eventPayloads = Seq(InstallationComplete, InstallationReport, EcuInstallationReport).map(genEventPayload).map(_.generate)
+
+    recordEvents(deviceUuid, eventPayloads.map(_._1).asJson) ~> route ~> check {
+      status shouldBe NoContent
+    }
+
+    eventPayloads.foreach { case (event, m) =>
+        eventually(timeout(3.seconds), interval(100.millis)) {
+          getEvents(deviceUuid, CORRELATION_ID -> m(CORRELATION_ID)) ~> route ~> check {
+            status shouldBe OK
+            responseAs[List[EventPayload]].map(_.id) should contain only event.id
+          }
+        }
+    }
+  }
+
+  property("indexes and fetches an event by ecuSerial for any device") {
+    val deviceUuid = createDeviceOk(genDeviceT.generate)
+    val (event, m) = genEventPayload(EcuInstallationReport).generate
+
+    recordEvents(deviceUuid, Seq(event).asJson) ~> route ~> check {
+      status shouldBe NoContent
     }
 
     eventually(timeout(3.seconds), interval(100.millis)) {
-      getEvents(deviceUuid, correlationId0.some) ~> route ~> check {
-        status should equal(StatusCodes.OK)
+      getEvents(ECU_SERIAL -> m(ECU_SERIAL)) ~> route ~> check {
+        status shouldBe OK
+        responseAs[List[EventPayload]].map(_.id) should contain only event.id
+      }
+    }
+  }
 
-        val events = responseAs[List[EventPayload]].map(_.id)
+  property("indexes and fetches an event by resultCode for a given device") {
+    val deviceUuid = createDeviceOk(genDeviceT.generate)
+    val eventPayloads = Seq(InstallationReport, EcuInstallationReport).map(genEventPayload).map(_.generate)
 
-        events should contain(event0.id)
-        events shouldNot contain(event1.id)
+    recordEvents(deviceUuid, eventPayloads.map(_._1).asJson) ~> route ~> check {
+      status shouldBe NoContent
+    }
+
+    eventPayloads.foreach { case (event, m) =>
+      eventually(timeout(3.seconds), interval(100.millis)) {
+        getEvents(deviceUuid, RESULT_CODE -> m(RESULT_CODE)) ~> route ~> check {
+          status shouldBe OK
+          responseAs[List[EventPayload]].map(_.id) should contain only event.id
+        }
+      }
+    }
+  }
+
+  property("indexes and fetches an event by ecuSerial for a given device") {
+    val deviceUuid = createDeviceOk(genDeviceT.generate)
+    val (event, m) = genEventPayload(EcuInstallationReport).generate
+
+    recordEvents(deviceUuid, Seq(event).asJson) ~> route ~> check {
+      status shouldBe NoContent
+    }
+
+    eventually(timeout(3.seconds), interval(100.millis)) {
+      getEvents(deviceUuid, ECU_SERIAL -> m(ECU_SERIAL)) ~> route ~> check {
+        status shouldBe OK
+        responseAs[List[EventPayload]].map(_.id) should contain only event.id
       }
     }
   }

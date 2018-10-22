@@ -18,7 +18,7 @@ import com.advancedtelematic.libats.data.DataType.Namespace
 import com.advancedtelematic.libats.http.HttpOps.HttpRequestOps
 import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
 import com.advancedtelematic.ota.deviceregistry.data.Codecs._
-import com.advancedtelematic.ota.deviceregistry.data.DataType.{CorrelationId, DeviceT}
+import com.advancedtelematic.ota.deviceregistry.data.DataType.{DeviceT, EventField}
 import com.advancedtelematic.ota.deviceregistry.data.Group.{GroupExpression, GroupId}
 import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
 import com.advancedtelematic.ota.deviceregistry.data.PackageId
@@ -171,9 +171,14 @@ trait DeviceRequests { self: ResourceSpec =>
   def countDevicesForExpression(expression: Option[GroupExpression]): HttpRequest =
     Get(Resource.uri(api, "count").withQuery(Query(expression.map("expression" -> _.value).toMap)))
 
-  def getEvents(deviceUuid: DeviceId, correlationId: Option[CorrelationId] = None): HttpRequest = {
-    val query = Query(correlationId.map("correlationId" -> _.id).toMap)
-    Get(Resource.uri(api, deviceUuid.show, "events").withQuery(query))
+  def getEvents(params: (EventField.Value, String)*): HttpRequest = {
+    val q = Query(params.map { case (e, s) => e.toString -> s }.toMap)
+    Get(Resource.uri(api, "events").withQuery(q))
+  }
+
+  def getEvents(deviceUuid: DeviceId, params: (EventField.Value, String)*): HttpRequest = {
+    val q = Query(params.map { case (e, s) => e.toString -> s }.toMap)
+    Get(Resource.uri(api, deviceUuid.show, "events").withQuery(q))
   }
 
   def getGroupsOfDevice(deviceUuid: DeviceId): HttpRequest = Get(Resource.uri(api, deviceUuid.show, "groups"))

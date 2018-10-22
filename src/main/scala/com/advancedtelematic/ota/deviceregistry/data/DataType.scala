@@ -1,6 +1,6 @@
 package com.advancedtelematic.ota.deviceregistry.data
 import cats.Show
-import com.advancedtelematic.libats.messaging_datatype.DataType.{DeviceId, Event}
+import com.advancedtelematic.libats.messaging_datatype.DataType.{DeviceId, EcuSerial, Event}
 import com.advancedtelematic.ota.deviceregistry.data.CredentialsType.CredentialsType
 import com.advancedtelematic.ota.deviceregistry.data.DataType.IndexedEventType.IndexedEventType
 import com.advancedtelematic.ota.deviceregistry.data.Device.{DeviceName, DeviceOemId, DeviceType}
@@ -10,14 +10,22 @@ import eu.timepit.refined.api.Refined
 import eu.timepit.refined.string.Regex
 
 object DataType {
-  case class IndexedEvent(device: DeviceId, eventID: String, eventType: IndexedEventType, correlationId: Option[CorrelationId])
+  case class IndexedEvent(device: DeviceId, eventID: String, eventType: IndexedEventType, correlationId: Option[CorrelationId],
+                          ecuSerial: Option[EcuSerial], resultCode: Option[Int])
 
   case class CorrelationId(id: String) extends AnyVal
 
   object IndexedEventType extends Enumeration {
     type IndexedEventType = Value
 
-    val DownloadComplete, InstallationComplete = Value
+    val DownloadComplete, InstallationComplete, InstallationReport, EcuInstallationReport = Value
+  }
+
+  object EventField extends Enumeration {
+    type EventField
+    val CORRELATION_ID = Value("correlationId")
+    val ECU_SERIAL     = Value("ecu")
+    val RESULT_CODE    = Value("resultCode")
   }
 
   final case class DeviceT(deviceName: DeviceName,

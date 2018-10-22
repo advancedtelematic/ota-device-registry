@@ -22,7 +22,7 @@ import com.advancedtelematic.libats.data.DataType.Namespace
 import com.advancedtelematic.libats.http.UUIDKeyAkka._
 import com.advancedtelematic.libats.messaging.MessageBusPublisher
 import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId._
-import com.advancedtelematic.libats.messaging_datatype.DataType.{DeviceId, Event, EventType}
+import com.advancedtelematic.libats.messaging_datatype.DataType.{DeviceId, EcuSerial, Event, EventType}
 import com.advancedtelematic.libats.messaging_datatype.MessageCodecs._
 import com.advancedtelematic.libats.messaging_datatype.Messages.DeviceEventMessage
 import com.advancedtelematic.ota.deviceregistry.DevicesResource.EventPayload
@@ -180,6 +180,9 @@ class DevicesResource(
           case None      => complete(Errors.InvalidGroupExpression(""))
           case Some(exp) => countDynamicGroupCandidates(ns.namespace, exp)
         } ~
+        (path("events") & parameters(('correlationId.as[CorrelationId].?, 'ecu.as[EcuSerial].?, 'resultCode.as[Int].?))) {
+          (cid, ecu, rc) => complete(eventJournal.getEvents(None, cid, ecu, rc))
+        } ~
         pathEnd {
           searchDevice(ns.namespace)
         }
@@ -219,9 +222,8 @@ class DevicesResource(
               }
             }
           } ~
-          (get & parameter('correlationId.as[CorrelationId].?) & pathEnd) { correlationId =>
-            val events = eventJournal.getEvents(uuid, correlationId)
-            complete(events)
+          (get & parameters(('correlationId.as[CorrelationId].?, 'ecu.as[EcuSerial].?, 'resultCode.as[Int].?)) & pathEnd) {
+            (cid, ecu, rc) => complete(eventJournal.getEvents(Some(uuid), cid, ecu, rc))
           }
         }
       }
