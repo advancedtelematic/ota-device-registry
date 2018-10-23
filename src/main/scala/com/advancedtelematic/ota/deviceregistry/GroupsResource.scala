@@ -24,9 +24,9 @@ import io.circe.{Decoder, Encoder}
 import slick.jdbc.MySQLProfile.api._
 
 import scala.concurrent.{ExecutionContext, Future}
-import com.advancedtelematic.libats.messaging_datatype.DataType.{DeviceId => DeviceUUID}
+import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
 
-class GroupsResource(namespaceExtractor: Directive1[AuthedNamespaceScope], deviceNamespaceAuthorizer: Directive1[DeviceUUID])
+class GroupsResource(namespaceExtractor: Directive1[AuthedNamespaceScope], deviceNamespaceAuthorizer: Directive1[DeviceId])
                     (implicit ec: ExecutionContext, db: Database) extends Directives {
 
   import com.advancedtelematic.libats.http.RefinedMarshallingSupport._
@@ -71,10 +71,10 @@ class GroupsResource(namespaceExtractor: Directive1[AuthedNamespaceScope], devic
   def countDevices(groupId: GroupId): Route =
     complete(groupMembership.countDevices(groupId))
 
-  def addDeviceToGroup(groupId: GroupId, deviceUuid: DeviceUUID): Route =
+  def addDeviceToGroup(groupId: GroupId, deviceUuid: DeviceId): Route =
     complete(groupMembership.addGroupMember(groupId, deviceUuid))
 
-  def removeDeviceFromGroup(groupId: GroupId, deviceId: DeviceUUID): Route =
+  def removeDeviceFromGroup(groupId: GroupId, deviceId: DeviceId): Route =
     complete(groupMembership.removeGroupMember(groupId, deviceId))
 
   val route: Route =

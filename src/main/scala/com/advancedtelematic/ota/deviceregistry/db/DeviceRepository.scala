@@ -42,9 +42,9 @@ object DeviceRepository {
   // scalastyle:off
   class DeviceTable(tag: Tag) extends Table[Device](tag, "Device") {
     def namespace    = column[Namespace]("namespace")
-    def id         = column[DeviceId]("uuid")
-    def oemId     = column[DeviceOemId]("device_id")
-    def name   = column[DeviceName]("device_name")
+    def uuid         = column[DeviceId]("uuid")
+    def deviceName   = column[DeviceName]("device_name")
+    def deviceId     = column[DeviceOemId]("device_id")
     def deviceType   = column[DeviceType]("device_type")
     def lastSeen     = column[Option[Instant]]("last_seen")
     def createdAt    = column[Instant]("created_at")
@@ -52,9 +52,9 @@ object DeviceRepository {
     def deviceStatus = column[DeviceStatus]("device_status")
 
     def * =
-      (namespace, id, oemId, name, deviceType, lastSeen, createdAt, activatedAt, deviceStatus).shaped <> ((Device.apply _).tupled, Device.unapply)
+      (namespace, uuid, deviceName, deviceId, deviceType, lastSeen, createdAt, activatedAt, deviceStatus).shaped <> ((Device.apply _).tupled, Device.unapply)
 
-    def pk = primaryKey("uuid", id)
+    def pk = primaryKey("uuid", uuid)
   }
 
   // scalastyle:on
@@ -62,7 +62,13 @@ object DeviceRepository {
 
   def create(ns: Namespace, device: DeviceT)(implicit ec: ExecutionContext): DBIO[DeviceId] = {
     val uuid = DeviceId.generate
-    val dbDevice = Device(ns, uuid, device.oemId, device.name, device.deviceType, createdAt = Instant.now())
+
+    val dbDevice = Device(ns,
+      uuid,
+      device.deviceName,
+      device.deviceId,
+      device.deviceType,
+      createdAt = Instant.now())
 
     val dbIO = devices += dbDevice
     dbIO
@@ -79,21 +85,21 @@ object DeviceRepository {
       devs <- findByDeviceId(ns, deviceId)
       (created, uuid) <- devs match {
         case Seq()  => create(ns, devT).map((true, _))
-        case Seq(d) => DBIO.successful((false, d.id))
+        case Seq(d) => DBIO.successful((false, d.uuid))
         case _      => DBIO.failed(Errors.ConflictingDevice)
       }
     } yield (created, uuid)
 
-  def exists(ns: Namespace, id: DeviceId)(implicit ec: ExecutionContext): DBIO[Device] =
+  def exists(ns: Namespace, uuid: DeviceId)(implicit ec: ExecutionContext): DBIO[Device] =
     devices
-      .filter(d => d.namespace === ns && d.id === id)
+      .filter(d => d.namespace === ns && d.uuid === uuid)
       .result
       .headOption
       .flatMap(_.fold[DBIO[Device]](DBIO.failed(Errors.MissingDevice))(DBIO.successful))
 
   def findByDeviceId(ns: Namespace, deviceId: DeviceOemId)(implicit ec: ExecutionContext): DBIO[Seq[Device]] =
     devices
-      .filter(d => d.namespace === ns && d.oemId === deviceId)
+      .filter(d => d.namespace === ns && d.deviceId === deviceId)
       .result
 
   def searchByDeviceIdContains(ns: Namespace, expression: GroupExpression)(
@@ -105,7 +111,7 @@ object DeviceRepository {
     devices
       .filter(_.namespace === ns)
       .filter(filter)
-      .map(_.id)
+      .map(_.uuid)
       .result
   }
 
@@ -123,19 +129,19 @@ object DeviceRepository {
              limit: Option[Long])(implicit ec: ExecutionContext): DBIO[PaginationResult[Device]] = {
     val byNamespace = devices.filter(d => d.namespace === ns)
     val byOptionalRegex = regEx match {
-      case Some(re) => byNamespace.filter(d => regex(d.name, re))
+      case Some(re) => byNamespace.filter(d => regex(d.deviceName, re))
       case None     => byNamespace
     }
     val byOptionalGroupId = groupId match {
       case Some(gid) =>
         for {
           gm <- GroupMemberRepository.groupMembers if gm.groupId === gid
-          d  <- byOptionalRegex if gm.deviceUuid === d.id
+          d  <- byOptionalRegex if gm.deviceUuid === d.uuid
         } yield d
       case None => byOptionalRegex
     }
 
-    byOptionalGroupId.paginateAndSortResult(_.name,
+    byOptionalGroupId.paginateAndSortResult(_.deviceName,
                                             offset.getOrElse(0L),
                                             limit.getOrElse[Long](defaultLimit).min(maxLimit))
   }
@@ -148,65 +154,65 @@ object DeviceRepository {
   )(implicit ec: ExecutionContext): DBIO[PaginationResult[Device]] = {
     val byNamespace = devices.filter(_.namespace === ns)
     val byOptionalRegex = regEx match {
-      case Some(re) => byNamespace.filter(d => regex(d.name, re))
+      case Some(re) => byNamespace.filter(d => regex(d.deviceName, re))
       case None     => byNamespace
     }
     val grouped     = GroupMemberRepository.groupMembers.map(_.deviceUuid)
-    val byUngrouped = byOptionalRegex.filterNot(_.id in grouped)
+    val byUngrouped = byOptionalRegex.filterNot(_.uuid in grouped)
 
-    byUngrouped.paginateAndSortResult(_.name,
+    byUngrouped.paginateAndSortResult(_.deviceName,
                                       offset.getOrElse(0L),
                                       limit.getOrElse[Long](defaultLimit).min(maxLimit))
   }
 
-  def updateDeviceName(ns: Namespace, id: DeviceId, deviceName: DeviceName)(
+  def updateDeviceName(ns: Namespace, uuid: DeviceId, deviceName: DeviceName)(
       implicit ec: ExecutionContext
   ): DBIO[Unit] =
     devices
-      .filter(_.id === id)
-      .map(d => d.name)
+      .filter(_.uuid === uuid)
+      .map(r => r.deviceName)
       .update(deviceName)
       .handleIntegrityErrors(Errors.ConflictingDevice)
       .handleSingleUpdateError(Errors.MissingDevice)
 
-  def findByUuid(id: DeviceId)(implicit ec: ExecutionContext): DBIO[Device] =
+  def findByUuid(uuid: DeviceId)(implicit ec: ExecutionContext): DBIO[Device] =
     devices
-      .filter(_.id === id)
+      .filter(_.uuid === uuid)
       .result
       .headOption
       .flatMap(_.fold[DBIO[Device]](DBIO.failed(Errors.MissingDevice))(DBIO.successful))
 
-  def updateLastSeen(id: DeviceId, when: Instant)(implicit ec: ExecutionContext): DBIO[(Boolean, Namespace)] = {
+  def updateLastSeen(uuid: DeviceId, when: Instant)(implicit ec: ExecutionContext): DBIO[(Boolean, Namespace)] = {
     val sometime = Some(when)
 
     val dbIO = for {
       (ns, activatedAt) <- devices
-        .filter(_.id === id)
+        .filter(_.uuid === uuid)
         .map(x => (x.namespace, x.activatedAt))
         .result
         .failIfNotSingle(Errors.MissingDevice)
-      _ <- devices.filter(_.id === id).map(x => (x.lastSeen, x.activatedAt)).update((sometime, activatedAt.orElse(sometime)))
+      _ <- devices.filter(_.uuid === uuid).map(x => (x.lastSeen, x.activatedAt)).update((sometime, activatedAt.orElse(sometime)))
     } yield (activatedAt.isEmpty, ns)
 
     dbIO.transactionally
   }
 
-  def delete(ns: Namespace, id: DeviceId)(implicit ec: ExecutionContext): DBIO[Unit] = {
+  def delete(ns: Namespace, uuid: DeviceId)(implicit ec: ExecutionContext): DBIO[Unit] = {
     val dbIO = for {
-      _ <- exists(ns, id)
-      _ <- EventJournal.deleteEvents(id)
-      _ <- GroupMemberRepository.removeGroupMemberAll(id)
-      _ <- PublicCredentialsRepository.delete(id)
-      _ <- SystemInfoRepository.delete(id)
-      _ <- devices.filter(d => d.namespace === ns && d.id === id).delete
+      _ <- exists(ns, uuid)
+      _ <- EventJournal.deleteEvents(uuid)
+      _ <- GroupMemberRepository.removeGroupMemberAll(uuid)
+      _ <- PublicCredentialsRepository.delete(uuid)
+      _ <- SystemInfoRepository.delete(uuid)
+      _ <- devices.filter(d => d.namespace === ns && d.uuid === uuid).delete
     } yield ()
 
     dbIO.transactionally
   }
 
-  def deviceNamespace(id: DeviceId)(implicit ec: ExecutionContext): DBIO[Namespace] =
+  def deviceNamespace(uuid: DeviceId)(implicit ec: ExecutionContext): DBIO[Namespace] =
     devices
-      .filter(_.id === id)
+      .filter(_.uuid === uuid)
       .map(_.namespace)
       .result
       .failIfNotSingle(Errors.MissingDevice)
@@ -220,9 +226,9 @@ object DeviceRepository {
       .length
       .result
 
-  def setDeviceStatus(id: DeviceId, status: DeviceStatus)(implicit ec: ExecutionContext): DBIO[Unit] =
+  def setDeviceStatus(uuid: DeviceId, status: DeviceStatus)(implicit ec: ExecutionContext): DBIO[Unit] =
     devices
-      .filter(_.id === id)
+      .filter(_.uuid === uuid)
       .map(_.deviceStatus)
       .update(status)
       .handleSingleUpdateError(Errors.MissingDevice)

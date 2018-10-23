@@ -10,9 +10,9 @@ package com.advancedtelematic.ota.deviceregistry.messages
 
 import com.advancedtelematic.libats.data.DataType.Namespace
 import com.advancedtelematic.libats.messaging_datatype.MessageLike
-import com.advancedtelematic.libats.messaging_datatype.DataType.{DeviceId => DeviceUUID}
+import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
 
-final case class DeviceSystemInfoChanged(namespace: Namespace, uuid: DeviceUUID)
+final case class DeviceSystemInfoChanged(namespace: Namespace, uuid: DeviceId)
 
 object DeviceSystemInfoChanged {
   import cats.syntax.show._

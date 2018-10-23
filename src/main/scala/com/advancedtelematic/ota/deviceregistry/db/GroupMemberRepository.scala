@@ -97,7 +97,7 @@ object GroupMemberRepository {
       }
 
     dynamicGroupIds.flatMap { groups =>
-      DBIO.sequence(groups.map(group => GroupMemberRepository.addGroupMember(group.id, device.id)))
+      DBIO.sequence(groups.map(group => GroupMemberRepository.addGroupMember(group.id, device.uuid)))
     }.map(_ => ())
   }
 

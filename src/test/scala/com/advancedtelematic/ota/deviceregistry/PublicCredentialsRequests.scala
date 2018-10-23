@@ -16,7 +16,7 @@ import com.advancedtelematic.ota.deviceregistry.PublicCredentialsResource.FetchP
 import eu.timepit.refined.api.Refined
 
 import scala.concurrent.ExecutionContext
-import com.advancedtelematic.libats.messaging_datatype.DataType.{DeviceId => DeviceUUID}
+import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
 import com.advancedtelematic.ota.deviceregistry.data.Codecs._
 import com.advancedtelematic.ota.deviceregistry.data.DataType.DeviceT
 
@@ -30,12 +30,12 @@ trait PublicCredentialsRequests { self: ResourceSpec =>
   private lazy val base64Decoder = Base64.getDecoder()
   private lazy val base64Encoder = Base64.getEncoder()
 
-  def fetchPublicCredentials(device: DeviceUUID): HttpRequest = {
+  def fetchPublicCredentials(device: DeviceId): HttpRequest = {
     import cats.syntax.show._
     Get(Resource.uri(credentialsApi, device.show, "public_credentials"))
   }
 
-  def fetchPublicCredentialsOk(device: DeviceUUID): Array[Byte] =
+  def fetchPublicCredentialsOk(device: DeviceId): Array[Byte] =
     fetchPublicCredentials(device) ~> route ~> check {
       implicit val CredentialsDecoder = io.circe.generic.semiauto.deriveDecoder[FetchPublicCredentials]
       status shouldBe OK
@@ -46,17 +46,20 @@ trait PublicCredentialsRequests { self: ResourceSpec =>
   def createDeviceWithCredentials(devT: DeviceT)(implicit ec: ExecutionContext): HttpRequest =
     Put(Resource.uri(credentialsApi), devT)
 
-  def updatePublicCredentials(oemId: DeviceOemId, creds: Array[Byte], cType: Option[CredentialsType])
+  def updatePublicCredentials(device: DeviceOemId, creds: Array[Byte], cType: Option[CredentialsType])
                              (implicit ec: ExecutionContext): HttpRequest = {
-    val devT = DeviceT(oemId, Refined.unsafeApply(oemId.underlying),
-      credentials = Some(base64Encoder.encodeToString(creds)), credentialsType = cType)
+    val devT = DeviceT(
+      Refined.unsafeApply(device.underlying),
+      device,
+      credentials = Some(base64Encoder.encodeToString(creds)),
+      credentialsType = cType)
     createDeviceWithCredentials(devT)
   }
 
   def updatePublicCredentialsOk(device: DeviceOemId, creds: Array[Byte], cType: Option[CredentialsType] = None)
-                               (implicit ec: ExecutionContext): DeviceUUID =
+                               (implicit ec: ExecutionContext): DeviceId =
     updatePublicCredentials(device, creds, cType) ~> route ~> check {
-      val uuid = responseAs[DeviceUUID]
+      val uuid = responseAs[DeviceId]
       status shouldBe OK
       uuid
     }

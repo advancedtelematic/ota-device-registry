@@ -10,7 +10,7 @@ package com.advancedtelematic.ota.deviceregistry.daemon
 
 import java.time.Instant
 
-import com.advancedtelematic.libats.messaging_datatype.DataType.{DeviceId => DeviceUUID}
+import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
 import com.advancedtelematic.libats.data.DataType.Namespace
 import com.advancedtelematic.libats.messaging.MessageBusPublisher
 import com.advancedtelematic.libats.messaging_datatype.MessageLike
@@ -48,7 +48,7 @@ object DeviceUpdateStatusListener {
     }
 
   final case class DeviceUpdateStatus(namespace: Namespace,
-                                      device: DeviceUUID,
+                                      device: DeviceId,
                                       status: DeviceStatus,
                                       timestamp: Instant = Instant.now())
 
@@ -58,19 +58,18 @@ object DeviceUpdateStatusListener {
     implicit val MessageLikeInstance = MessageLike.derive[DeviceUpdateStatus](_.device.show)
   }
 
-  def action(
-      messageBus: MessageBusPublisher
-  )(implicit db: Database, system: ExecutionContext): UpdateSpec => Future[Unit] = { (msg: UpdateSpec) =>
+  def action(messageBus: MessageBusPublisher)
+            (implicit db: Database, system: ExecutionContext): UpdateSpec => Future[Unit] = { msg: UpdateSpec =>
     val f = for {
       device <- DeviceRepository.findByUuid(msg.device)
       status = currentDeviceStatus(device.lastSeen, Seq((Instant.now(), msg.status)))
-      _ <- DeviceRepository.setDeviceStatus(device.id, status)
+      _ <- DeviceRepository.setDeviceStatus(device.uuid, status)
     } yield (device, status)
 
     db.run(f).flatMap {
       case (device, status) =>
         messageBus
-          .publish(DeviceUpdateStatus(device.namespace, device.id, status, Instant.now()))
+          .publish(DeviceUpdateStatus(device.namespace, device.uuid, status, Instant.now()))
     }
   }
 

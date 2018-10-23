@@ -23,7 +23,7 @@ import com.advancedtelematic.ota.deviceregistry.data.{
 import com.advancedtelematic.ota.deviceregistry.db.DeviceRepository
 import org.scalatest.{BeforeAndAfterAll, Matchers, PropSpec, Suite}
 import org.scalatest.prop.PropertyChecks
-import com.advancedtelematic.libats.messaging_datatype.DataType.{DeviceId => DeviceUUID}
+import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
 import scala.concurrent.Future
 import scala.concurrent.duration._
 
@@ -51,7 +51,7 @@ trait ResourceSpec
 
   private val namespaceAuthorizer = AllowUUIDPath.deviceUUID(namespaceExtractor, deviceAllowed)
 
-  private def deviceAllowed(deviceId: DeviceUUID): Future[Namespace] =
+  private def deviceAllowed(deviceId: DeviceId): Future[Namespace] =
     db.run(DeviceRepository.deviceNamespace(deviceId))
 
   lazy val messageBus = MessageBus.publisher(system, system.settings.config)

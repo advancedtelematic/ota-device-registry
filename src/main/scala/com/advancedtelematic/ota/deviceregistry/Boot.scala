@@ -28,11 +28,10 @@ import com.advancedtelematic.ota.deviceregistry.daemon.{DeleteDeviceHandler, Dev
 import com.advancedtelematic.ota.deviceregistry.db.DeviceRepository
 import com.advancedtelematic.ota.deviceregistry.messages.UpdateSpec
 import slick.jdbc.MySQLProfile.api._
-import com.advancedtelematic.libats.messaging_datatype.DataType.{DeviceId => DeviceUUID}
+import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Try
-import UUIDKeyAkka._
 
 /**
   * Base API routing class.
@@ -40,7 +39,7 @@ import UUIDKeyAkka._
   */
 class DeviceRegistryRoutes(
     namespaceExtractor: Directive1[AuthedNamespaceScope],
-    deviceNamespaceAuthorizer: Directive1[DeviceUUID],
+    deviceNamespaceAuthorizer: Directive1[DeviceId],
     messageBus: MessageBusPublisher
 )(implicit db: Database, system: ActorSystem, mat: ActorMaterializer, exec: ExecutionContext)
     extends Directives {
@@ -78,7 +77,7 @@ object Boot
 
   private val namespaceAuthorizer = AllowUUIDPath.deviceUUID(authNamespace, deviceAllowed)
 
-  private def deviceAllowed(deviceId: DeviceUUID): Future[Namespace] =
+  private def deviceAllowed(deviceId: DeviceId): Future[Namespace] =
     db.run(DeviceRepository.deviceNamespace(deviceId))
 
   lazy val messageBus = MessageBus.publisher(system, config)

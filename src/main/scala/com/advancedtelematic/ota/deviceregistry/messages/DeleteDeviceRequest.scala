@@ -12,10 +12,9 @@ import java.time.Instant
 
 import com.advancedtelematic.libats.data.DataType.Namespace
 import com.advancedtelematic.libats.messaging_datatype.MessageLike
-import com.advancedtelematic.ota.deviceregistry.data.Device.{DeviceOemId, DeviceName, DeviceType}
-import com.advancedtelematic.libats.messaging_datatype.DataType.{DeviceId => DeviceUUID}
+import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
 
-final case class DeleteDeviceRequest(namespace: Namespace, uuid: DeviceUUID, timestamp: Instant = Instant.now())
+final case class DeleteDeviceRequest(namespace: Namespace, uuid: DeviceId, timestamp: Instant = Instant.now())
 
 object DeleteDeviceRequest {
   import cats.syntax.show._

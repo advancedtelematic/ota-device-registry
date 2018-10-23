@@ -10,7 +10,7 @@ package com.advancedtelematic.ota.deviceregistry.db
 
 import java.time.Instant
 
-import com.advancedtelematic.libats.messaging_datatype.DataType.{DeviceId => DeviceUUID}
+import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
 import com.advancedtelematic.libats.data.PaginationResult
 import com.advancedtelematic.libats.data.DataType.Namespace
 import com.advancedtelematic.libats.slick.codecs.SlickRefined._
@@ -32,9 +32,9 @@ object InstalledPackages {
 
   private[this] val defaultLimit = 50L
 
-  type InstalledPkgRow = (DeviceUUID, PackageId.Name, PackageId.Version, Instant)
+  type InstalledPkgRow = (DeviceId, PackageId.Name, PackageId.Version, Instant)
 
-  case class InstalledPackage(device: DeviceUUID, packageId: PackageId, lastModified: Instant)
+  case class InstalledPackage(device: DeviceId, packageId: PackageId, lastModified: Instant)
 
   object InstalledPackage {
     import com.advancedtelematic.libats.codecs.CirceCodecs._
@@ -57,7 +57,7 @@ object InstalledPackages {
     }
 
   class InstalledPackageTable(tag: Tag) extends Table[InstalledPackage](tag, "InstalledPackage") {
-    def device       = column[DeviceUUID]("device_uuid")
+    def device       = column[DeviceId]("device_uuid")
     def name         = column[PackageId.Name]("name")
     def version      = column[PackageId.Version]("version")
     def lastModified = column[Instant]("last_modified")
@@ -69,7 +69,7 @@ object InstalledPackages {
 
   private val installedPackages = TableQuery[InstalledPackageTable]
 
-  def setInstalled(device: DeviceUUID, packages: Set[PackageId])(implicit ec: ExecutionContext): DBIO[Unit] =
+  def setInstalled(device: DeviceId, packages: Set[PackageId])(implicit ec: ExecutionContext): DBIO[Unit] =
     DBIO
       .seq(
         installedPackages.filter(_.device === device).delete,
@@ -78,7 +78,7 @@ object InstalledPackages {
       .transactionally
 
   def installedOn(
-      device: DeviceUUID,
+      device: DeviceId,
       regexOpt: Option[String Refined Regex],
       offset: Option[Long],
       limit: Option[Long]
@@ -102,7 +102,7 @@ object InstalledPackages {
       devices <- installedPackages
         .filter(p => p.name === pkg.name && p.version === pkg.version)
         .join(DeviceRepository.devices)
-        .on(_.device === _.id)
+        .on(_.device === _.uuid)
         .filter(_._2.namespace === ns)
         .map(_._1.device)
         .distinct
@@ -113,7 +113,7 @@ object InstalledPackages {
         .join(GroupMemberRepository.groupMembers)
         .on(_.device === _.deviceUuid)
         .join(DeviceRepository.devices)
-        .on(_._2.deviceUuid === _.id)
+        .on(_._2.deviceUuid === _.uuid)
         .filter(_._2.namespace === ns)
         .map(_._1._2.groupId)
         .distinct
@@ -126,7 +126,7 @@ object InstalledPackages {
     DeviceRepository.devices
       .filter(_.namespace === ns)
       .join(installedPackages)
-      .on(_.id === _.device)
+      .on(_.uuid === _.device)
       .map(r => (r._2.name, r._2.version))
       .distinct
 
@@ -162,10 +162,10 @@ object InstalledPackages {
   def allInstalledPackagesById(
       namespace: Namespace,
       ids: Set[PackageId]
-  )(implicit db: Database, ec: ExecutionContext): DBIO[Seq[(DeviceUUID, PackageId)]] =
+  )(implicit db: Database, ec: ExecutionContext): DBIO[Seq[(DeviceId, PackageId)]] =
     inSetQuery(ids)
       .join(DeviceRepository.devices)
-      .on(_.device === _.id)
+      .on(_.device === _.uuid)
       .filter(_._2.namespace === namespace)
       .map(r => (r._1.device, LiftedPackageId(r._1.name, r._1.version)))
       .result
@@ -181,7 +181,7 @@ object InstalledPackages {
     val query = installedPackages
       .filter(_.name === name)
       .join(DeviceRepository.devices)
-      .on(_.device === _.id)
+      .on(_.device === _.uuid)
       .filter(_._2.namespace === ns)
       .groupBy(_._1.version)
       .map { case (version, installedPkg) => (version, installedPkg.length) }
