@@ -53,7 +53,7 @@ protected class StaticMembership(implicit db: Database, ec: ExecutionContext) ex
     db.run(GroupMemberRepository.removeGroupMember(group.id, deviceId))
 
   def create(groupId: GroupId, name: Name, namespace: Namespace): Future[GroupId] = db.run {
-    GroupInfoRepository.create(groupId, name, namespace, GroupType.static, None)
+    GroupInfoRepository.create(groupId, name, namespace, GroupType.static, expression = None)
   }
 }
 

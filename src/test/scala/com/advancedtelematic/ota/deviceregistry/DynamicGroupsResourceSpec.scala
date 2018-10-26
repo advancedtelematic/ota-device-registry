@@ -1,23 +1,23 @@
 package com.advancedtelematic.ota.deviceregistry
 
 import akka.http.scaladsl.model.StatusCodes._
+import cats.syntax.either._
 import cats.syntax.show._
 import com.advancedtelematic.libats.data.{ErrorCodes, ErrorRepresentation, PaginationResult}
-import com.advancedtelematic.ota.deviceregistry.data.Group.{GroupExpression, ValidExpression}
-import com.advancedtelematic.ota.deviceregistry.data.{Group, GroupType}
 import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
+import com.advancedtelematic.ota.deviceregistry.data.Device.DeviceOemId
+import com.advancedtelematic.ota.deviceregistry.data.Group.{GroupExpression, ValidExpression, _}
+import com.advancedtelematic.ota.deviceregistry.data.{Group, GroupType}
 import com.advancedtelematic.ota.deviceregistry.db.DeviceRepository
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
-import org.scalatest.FunSuite
-import org.scalatest.concurrent.ScalaFutures._
-import eu.timepit.refined.refineV
-import cats.syntax.either._
 import eu.timepit.refined.api.Refined
-import Group._
-import com.advancedtelematic.ota.deviceregistry.data.Device.DeviceOemId
+import eu.timepit.refined.refineV
 import io.circe.Decoder
+import org.scalatest.FunSuite
+import org.scalatest.concurrent.Eventually
+import org.scalatest.time.SpanSugar._
 
-class DynamicGroupsResourceSpec extends FunSuite with ResourceSpec {
+class DynamicGroupsResourceSpec extends FunSuite with ResourceSpec with Eventually {
 
   import com.advancedtelematic.libats.codecs.CirceCodecs._
   import io.circe.generic.semiauto.deriveDecoder
@@ -105,11 +105,13 @@ class DynamicGroupsResourceSpec extends FunSuite with ResourceSpec {
       responseAs[PaginationResult[DeviceId]].values should contain(deviceUuid)
     }
 
-    db.run(DeviceRepository.delete(defaultNs, deviceUuid)).futureValue
+    db.run(DeviceRepository.delete(defaultNs, deviceUuid))
 
-    listDevicesInGroup(groupId) ~> route ~> check {
-      status shouldBe OK
-      responseAs[PaginationResult[DeviceId]].values should be(empty)
+    eventually(timeout(5.seconds), interval(100.millis)) {
+      listDevicesInGroup(groupId) ~> route ~> check {
+        status shouldBe OK
+        responseAs[PaginationResult[DeviceId]].values should be(empty)
+      }
     }
   }
 
