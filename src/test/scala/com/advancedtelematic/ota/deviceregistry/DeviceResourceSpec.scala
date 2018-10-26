@@ -66,6 +66,19 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
     }
   }
 
+  private def createGroupedAndUngroupedDevices(): Map[String, Seq[DeviceId]] = {
+    val deviceTs = genConflictFreeDeviceTs(12).sample.get
+    val deviceIds    = deviceTs.map(createDeviceOk)
+    val staticGroup = createStaticGroupOk(genGroupName().sample.get)
+
+    deviceIds.take(4).foreach(addDeviceToGroupOk(staticGroup, _))
+    val expr = deviceTs.slice(4, 8).map(_.deviceId.underlying.take(4)).map(n => s"deviceid contains $n").reduce(_ + " or " + _)
+    createDynamicGroupOk(genGroupName().sample.get, Refined.unsafeApply(expr))
+
+    Map("all" -> deviceIds, "groupedStatic" -> deviceIds.take(4),
+      "groupedDynamic" -> deviceIds.slice(4, 8), "ungrouped" -> deviceIds.drop(8))
+  }
+
   property("GET request (for Id) after POST yields same device") {
     forAll { devicePre: DeviceT =>
       val uuid: DeviceId = createDeviceOk(devicePre)
@@ -348,8 +361,23 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
     val deviceT = genDeviceT.sample.get
     createDeviceOk(deviceT)
 
-    fetchByDeviceId(deviceT.deviceId, Some("")) ~> route ~> check {
+    fetchByDeviceId(deviceT.deviceId, Some(""), Some(genStaticGroup.sample.get.id)) ~> route ~> check {
       status shouldBe BadRequest
+      val e = responseAs[ErrorRepresentation]
+      e.code shouldBe Errors.Codes.InvalidParameterCombination
+      responseAs[ErrorRepresentation].description should include ("deviceId, regex")
+    }
+  }
+
+  property("searching a device by 'groupId' and 'deviceId' fails") {
+    val deviceT = genDeviceT.sample.get
+    createDeviceOk(deviceT)
+
+    fetchByDeviceId(deviceT.deviceId, None, Some(genStaticGroup.sample.get.id)) ~> route ~> check {
+      status shouldBe BadRequest
+      val e = responseAs[ErrorRepresentation]
+      e.code shouldBe Errors.Codes.InvalidParameterCombination
+      e.description should include ("deviceId, groupId")
     }
   }
 
@@ -627,6 +655,46 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
     countDevicesForExpression(None) ~> route ~> check {
       status shouldBe BadRequest
       responseAs[ErrorRepresentation].code shouldBe Errors.Codes.InvalidGroupExpression
+    }
+  }
+
+  property("finds all (and only) ungrouped devices") {
+    val m = createGroupedAndUngroupedDevices()
+
+    getDevicesByGrouping(grouped = false, None) ~> route ~> check {
+      status shouldBe OK
+      val result = responseAs[PaginationResult[Device]].values.map(_.uuid).filter(m("all").contains)
+      result should contain allElementsOf m("ungrouped")
+    }
+  }
+
+  property("finds all (and only) static group devices") {
+    val m = createGroupedAndUngroupedDevices()
+
+    getDevicesByGrouping(grouped = true, Some(GroupType.static)) ~> route ~> check {
+      status shouldBe OK
+      val result = responseAs[PaginationResult[Device]].values.map(_.uuid).filter(m("all").contains)
+      result should contain allElementsOf m("groupedStatic")
+    }
+  }
+
+  property("finds all (and only) dynamic group devices") {
+    val m = createGroupedAndUngroupedDevices()
+
+    getDevicesByGrouping(grouped = true, Some(GroupType.dynamic)) ~> route ~> check {
+      status shouldBe OK
+      val result = responseAs[PaginationResult[Device]].values.map(_.uuid).filter(m("all").contains)
+      result should contain allElementsOf m("groupedDynamic")
+    }
+  }
+
+  property("finds all group devices of any group type") {
+    val m = createGroupedAndUngroupedDevices()
+
+    getDevicesByGrouping(grouped = true, None) ~> route ~> check {
+      status shouldBe OK
+      val result = responseAs[PaginationResult[Device]].values.map(_.uuid).filter(m("all").contains)
+      result should contain allElementsOf m("groupedStatic") ++ m("groupedDynamic")
     }
   }
 

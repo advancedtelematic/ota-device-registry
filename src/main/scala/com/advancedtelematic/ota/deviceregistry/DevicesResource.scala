@@ -31,6 +31,7 @@ import com.advancedtelematic.ota.deviceregistry.data.Codecs._
 import com.advancedtelematic.ota.deviceregistry.data.DataType.{CorrelationId, DeviceT}
 import com.advancedtelematic.ota.deviceregistry.data.Device.{ActiveDeviceCount, DeviceOemId}
 import com.advancedtelematic.ota.deviceregistry.data.Group.{GroupExpression, GroupId}
+import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
 import com.advancedtelematic.ota.deviceregistry.data.PackageId
 import com.advancedtelematic.ota.deviceregistry.db.{DeviceRepository, EventJournal, GroupMemberRepository, InstalledPackages}
 import com.advancedtelematic.ota.deviceregistry.messages.{DeleteDeviceRequest, DeviceCreated}
@@ -78,22 +79,27 @@ class DevicesResource(
   implicit val groupIdUnmarshaller = GroupId.unmarshaller
 
   def searchDevice(ns: Namespace): Route =
-    parameters(
-      ('regex.as[String Refined Regex].?,
-       'deviceId.as[String].?, // TODO: Use refined
-       'groupId.as[GroupId].?,
-       'ungrouped ? false,
-       'offset.as[Long].?,
-       'limit.as[Long].?)
-    ) {
-      case (re, None, groupId, false, offset, limit) =>
-        complete(db.run(DeviceRepository.search(ns, re, groupId, offset, limit)))
-      case (re, None, None, true, offset, limit) =>
-        complete(db.run(DeviceRepository.searchUngrouped(ns, re, offset, limit)))
-      case (None, Some(deviceId), None, false, _, _) =>
-        complete(db.run(DeviceRepository.findByDeviceId(ns, DeviceOemId(deviceId))))
+    parameters((
+      'deviceId.as[DeviceOemId].?,
+      'grouped ? true,
+      'groupType.as[GroupType].?,
+      'groupId.as[GroupId].?,
+      'regex.as[String Refined Regex].?,
+      'offset.as[Long].?,
+      'limit.as[Long].?))
+    {
+      case (Some(oemId), _, _, None, None, _, _) =>
+        complete(db.run(DeviceRepository.findByDeviceId(ns, oemId)))
+      case (None, true, gt, None, None, o, l) =>
+        complete(db.run(DeviceRepository.searchGrouped(ns, gt, o, l)))
+      case (None, false, _, None, rx, o, l) =>
+        complete(db.run(DeviceRepository.searchUngrouped(ns, rx, o, l)))
+      case (None, _, _, gid, rx, o, l) =>
+        complete(db.run(DeviceRepository.search(ns, rx, gid, o, l)))
+      case (Some(_), _, _, Some(_), None, _, _) =>
+        complete(Errors.InvalidParameterCombination("deviceId", "groupId"))
       case _ =>
-        complete((BadRequest, "'regex' and 'deviceId' parameters cannot be used together!"))
+        complete(Errors.InvalidParameterCombination("deviceId", "regex"))
     }
 
   def createDevice(ns: Namespace, device: DeviceT): Route = {

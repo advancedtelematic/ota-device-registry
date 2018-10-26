@@ -18,6 +18,7 @@ import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
 import com.advancedtelematic.ota.deviceregistry.data.Codecs._
 import com.advancedtelematic.ota.deviceregistry.data.DataType.{CorrelationId, DeviceT}
 import com.advancedtelematic.ota.deviceregistry.data.Group.{GroupExpression, GroupId}
+import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
 import com.advancedtelematic.ota.deviceregistry.data.PackageId
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
 import io.circe.Json
@@ -58,10 +59,9 @@ trait DeviceRequests { self: ResourceSpec =>
         .withQuery(Query("regex" -> regex, "offset" -> offset.toString, "limit" -> limit.toString))
     )
 
-  def fetchByDeviceId(deviceId: DeviceOemId, regex: Option[String] = None): HttpRequest = {
-    val m = Map("deviceId" -> deviceId.show)
-    val params = regex.fold(m)(r => m + ("regex" -> r))
-    Get(Resource.uri(api).withQuery(Query(params)))
+  def fetchByDeviceId(deviceId: DeviceOemId, regex: Option[String] = None, groupId: Option[GroupId] = None): HttpRequest = {
+    val m = regex.map("regex" -> _).toMap ++ groupId.map("groupId" -> _.show).toMap + ("deviceId" -> deviceId.show)
+    Get(Resource.uri(api).withQuery(Query(m)))
   }
 
   def fetchByGroupId(groupId: GroupId, offset: Long = 0, limit: Long = 50): HttpRequest =
@@ -78,7 +78,7 @@ trait DeviceRequests { self: ResourceSpec =>
       Resource
         .uri(api)
         .withQuery(
-          Query("ungrouped" -> "true", "offset" -> offset.toString, "limit" -> limit.toString)
+          Query("grouped" -> "false", "offset" -> offset.toString, "limit" -> limit.toString)
         )
     )
 
@@ -167,4 +167,9 @@ trait DeviceRequests { self: ResourceSpec =>
   }
 
   def getGroupsOfDevice(deviceUuid: DeviceId): HttpRequest = Get(Resource.uri(api, deviceUuid.show, "groups"))
+
+  def getDevicesByGrouping(grouped: Boolean, groupType: Option[GroupType], limit: Long = 500): HttpRequest = {
+    val m = groupType.map("groupType" -> _).toMap + ("grouped" -> grouped) + ("limit" -> limit)
+    Get(Resource.uri(api).withQuery(Query(m.mapValues(_.toString))))
+  }
 }

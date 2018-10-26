@@ -144,10 +144,10 @@ object InstalledPackages {
       .paginateAndSortResult(identity, offset.getOrElse(0L), limit.getOrElse(defaultLimit))
     query.map { nameVersionResult =>
       PaginationResult(
+        nameVersionResult.values.map(nameVersion => PackageId(nameVersion._1, nameVersion._2)),
         nameVersionResult.total,
-        nameVersionResult.limit,
         nameVersionResult.offset,
-        nameVersionResult.values.map(nameVersion => PackageId(nameVersion._1, nameVersion._2))
+        nameVersionResult.limit
       )
     }
   }
@@ -192,8 +192,7 @@ object InstalledPackages {
     })
 
     query.length.result.zip(pkgResult).map {
-      case (total, values) =>
-        PaginationResult(total = total, limit = limit, offset = offset, values = values)
+      case (total, values) => PaginationResult(values, total, offset, limit)
     }
   }
 

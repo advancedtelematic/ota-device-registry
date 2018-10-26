@@ -10,6 +10,7 @@ package com.advancedtelematic.ota.deviceregistry.data
 
 import java.util.UUID
 
+import akka.http.scaladsl.unmarshalling.Unmarshaller
 import com.advancedtelematic.libats.data.DataType.Namespace
 import com.advancedtelematic.libats.data.UUIDKey.{UUIDKey, UUIDKeyObj}
 import com.advancedtelematic.ota.deviceregistry.data.Group.{GroupId, _}
@@ -33,6 +34,8 @@ object GroupType extends Enumeration {
 
   implicit val JsonEncoder = Encoder.enumEncoder(GroupType)
   implicit val JsonDecoder = Decoder.enumDecoder(GroupType)
+
+  implicit val groupTypeUnmarshaller: Unmarshaller[String, GroupType] = Unmarshaller.strict(GroupType.withName)
 }
 
 object Group {
