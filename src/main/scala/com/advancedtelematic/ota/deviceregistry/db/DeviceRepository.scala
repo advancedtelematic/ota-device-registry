@@ -137,6 +137,7 @@ object DeviceRepository {
       .join(DeviceRepository.devices)
       .on(_._2.deviceUuid === _.uuid)
       .map(_._2)
+      .distinct
       .paginateResult(offset.orDefaultOffset, limit.orDefaultLimit)
 
   def searchUngrouped(ns: Namespace, rx: Option[String Refined Regex], offset: Option[Long], limit: Option[Long])
