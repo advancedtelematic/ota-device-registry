@@ -11,20 +11,21 @@ package com.advancedtelematic.ota.deviceregistry
 import java.time.temporal.ChronoUnit
 import java.time.{Instant, OffsetDateTime}
 
-import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
 import akka.http.scaladsl.model.StatusCodes._
 import com.advancedtelematic.libats.data.{ErrorRepresentation, PaginationResult}
 import com.advancedtelematic.libats.http.monitoring.MetricsSupport
 import com.advancedtelematic.libats.messaging.MessageBusPublisher
+import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
 import com.advancedtelematic.libats.messaging_datatype.Messages.DeviceSeen
 import com.advancedtelematic.ota.deviceregistry.common.{Errors, PackageStat}
 import com.advancedtelematic.ota.deviceregistry.daemon.{DeleteDeviceHandler, DeviceSeenListener}
 import com.advancedtelematic.ota.deviceregistry.data.DataType.DeviceT
-import com.advancedtelematic.ota.deviceregistry.data.Group.{GroupExpression, GroupId}
+import com.advancedtelematic.ota.deviceregistry.data.Group.{GroupExpression, GroupId, ValidExpression}
 import com.advancedtelematic.ota.deviceregistry.data.{Device, DeviceStatus, PackageId, _}
-import com.advancedtelematic.ota.deviceregistry.db.InstalledPackages.{DevicesCount, InstalledPackage}
 import com.advancedtelematic.ota.deviceregistry.db.InstalledPackages
+import com.advancedtelematic.ota.deviceregistry.db.InstalledPackages.{DevicesCount, InstalledPackage}
 import eu.timepit.refined.api.Refined
+import eu.timepit.refined.refineMV
 import io.circe.generic.auto._
 import org.scalacheck.Arbitrary._
 import org.scalacheck.{Gen, Shrink}
@@ -689,6 +690,45 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
       status shouldBe OK
       val result = responseAs[PaginationResult[Device]].values.map(_.uuid).filter(m("all").contains)
       result should contain allElementsOf m("groupedStatic") ++ m("groupedDynamic")
+    }
+  }
+
+  property("finds static group devices only once") {
+    val deviceUuid = createDeviceOk(genDeviceT.generate)
+    val group1 = createStaticGroupOk()
+    val group2 = createStaticGroupOk()
+    addDeviceToGroupOk(group1, deviceUuid)
+    addDeviceToGroupOk(group2, deviceUuid)
+
+    getDevicesByGrouping(grouped = true, Some(GroupType.static)) ~> route ~> check {
+      status shouldBe OK
+      val result = responseAs[PaginationResult[Device]].values.map(_.uuid).filter(_ == deviceUuid)
+      result.length shouldBe 1
+    }
+  }
+
+  property("finds dynamic group devices only once") {
+    val deviceUuid = createDeviceOk(genDeviceT.generate.copy(deviceId = DeviceOemId("abcd-1234")))
+    createDynamicGroupOk(refineMV[ValidExpression]("deviceid contains abcd"))
+    createDynamicGroupOk(refineMV[ValidExpression]("deviceid contains 1234"))
+
+    getDevicesByGrouping(grouped = true, Some(GroupType.dynamic)) ~> route ~> check {
+      status shouldBe OK
+      val result = responseAs[PaginationResult[Device]].values.map(_.uuid).filter(_ == deviceUuid)
+      result.length shouldBe 1
+    }
+  }
+
+  property("finds grouped devices only once") {
+    val deviceUuid = createDeviceOk(genDeviceT.generate.copy(deviceId = DeviceOemId("abcd")))
+    createDynamicGroupOk(refineMV[ValidExpression]("deviceid contains abcd"))
+    val group = createStaticGroupOk()
+    addDeviceToGroupOk(group, deviceUuid)
+
+    getDevicesByGrouping(grouped = true, groupType = None) ~> route ~> check {
+      status shouldBe OK
+      val result = responseAs[PaginationResult[Device]].values.map(_.uuid).filter(_ == deviceUuid)
+      result.length shouldBe 1
     }
   }
 
