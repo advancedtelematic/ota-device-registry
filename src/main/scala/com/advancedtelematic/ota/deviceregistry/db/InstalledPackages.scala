@@ -22,6 +22,7 @@ import com.advancedtelematic.ota.deviceregistry.common.PackageStat
 import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
 import com.advancedtelematic.ota.deviceregistry.data.PackageId
 import com.advancedtelematic.ota.deviceregistry.data.PackageId.Name
+import com.advancedtelematic.ota.deviceregistry.db.DbOps.PaginationResultOps
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.string.Regex
 import slick.jdbc.MySQLProfile.api._
@@ -29,8 +30,6 @@ import slick.jdbc.MySQLProfile.api._
 import scala.concurrent.ExecutionContext
 
 object InstalledPackages {
-
-  private[this] val defaultLimit = 50L
 
   type InstalledPkgRow = (DeviceId, PackageId.Name, PackageId.Version, Instant)
 
@@ -87,14 +86,12 @@ object InstalledPackages {
       case Some(re) =>
         installedPackages
           .filter(_.device === device)
-          .filter(
-            row => regex(row.name.mappedTo[String] ++ "-" ++ row.version.mappedTo[String], re)
-          )
-          .paginateResult(offset.getOrElse(0L), limit.getOrElse(defaultLimit))
+          .filter(row => regex(row.name.mappedTo[String] ++ "-" ++ row.version.mappedTo[String], re))
+          .paginateResult(offset.orDefaultOffset, limit.orDefaultLimit)
       case None =>
         installedPackages
           .filter(_.device === device)
-          .paginateResult(offset.getOrElse(0L), limit.getOrElse(defaultLimit))
+          .paginateResult(offset.orDefaultOffset, limit.orDefaultLimit)
     }
 
   def getDevicesCount(pkg: PackageId, ns: Namespace)(implicit ec: ExecutionContext): DBIO[DevicesCount] =
@@ -141,7 +138,7 @@ object InstalledPackages {
       implicit ec: ExecutionContext
   ): DBIO[PaginationResult[PackageId]] = {
     val query = installedForAllDevicesQuery(ns)
-      .paginateAndSortResult(identity, offset.getOrElse(0L), limit.getOrElse(defaultLimit))
+      .paginateAndSortResult(identity, offset.orDefaultOffset, limit.orDefaultLimit)
     query.map { nameVersionResult =>
       PaginationResult(
         nameVersionResult.values.map(nameVersion => PackageId(nameVersion._1, nameVersion._2)),
@@ -159,10 +156,8 @@ object InstalledPackages {
     }
 
   //this isn't paginated as it's only intended to be called by core, hence it also not being in swagger
-  def allInstalledPackagesById(
-      namespace: Namespace,
-      ids: Set[PackageId]
-  )(implicit db: Database, ec: ExecutionContext): DBIO[Seq[(DeviceId, PackageId)]] =
+  def allInstalledPackagesById(namespace: Namespace, ids: Set[PackageId])
+                              (implicit db: Database, ec: ExecutionContext): DBIO[Seq[(DeviceId, PackageId)]] =
     inSetQuery(ids)
       .join(DeviceRepository.devices)
       .on(_.device === _.uuid)
@@ -170,14 +165,8 @@ object InstalledPackages {
       .map(r => (r._1.device, LiftedPackageId(r._1.name, r._1.version)))
       .result
 
-  def listAllWithPackageByName(
-      ns: Namespace,
-      name: Name,
-      moffset: Option[Long],
-      mlimit: Option[Long]
-  )(implicit ec: ExecutionContext): DBIO[PaginationResult[PackageStat]] = {
-    val offset = moffset.getOrElse[Long](0)
-    val limit  = mlimit.getOrElse[Long](defaultLimit)
+  def listAllWithPackageByName(ns: Namespace, name: Name, offset: Option[Long], limit: Option[Long])
+                              (implicit ec: ExecutionContext): DBIO[PaginationResult[PackageStat]] = {
     val query = installedPackages
       .filter(_.name === name)
       .join(DeviceRepository.devices)
@@ -186,13 +175,14 @@ object InstalledPackages {
       .groupBy(_._1.version)
       .map { case (version, installedPkg) => (version, installedPkg.length) }
 
-    val pagedquery = query.paginate(offset, limit)
-    val pkgResult = pagedquery.result.map(_.map {
-      case (version, count) => PackageStat(version, count)
-    })
+    val pkgResult = query
+      .paginate(offset.orDefaultOffset, limit.orDefaultLimit)
+      .result
+      .map(_.map { case (version, count) => PackageStat(version, count)})
 
     query.length.result.zip(pkgResult).map {
-      case (total, values) => PaginationResult(values, total, offset, limit)
+      case (total, values) =>
+        PaginationResult(values, total, offset.orDefaultOffset, limit.orDefaultLimit)
     }
   }
 

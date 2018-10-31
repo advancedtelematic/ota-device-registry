@@ -23,10 +23,9 @@ import com.advancedtelematic.ota.deviceregistry.data.DataType.DeviceT
 import com.advancedtelematic.ota.deviceregistry.data.Group.{GroupExpression, GroupId}
 import com.advancedtelematic.ota.deviceregistry.data.{Device, DeviceStatus, PackageId, _}
 import com.advancedtelematic.ota.deviceregistry.db.InstalledPackages.{DevicesCount, InstalledPackage}
-import com.advancedtelematic.ota.deviceregistry.db.{DeviceRepository, InstalledPackages}
+import com.advancedtelematic.ota.deviceregistry.db.InstalledPackages
 import eu.timepit.refined.api.Refined
 import io.circe.generic.auto._
-import io.circe.Json
 import org.scalacheck.Arbitrary._
 import org.scalacheck.{Gen, Shrink}
 import org.scalatest.concurrent.{Eventually, ScalaFutures}
@@ -41,7 +40,6 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
   import GeneratorOps._
   import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
 
-  private val deviceNumber  = DeviceRepository.defaultLimit + 10
   private implicit val exec = system.dispatcher
   private val publisher     = DeviceSeenListener.action(MessageBusPublisher.ignore)(_)
 
@@ -59,7 +57,7 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
     publisher(DeviceSeen(defaultNs, uuid, Instant.now())).futureValue
 
   property("GET, PUT, DELETE, and POST '/ping' request fails on non-existent device") {
-    forAll { (uuid: DeviceId, device: DeviceT, json: Json) =>
+    forAll { (uuid: DeviceId, device: DeviceT) =>
       fetchDevice(uuid) ~> route ~> check { status shouldBe NotFound }
       updateDevice(uuid, device) ~> route ~> check { status shouldBe NotFound }
       deleteDevice(uuid) ~> route ~> check { status shouldBe NotFound }
@@ -69,11 +67,11 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
   private def createGroupedAndUngroupedDevices(): Map[String, Seq[DeviceId]] = {
     val deviceTs = genConflictFreeDeviceTs(12).sample.get
     val deviceIds    = deviceTs.map(createDeviceOk)
-    val staticGroup = createStaticGroupOk(genGroupName().sample.get)
+    val staticGroup = createStaticGroupOk()
 
     deviceIds.take(4).foreach(addDeviceToGroupOk(staticGroup, _))
     val expr = deviceTs.slice(4, 8).map(_.deviceId.underlying.take(4)).map(n => s"deviceid contains $n").reduce(_ + " or " + _)
-    createDynamicGroupOk(genGroupName().sample.get, Refined.unsafeApply(expr))
+    createDynamicGroupOk(Refined.unsafeApply(expr))
 
     Map("all" -> deviceIds, "groupedStatic" -> deviceIds.take(4),
       "groupedDynamic" -> deviceIds.slice(4, 8), "ungrouped" -> deviceIds.drop(8))
@@ -311,8 +309,8 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
     val groups       = Gen.listOfN(groupNumber, genGroupName()).sample.get
     val pkg          = genPackageId.sample.get
 
-    val deviceIds: Seq[DeviceId]   = deviceTs.map(createDeviceOk)
-    val groupIds: Seq[GroupId] = groups.map(createStaticGroupOk)
+    val deviceIds = deviceTs.map(createDeviceOk)
+    val groupIds = groups.map(createStaticGroupOk)
 
     (0 until deviceNumber).foreach { i =>
       addDeviceToGroupOk(groupIds(i % groupNumber), deviceIds(i))
@@ -330,7 +328,7 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
 
   property("can list devices with custom pagination limit") {
     val limit                = 30
-    val deviceTs             = genConflictFreeDeviceTs(deviceNumber).sample.get
+    val deviceTs             = genConflictFreeDeviceTs(limit * 2).sample.get
     deviceTs.foreach(createDeviceOk)
 
     searchDevice("", limit = limit) ~> route ~> check {
@@ -343,14 +341,14 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
   property("can list devices with custom pagination limit and offset") {
     val limit                = 30
     val offset               = 10
-    val deviceTs             = genConflictFreeDeviceTs(deviceNumber).sample.get
-    deviceTs.foreach(createDeviceOk(_))
+    val deviceTs             = genConflictFreeDeviceTs(limit * 2).sample.get
+    deviceTs.foreach(createDeviceOk)
 
     searchDevice("", offset = offset, limit = limit) ~> route ~> check {
       status shouldBe OK
-      val devices = responseAs[PaginationResult[Device]]
-      devices.values.length shouldBe limit
-      devices.values.zip(devices.values.tail).foreach {
+      val devices = responseAs[PaginationResult[Device]].values
+      devices.length shouldBe limit
+      devices.zip(devices.tail).foreach {
         case (device1, device2) =>
           device1.deviceName.value.compareTo(device2.deviceName.value) should be <= 0
       }
@@ -386,9 +384,8 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
     val offset               = 10
     val deviceNumber         = 50
     val deviceTs             = genConflictFreeDeviceTs(deviceNumber).sample.get
-    val deviceIds: Seq[DeviceId] = deviceTs.map(createDeviceOk)
-    val group                = genGroupName().sample.get
-    val groupId              = createStaticGroupOk(group)
+    val deviceIds = deviceTs.map(createDeviceOk)
+    val groupId              = createStaticGroupOk()
 
     deviceIds.foreach { id =>
       addDeviceToGroupOk(groupId, id)
@@ -421,8 +418,7 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
     }
 
     // add devices to group and check that we get less ungrouped devices
-    val group   = genGroupName().sample.get
-    val groupId = createStaticGroupOk(group)
+    val groupId = createStaticGroupOk()
 
     deviceIds.foreach { id =>
       addDeviceToGroupOk(groupId, id)
@@ -441,7 +437,7 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
     val limit  = 30
     val offset = 10
 
-    val deviceTs             = genConflictFreeDeviceTs(deviceNumber).generate
+    val deviceTs             = genConflictFreeDeviceTs(limit * 2).generate
     val deviceIds = deviceTs.map(createDeviceOk)
 
     // the database is case-insensitve so when we need to take that in to account when sorting in scala
@@ -527,7 +523,7 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
 
   property("DELETE device removes it from its group") {
     forAll { (devicePre: DeviceT, groupName: Group.Name) =>
-      val uuid: DeviceId = createDeviceOk(devicePre)
+      val uuid = createDeviceOk(devicePre)
       val groupId    = createStaticGroupOk(groupName)
 
       addDeviceToGroupOk(groupId, uuid)
@@ -565,7 +561,7 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
 
     val groupNumber            = 10
     val groups                 = Gen.listOfN(groupNumber, genGroupName()).sample.get
-    val groupIds: Seq[GroupId] = groups.map(m => createStaticGroupOk(m))
+    val groupIds = groups.map(createStaticGroupOk)
 
     (0 until deviceNumber).foreach { i =>
       addDeviceToGroupOk(groupIds(i % groupNumber), deviceIds(i))
@@ -610,10 +606,8 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
   }
 
   property("getting the groups of a device returns the correct static groups") {
-    val groupName1 = genGroupName().sample.get
-    val groupName2 = genGroupName().sample.get
-    val groupId1   = createStaticGroupOk(groupName1)
-    val groupId2   = createStaticGroupOk(groupName2)
+    val groupId1   = createStaticGroupOk()
+    val groupId2   = createStaticGroupOk()
     val deviceUuid = createDeviceOk(genDeviceT.sample.get)
 
     addDeviceToGroup(groupId1, deviceUuid) ~> route ~> check {

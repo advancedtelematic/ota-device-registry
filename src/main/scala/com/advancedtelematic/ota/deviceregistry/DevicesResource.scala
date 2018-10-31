@@ -22,7 +22,7 @@ import com.advancedtelematic.libats.data.DataType.Namespace
 import com.advancedtelematic.libats.http.UUIDKeyAkka._
 import com.advancedtelematic.libats.messaging.MessageBusPublisher
 import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId._
-import com.advancedtelematic.libats.messaging_datatype.DataType.{Event, EventType, DeviceId}
+import com.advancedtelematic.libats.messaging_datatype.DataType.{DeviceId, Event, EventType}
 import com.advancedtelematic.libats.messaging_datatype.MessageCodecs._
 import com.advancedtelematic.libats.messaging_datatype.Messages.DeviceEventMessage
 import com.advancedtelematic.ota.deviceregistry.DevicesResource.EventPayload
@@ -185,6 +185,9 @@ class DevicesResource(
   def api: Route = namespaceExtractor { ns =>
     val scope = Scopes.devices(ns)
     pathPrefix("devices") {
+      (scope.post & entity(as[DeviceT]) & pathEnd) { device =>
+        createDevice(ns.namespace, device)
+      } ~
       scope.get {
         (path("count") & parameter('expression.as[GroupExpression].?)) {
           case None      => complete(Errors.InvalidGroupExpression(""))
@@ -234,9 +237,6 @@ class DevicesResource(
             complete(events)
           }
         }
-      } ~
-      (scope.post & entity(as[DeviceT]) & pathEndOrSingleSlash) { device =>
-        createDevice(ns.namespace, device)
       }
     } ~
     (scope.get & pathPrefix("device_count") & extractPackageId) { pkg =>

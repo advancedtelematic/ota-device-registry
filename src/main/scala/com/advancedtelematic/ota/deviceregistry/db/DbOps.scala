@@ -14,4 +14,9 @@ object DbOps {
       case SortBy.Name      => table => table.groupName.asc
       case SortBy.CreatedAt => table => table.createdAt.desc
     }
+
+  implicit class PaginationResultOps(x: Option[Long]) {
+    def orDefaultOffset: Long  = x.getOrElse(0L)
+    def orDefaultLimit: Long   = x.getOrElse(50L)
+  }
 }

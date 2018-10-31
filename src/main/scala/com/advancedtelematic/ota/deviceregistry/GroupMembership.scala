@@ -29,10 +29,8 @@ protected class DynamicMembership(implicit db: Database, ec: ExecutionContext) e
     GroupInfoRepository
       .create(groupId, name, namespace, GroupType.dynamic, Some(expression))
       .andThen {
-        DeviceRepository.searchByDeviceIdContains(namespace, expression).flatMap { devices =>
-          DBIO.sequence(devices.map { d =>
-            GroupMemberRepository.addGroupMember(groupId, d)
-          })
+        DeviceRepository.searchByExpression(namespace, expression).flatMap { devices =>
+          DBIO.sequence(devices.map(d => GroupMemberRepository.addGroupMember(groupId, d)))
         }
       }
       .map(_ => groupId)
@@ -54,11 +52,7 @@ protected class StaticMembership(implicit db: Database, ec: ExecutionContext) ex
   override def removeMember(group: Group, deviceId: DeviceId): Future[Unit] =
     db.run(GroupMemberRepository.removeGroupMember(group.id, deviceId))
 
-  def create(
-      groupId: GroupId,
-      name: Name,
-      namespace: Namespace
-  ): Future[GroupId] = db.run {
+  def create(groupId: GroupId, name: Name, namespace: Namespace): Future[GroupId] = db.run {
     GroupInfoRepository.create(groupId, name, namespace, GroupType.static, expression = None)
   }
 }

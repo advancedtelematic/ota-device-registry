@@ -11,20 +11,19 @@ package com.advancedtelematic.ota.deviceregistry.db
 import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
 import com.advancedtelematic.libats.data.DataType.Namespace
 import com.advancedtelematic.libats.data.PaginationResult
+import com.advancedtelematic.libats.slick.db.SlickAnyVal._
 import com.advancedtelematic.libats.slick.db.SlickExtensions._
 import com.advancedtelematic.libats.slick.db.SlickUUIDKey._
 import com.advancedtelematic.ota.deviceregistry.common.Errors
 import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
 import com.advancedtelematic.ota.deviceregistry.data.{Device, GroupExpressionAST, GroupType}
+import com.advancedtelematic.ota.deviceregistry.db.DbOps.PaginationResultOps
 import slick.jdbc.MySQLProfile.api._
 import slick.lifted.Tag
-import com.advancedtelematic.libats.slick.db.SlickAnyVal._
 
 import scala.concurrent.ExecutionContext
 
 object GroupMemberRepository {
-
-  private[this] val defaultLimit = 50L
 
   final case class GroupMember(groupId: GroupId, deviceUuid: DeviceId)
 
@@ -70,7 +69,7 @@ object GroupMemberRepository {
     groupMembers
       .filter(_.groupId === groupId)
       .map(_.deviceUuid)
-      .paginateResult(offset.getOrElse(0L), limit.getOrElse(defaultLimit))
+      .paginateResult(offset.orDefaultOffset, limit.orDefaultLimit)
 
   def countDevicesInGroup(
       groupId: GroupId
@@ -106,5 +105,5 @@ object GroupMemberRepository {
     groupMembers
       .filter(_.deviceUuid === deviceUuid)
       .map(_.groupId)
-      .paginateResult(offset.getOrElse(0L), limit.getOrElse(defaultLimit))
+      .paginateResult(offset.orDefaultOffset, limit.orDefaultLimit)
 }

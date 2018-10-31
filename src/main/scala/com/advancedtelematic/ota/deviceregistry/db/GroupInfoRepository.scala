@@ -21,10 +21,9 @@ import com.advancedtelematic.ota.deviceregistry.data.Group
 import com.advancedtelematic.ota.deviceregistry.data.Group.{GroupExpression, GroupId, Name}
 import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
 import com.advancedtelematic.ota.deviceregistry.data.SortBy.SortBy
-import com.advancedtelematic.ota.deviceregistry.db.DbOps.sortBySlickOrderedConversion
+import com.advancedtelematic.ota.deviceregistry.db.DbOps.{PaginationResultOps, sortBySlickOrderedConversion}
 import com.advancedtelematic.ota.deviceregistry.db.SlickMappings._
 import slick.jdbc.MySQLProfile.api._
-
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -45,11 +44,11 @@ object GroupInfoRepository {
 
   val groupInfos = TableQuery[GroupInfoTable]
 
-  def list(namespace: Namespace, offset: Long, limit: Long, sortBy: SortBy, nameContains: Option[String])(implicit ec: ExecutionContext): DBIO[PaginationResult[Group]] =
+  def list(namespace: Namespace, offset: Option[Long], limit: Option[Long], sortBy: SortBy, nameContains: Option[String])(implicit ec: ExecutionContext): DBIO[PaginationResult[Group]] =
     groupInfos
       .filter(_.namespace === namespace)
       .maybeContains(_.groupName, nameContains)
-      .paginateAndSortResult(sortBy, offset, limit)
+      .paginateAndSortResult(sortBy, offset.orDefaultOffset, limit.orDefaultLimit)
 
   def findById(id: GroupId)(implicit db: Database, ec: ExecutionContext): Future[Group] =
     db.run(findByIdAction(id))
