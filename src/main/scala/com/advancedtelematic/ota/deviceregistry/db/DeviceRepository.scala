@@ -124,13 +124,21 @@ object DeviceRepository {
     byOptionalRegex.filter(_.uuid.in(groupIdCondition.getOrElse(devices.map(_.uuid))))
   }
 
+  private def runQueryWithRegex(ns: Namespace, query: Query[DeviceTable, Device, Seq], rx: Option[String Refined Regex], offset: Option[Long], limit: Option[Long])
+                             (implicit ec: ExecutionContext) = {
+    val regexQuery = searchQuery(ns, rx, None).map(_.uuid)
+    query
+      .filter(_.uuid.in(regexQuery))
+      .paginateResult(offset.orDefaultOffset, limit.orDefaultLimit)
+  }
+
   def search(ns: Namespace, rx: Option[String Refined Regex], groupId: Option[GroupId], offset: Option[Long], limit: Option[Long])
             (implicit ec: ExecutionContext): DBIO[PaginationResult[Device]] =
     searchQuery(ns, rx, groupId).paginateAndSortResult(_.deviceName, offset.orDefaultOffset, limit.orDefaultLimit)
 
-  def searchGrouped(ns: Namespace, groupType: Option[GroupType], offset: Option[Long], limit: Option[Long])
-                   (implicit ec: ExecutionContext): DBIO[PaginationResult[Device]] =
-    GroupInfoRepository.groupInfos
+  def searchGrouped(ns: Namespace, groupType: Option[GroupType], rx: Option[String Refined Regex], offset: Option[Long], limit: Option[Long])
+                   (implicit ec: ExecutionContext): DBIO[PaginationResult[Device]] = {
+    val groupedDevicesQuery = GroupInfoRepository.groupInfos
       .maybeFilter(_.groupType === groupType)
       .join(GroupMemberRepository.groupMembers)
       .on(_.id === _.groupId)
@@ -138,21 +146,17 @@ object DeviceRepository {
       .on(_._2.deviceUuid === _.uuid)
       .map(_._2)
       .distinct
-      .paginateResult(offset.orDefaultOffset, limit.orDefaultLimit)
+    runQueryWithRegex(ns, groupedDevicesQuery, rx, offset, limit)
+  }
 
   def searchUngrouped(ns: Namespace, rx: Option[String Refined Regex], offset: Option[Long], limit: Option[Long])
                      (implicit ec: ExecutionContext): DBIO[PaginationResult[Device]] = {
-
-    val regexQuery = searchQuery(ns, rx, None).map(_.uuid)
     val ungroupedDevicesQuery = GroupMemberRepository.groupMembers
       .joinRight(DeviceRepository.devices)
       .on(_.deviceUuid === _.uuid)
       .filter(_._1.isEmpty)
       .map(_._2)
-
-    ungroupedDevicesQuery
-      .filter(_.uuid.in(regexQuery))
-      .paginateResult(offset.orDefaultOffset, limit.orDefaultLimit)
+    runQueryWithRegex(ns, ungroupedDevicesQuery, rx, offset, limit)
   }
 
   def updateDeviceName(ns: Namespace, uuid: DeviceId, deviceName: DeviceName)(implicit ec: ExecutionContext): DBIO[Unit] =

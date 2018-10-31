@@ -21,6 +21,8 @@ import com.advancedtelematic.ota.deviceregistry.data.Group.{GroupExpression, Gro
 import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
 import com.advancedtelematic.ota.deviceregistry.data.PackageId
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
+import eu.timepit.refined.api.Refined
+import eu.timepit.refined.string.Regex
 import io.circe.Json
 
 import scala.concurrent.ExecutionContext
@@ -168,8 +170,10 @@ trait DeviceRequests { self: ResourceSpec =>
 
   def getGroupsOfDevice(deviceUuid: DeviceId): HttpRequest = Get(Resource.uri(api, deviceUuid.show, "groups"))
 
-  def getDevicesByGrouping(grouped: Boolean, groupType: Option[GroupType], limit: Long = 500): HttpRequest = {
-    val m = groupType.map("groupType" -> _).toMap + ("grouped" -> grouped) + ("limit" -> limit)
+  def getDevicesByGrouping(grouped: Boolean, groupType: Option[GroupType],
+                           regex: Option[String Refined Regex] = None, limit: Long = 500): HttpRequest = {
+    val m = Map("grouped" -> grouped, "limit" -> limit) ++
+      List("groupType" -> groupType, "regex" -> regex).collect { case (k, Some(v)) => k -> v }.toMap
     Get(Resource.uri(api).withQuery(Query(m.mapValues(_.toString))))
   }
 }
