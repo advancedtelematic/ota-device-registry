@@ -12,6 +12,7 @@ import java.time.temporal.ChronoUnit
 import java.time.{Instant, OffsetDateTime}
 
 import akka.http.scaladsl.model.StatusCodes._
+import cats.syntax.option._
 import com.advancedtelematic.libats.data.{ErrorRepresentation, PaginationResult}
 import com.advancedtelematic.libats.http.monitoring.MetricsSupport
 import com.advancedtelematic.libats.messaging.MessageBusPublisher
@@ -26,6 +27,7 @@ import com.advancedtelematic.ota.deviceregistry.db.InstalledPackages
 import com.advancedtelematic.ota.deviceregistry.db.InstalledPackages.{DevicesCount, InstalledPackage}
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.refineMV
+import eu.timepit.refined.string.Regex
 import io.circe.generic.auto._
 import org.scalacheck.Arbitrary._
 import org.scalacheck.{Gen, Shrink}
@@ -433,6 +435,39 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
     beforeGrouping.total shouldBe afterGrouping.total + deviceNumber
   }
 
+  property("can search static group devices") {
+    val deviceT     = genDeviceT.generate
+    val deviceUuid1 = createDeviceOk(deviceT)
+    val deviceUuid2 = createDeviceOk(genDeviceT.generate)
+    val group       = createStaticGroupOk()
+    addDeviceToGroupOk(group, deviceUuid1)
+    addDeviceToGroupOk(group, deviceUuid2)
+
+    val regex = Refined.unsafeApply[String, Regex](deviceT.deviceName.value.substring(0, 10))
+    getDevicesByGrouping(grouped = true, GroupType.static.some, regex.some) ~> route ~> check {
+      status shouldBe OK
+      val result = responseAs[PaginationResult[Device]].values.map(_.uuid)
+      result should contain(deviceUuid1)
+      result shouldNot contain(deviceUuid2)
+    }
+  }
+
+  property("can search dynamic group devices") {
+    val deviceT1    = genDeviceTWith(Gen.const(refineMV[ValidDeviceName]("d1-xxyy-1234")), Gen.const(DeviceOemId("d1-xxyy-1234"))).generate
+    val deviceT2    = genDeviceTWith(Gen.const(refineMV[ValidDeviceName]("d2-xxyy-5678")), Gen.const(DeviceOemId("d2-xxyy-5678"))).generate
+    val deviceUuid1 = createDeviceOk(deviceT1)
+    val deviceUuid2 = createDeviceOk(deviceT2)
+    createDynamicGroupOk(refineMV[ValidExpression]("deviceid contains xxyy"))
+
+    val regex = refineMV[Regex]("1234")
+    getDevicesByGrouping(grouped = true, GroupType.dynamic.some, regex.some) ~> route ~> check {
+      status shouldBe OK
+      val result = responseAs[PaginationResult[Device]].values.map(_.uuid)
+      result should contain(deviceUuid1)
+      result shouldNot contain(deviceUuid2)
+    }
+  }
+
   property("can list installed packages for all devices with custom pagination limit and offset") {
 
     val limit  = 30
@@ -640,7 +675,7 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
       .map(createDeviceOk)
 
     val expression: GroupExpression = Refined.unsafeApply("deviceid contains abc and deviceid position(5) is b")
-    countDevicesForExpression(Some(expression)) ~> route ~> check {
+    countDevicesForExpression(expression.some) ~> route ~> check {
       status shouldBe OK
       responseAs[Int] shouldBe 1
     }

@@ -81,7 +81,7 @@ class DevicesResource(
   def searchDevice(ns: Namespace): Route =
     parameters((
       'deviceId.as[DeviceOemId].?,
-      'grouped ? true,
+      'grouped.as[Boolean].?,
       'groupType.as[GroupType].?,
       'groupId.as[GroupId].?,
       'regex.as[String Refined Regex].?,
@@ -90,9 +90,9 @@ class DevicesResource(
     {
       case (Some(oemId), _, _, None, None, _, _) =>
         complete(db.run(DeviceRepository.findByDeviceId(ns, oemId)))
-      case (None, true, gt, None, None, o, l) =>
-        complete(db.run(DeviceRepository.searchGrouped(ns, gt, o, l)))
-      case (None, false, _, None, rx, o, l) =>
+      case (None, Some(true), gt, None, rx, o, l) =>
+        complete(db.run(DeviceRepository.searchGrouped(ns, gt, rx, o, l)))
+      case (None, Some(false), _, None, rx, o, l) =>
         complete(db.run(DeviceRepository.searchUngrouped(ns, rx, o, l)))
       case (None, _, _, gid, rx, o, l) =>
         complete(db.run(DeviceRepository.search(ns, rx, gid, o, l)))
