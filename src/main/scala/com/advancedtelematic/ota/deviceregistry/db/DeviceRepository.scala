@@ -19,13 +19,15 @@ import com.advancedtelematic.libats.slick.db.SlickAnyVal._
 import com.advancedtelematic.libats.slick.db.SlickExtensions._
 import com.advancedtelematic.libats.slick.db.SlickUUIDKey._
 import com.advancedtelematic.ota.deviceregistry.common.Errors
-import com.advancedtelematic.ota.deviceregistry.data.DataType.DeviceT
+import com.advancedtelematic.ota.deviceregistry.data.DataType.{DeviceT, SearchParams}
 import com.advancedtelematic.ota.deviceregistry.data.Device._
 import com.advancedtelematic.ota.deviceregistry.data.DeviceStatus.DeviceStatus
 import com.advancedtelematic.ota.deviceregistry.data.Group.{GroupExpression, GroupId}
 import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
 import com.advancedtelematic.ota.deviceregistry.data._
 import com.advancedtelematic.ota.deviceregistry.db.DbOps.PaginationResultOps
+import com.advancedtelematic.ota.deviceregistry.db.GroupInfoRepository.groupInfos
+import com.advancedtelematic.ota.deviceregistry.db.GroupMemberRepository.groupMembers
 import com.advancedtelematic.ota.deviceregistry.db.SlickMappings._
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.string.Regex
@@ -81,7 +83,7 @@ object DeviceRepository {
       implicit ec: ExecutionContext
   ): DBIO[(Boolean, DeviceId)] =
     for {
-      devs <- findByDeviceId(ns, deviceId)
+      devs <- findByDeviceIdQuery(ns, deviceId).result
       (created, uuid) <- devs match {
         case Seq()  => create(ns, devT).map((true, _))
         case Seq(d) => DBIO.successful((false, d.uuid))
@@ -96,10 +98,8 @@ object DeviceRepository {
       .headOption
       .flatMap(_.fold[DBIO[Device]](DBIO.failed(Errors.MissingDevice))(DBIO.successful))
 
-  def findByDeviceId(ns: Namespace, deviceId: DeviceOemId)(implicit ec: ExecutionContext): DBIO[Seq[Device]] =
-    devices
-      .filter(d => d.namespace === ns && d.deviceId === deviceId)
-      .result
+  def findByDeviceIdQuery(ns: Namespace, deviceId: DeviceOemId)(implicit ec: ExecutionContext): Query[DeviceTable, Device, Seq] =
+    devices.filter(d => d.namespace === ns && d.deviceId === deviceId)
 
   def searchByExpression(ns: Namespace, expression: GroupExpression)
                         (implicit db: Database, ec: ExecutionContext): DBIO[Seq[DeviceId]] =
@@ -124,39 +124,41 @@ object DeviceRepository {
     byOptionalRegex.filter(_.uuid.in(groupIdCondition.getOrElse(devices.map(_.uuid))))
   }
 
-  private def runQueryWithRegex(ns: Namespace, query: Query[DeviceTable, Device, Seq], rx: Option[String Refined Regex], offset: Option[Long], limit: Option[Long])
+  private def runQueryWithRegex(ns: Namespace, query: Query[DeviceTable, Device, Seq], rx: Option[String Refined Regex])
                              (implicit ec: ExecutionContext) = {
     val regexQuery = searchQuery(ns, rx, None).map(_.uuid)
-    query
-      .filter(_.uuid.in(regexQuery))
-      .paginateResult(offset.orDefaultOffset, limit.orDefaultLimit)
+    query.filter(_.uuid.in(regexQuery))
   }
 
-  def search(ns: Namespace, rx: Option[String Refined Regex], groupId: Option[GroupId], offset: Option[Long], limit: Option[Long])
-            (implicit ec: ExecutionContext): DBIO[PaginationResult[Device]] =
-    searchQuery(ns, rx, groupId).paginateAndSortResult(_.deviceName, offset.orDefaultOffset, limit.orDefaultLimit)
-
-  def searchGrouped(ns: Namespace, groupType: Option[GroupType], rx: Option[String Refined Regex], offset: Option[Long], limit: Option[Long])
-                   (implicit ec: ExecutionContext): DBIO[PaginationResult[Device]] = {
-    val groupedDevicesQuery = GroupInfoRepository.groupInfos
+  private val groupedDevicesQuery: Option[GroupType] => Query[DeviceTable, Device, Seq] = groupType =>
+    groupInfos
       .maybeFilter(_.groupType === groupType)
-      .join(GroupMemberRepository.groupMembers)
+      .join(groupMembers)
       .on(_.id === _.groupId)
-      .join(DeviceRepository.devices)
+      .join(devices)
       .on(_._2.deviceUuid === _.uuid)
       .map(_._2)
       .distinct
-    runQueryWithRegex(ns, groupedDevicesQuery, rx, offset, limit)
-  }
 
-  def searchUngrouped(ns: Namespace, rx: Option[String Refined Regex], offset: Option[Long], limit: Option[Long])
-                     (implicit ec: ExecutionContext): DBIO[PaginationResult[Device]] = {
-    val ungroupedDevicesQuery = GroupMemberRepository.groupMembers
-      .joinRight(DeviceRepository.devices)
-      .on(_.deviceUuid === _.uuid)
-      .filter(_._1.isEmpty)
-      .map(_._2)
-    runQueryWithRegex(ns, ungroupedDevicesQuery, rx, offset, limit)
+  def search(ns: Namespace, params: SearchParams)(implicit ec: ExecutionContext): DBIO[PaginationResult[Device]] = {
+    val query = params match {
+
+      case SearchParams(Some(oemId), _, _, None, None, _, _) =>
+        findByDeviceIdQuery(ns, oemId)
+
+      case SearchParams(None, Some(true), gt, None, rx, _, _) =>
+        runQueryWithRegex(ns, groupedDevicesQuery(gt), rx)
+
+      case SearchParams(None, Some(false), gt, None, rx, _, _) =>
+        val ungroupedDevicesQuery = devices.filterNot(_.uuid.in(groupedDevicesQuery(gt).map(_.uuid)))
+        runQueryWithRegex(ns, ungroupedDevicesQuery, rx)
+
+      case SearchParams(None, _, _, gid, rx, _, _) =>
+        searchQuery(ns, rx, gid)
+
+      case _ => throw new IllegalArgumentException("Invalid parameter combination.")
+    }
+    query.paginateAndSortResult(_.deviceName, params.offset.orDefaultOffset, params.limit.orDefaultLimit)
   }
 
   def updateDeviceName(ns: Namespace, uuid: DeviceId, deviceName: DeviceName)(implicit ec: ExecutionContext): DBIO[Unit] =
