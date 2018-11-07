@@ -14,6 +14,8 @@ import akka.http.scaladsl.model.Uri.{Path, Query}
 import akka.http.scaladsl.model.{HttpRequest, StatusCodes, Uri}
 import akka.http.scaladsl.server.Route
 import cats.syntax.show._
+import com.advancedtelematic.libats.data.DataType.Namespace
+import com.advancedtelematic.libats.http.HttpOps.HttpRequestOps
 import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
 import com.advancedtelematic.ota.deviceregistry.data.Codecs._
 import com.advancedtelematic.ota.deviceregistry.data.DataType.{CorrelationId, DeviceT}
@@ -100,6 +102,12 @@ trait DeviceRequests { self: ResourceSpec =>
       status shouldBe Created
       responseAs[DeviceId]
   }
+
+  def createDeviceInNamespaceOk(device: DeviceT, ns: Namespace)(implicit ec: ExecutionContext): DeviceId =
+    Post(Resource.uri(api), device).withNs(ns) ~> route ~> check {
+      status shouldBe Created
+      responseAs[DeviceId]
+    }
 
   def deleteDevice(uuid: DeviceId)(implicit ec: ExecutionContext): HttpRequest =
     Delete(Resource.uri(api, uuid.show))

@@ -13,6 +13,7 @@ import java.time.{Instant, OffsetDateTime}
 
 import akka.http.scaladsl.model.StatusCodes._
 import cats.syntax.option._
+import com.advancedtelematic.libats.data.DataType.Namespace
 import com.advancedtelematic.libats.data.{ErrorRepresentation, PaginationResult}
 import com.advancedtelematic.libats.http.monitoring.MetricsSupport
 import com.advancedtelematic.libats.messaging.MessageBusPublisher
@@ -59,14 +60,6 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
   private def sendDeviceSeen(uuid: DeviceId, lastSeen: Instant = Instant.now()): Unit =
     publisher(DeviceSeen(defaultNs, uuid, Instant.now())).futureValue
 
-  property("GET, PUT, DELETE, and POST '/ping' request fails on non-existent device") {
-    forAll { (uuid: DeviceId, device: DeviceT) =>
-      fetchDevice(uuid) ~> route ~> check { status shouldBe NotFound }
-      updateDevice(uuid, device) ~> route ~> check { status shouldBe NotFound }
-      deleteDevice(uuid) ~> route ~> check { status shouldBe NotFound }
-    }
-  }
-
   private def createGroupedAndUngroupedDevices(): Map[String, Seq[DeviceId]] = {
     val deviceTs = genConflictFreeDeviceTs(12).sample.get
     val deviceIds    = deviceTs.map(createDeviceOk)
@@ -78,6 +71,28 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
 
     Map("all" -> deviceIds, "groupedStatic" -> deviceIds.take(4),
       "groupedDynamic" -> deviceIds.slice(4, 8), "ungrouped" -> deviceIds.drop(8))
+  }
+
+  property("GET, PUT, DELETE, and POST '/ping' request fails on non-existent device") {
+    forAll { (uuid: DeviceId, device: DeviceT) =>
+      fetchDevice(uuid) ~> route ~> check { status shouldBe NotFound }
+      updateDevice(uuid, device) ~> route ~> check { status shouldBe NotFound }
+      deleteDevice(uuid) ~> route ~> check { status shouldBe NotFound }
+    }
+  }
+
+  property("fetches only devices for the given namespace") {
+    forAll { (dt1: DeviceT, dt2: DeviceT) =>
+      val d1 = createDeviceInNamespaceOk(dt1, defaultNs)
+      val d2 = createDeviceInNamespaceOk(dt2, Namespace("test-namespace"))
+
+      listDevices() ~> route ~> check {
+        status shouldBe OK
+        val devices = responseAs[PaginationResult[Device]].values.map(_.uuid)
+        devices should contain(d1)
+        devices should not contain d2
+      }
+    }
   }
 
   property("GET request (for Id) after POST yields same device") {
