@@ -18,7 +18,7 @@ import com.advancedtelematic.libats.data.DataType.Namespace
 import com.advancedtelematic.libats.http.HttpOps.HttpRequestOps
 import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
 import com.advancedtelematic.ota.deviceregistry.data.Codecs._
-import com.advancedtelematic.ota.deviceregistry.data.DataType.{CorrelationId, DeviceT}
+import com.advancedtelematic.ota.deviceregistry.data.DataType.{CorrelationId, DeviceT, UpdateDevice}
 import com.advancedtelematic.ota.deviceregistry.data.Group.{GroupExpression, GroupId}
 import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
 import com.advancedtelematic.ota.deviceregistry.data.PackageId
@@ -86,13 +86,8 @@ trait DeviceRequests { self: ResourceSpec =>
         )
     )
 
-  def updateDevice(uuid: DeviceId, device: DeviceT)(implicit ec: ExecutionContext): HttpRequest =
-    Put(Resource.uri(api, uuid.show), device)
-
-  def updateDeviceOk(uuid: DeviceId, device: DeviceT)(implicit ec: ExecutionContext): Unit =
-    updateDevice(uuid, device) ~> route ~> check {
-      status shouldBe OK
-    }
+  def updateDevice(uuid: DeviceId, newName: DeviceName)(implicit ec: ExecutionContext): HttpRequest =
+    Put(Resource.uri(api, uuid.show), UpdateDevice(newName))
 
   def createDevice(device: DeviceT)(implicit ec: ExecutionContext): HttpRequest =
     Post(Resource.uri(api), device)

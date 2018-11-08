@@ -76,7 +76,7 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
   property("GET, PUT, DELETE, and POST '/ping' request fails on non-existent device") {
     forAll { (uuid: DeviceId, device: DeviceT) =>
       fetchDevice(uuid) ~> route ~> check { status shouldBe NotFound }
-      updateDevice(uuid, device) ~> route ~> check { status shouldBe NotFound }
+      updateDevice(uuid, device.deviceName) ~> route ~> check { status shouldBe NotFound }
       deleteDevice(uuid) ~> route ~> check { status shouldBe NotFound }
     }
   }
@@ -130,9 +130,10 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
       case Seq(d1, d2) =>
         val uuid: DeviceId = createDeviceOk(d1)
 
-        updateDevice(uuid, d2) ~> route ~> check {
+        updateDevice(uuid, d2.deviceName) ~> route ~> check {
           status shouldBe OK
           fetchDevice(uuid) ~> route ~> check {
+            println(response)
             status shouldBe OK
             val devicePost: Device = responseAs[Device]
             devicePost.uuid shouldBe uuid
@@ -237,7 +238,7 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
       case Seq(d1: DeviceT, d2: DeviceT) =>
         val uuid = createDeviceOk(d1)
 
-        updateDevice(uuid, d2) ~> route ~> check {
+        updateDevice(uuid, d2.deviceName) ~> route ~> check {
           status shouldBe OK
           fetchDevice(uuid) ~> route ~> check {
             status shouldBe OK
@@ -257,7 +258,7 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
 
         sendDeviceSeen(uuid)
 
-        updateDevice(uuid, d2) ~> route ~> check {
+        updateDevice(uuid, d2.deviceName) ~> route ~> check {
           status shouldBe OK
           fetchDevice(uuid) ~> route ~> check {
             status shouldBe OK
@@ -274,7 +275,7 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
         val uuid1 = createDeviceOk(d1)
         val _ = createDeviceOk(d2)
 
-        updateDevice(uuid1, d1.copy(deviceName = d2.deviceName)) ~> route ~> check {
+        updateDevice(uuid1, d2.deviceName) ~> route ~> check {
           status shouldBe Conflict
         }
     }
