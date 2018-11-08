@@ -14,6 +14,8 @@ import akka.http.scaladsl.model.Uri.{Path, Query}
 import akka.http.scaladsl.model.{HttpRequest, StatusCodes, Uri}
 import akka.http.scaladsl.server.Route
 import cats.syntax.show._
+import com.advancedtelematic.libats.data.DataType.Namespace
+import com.advancedtelematic.libats.http.HttpOps.HttpRequestOps
 import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
 import com.advancedtelematic.ota.deviceregistry.data.Codecs._
 import com.advancedtelematic.ota.deviceregistry.data.DataType.{CorrelationId, DeviceT}
@@ -101,6 +103,12 @@ trait DeviceRequests { self: ResourceSpec =>
       responseAs[DeviceId]
   }
 
+  def createDeviceInNamespaceOk(device: DeviceT, ns: Namespace)(implicit ec: ExecutionContext): DeviceId =
+    Post(Resource.uri(api), device).withNs(ns) ~> route ~> check {
+      status shouldBe Created
+      responseAs[DeviceId]
+    }
+
   def deleteDevice(uuid: DeviceId)(implicit ec: ExecutionContext): HttpRequest =
     Delete(Resource.uri(api, uuid.show))
 
@@ -171,7 +179,7 @@ trait DeviceRequests { self: ResourceSpec =>
   def getGroupsOfDevice(deviceUuid: DeviceId): HttpRequest = Get(Resource.uri(api, deviceUuid.show, "groups"))
 
   def getDevicesByGrouping(grouped: Boolean, groupType: Option[GroupType],
-                           regex: Option[String Refined Regex] = None, limit: Long = 500): HttpRequest = {
+                           regex: Option[String Refined Regex] = None, limit: Long = 1000): HttpRequest = {
     val m = Map("grouped" -> grouped, "limit" -> limit) ++
       List("groupType" -> groupType, "regex" -> regex).collect { case (k, Some(v)) => k -> v }.toMap
     Get(Resource.uri(api).withQuery(Query(m.mapValues(_.toString))))

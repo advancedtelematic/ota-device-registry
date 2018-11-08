@@ -13,6 +13,7 @@ import java.time.{Instant, OffsetDateTime}
 
 import akka.http.scaladsl.model.StatusCodes._
 import cats.syntax.option._
+import com.advancedtelematic.libats.data.DataType.Namespace
 import com.advancedtelematic.libats.data.{ErrorRepresentation, PaginationResult}
 import com.advancedtelematic.libats.http.monitoring.MetricsSupport
 import com.advancedtelematic.libats.messaging.MessageBusPublisher
@@ -59,6 +60,19 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
   private def sendDeviceSeen(uuid: DeviceId, lastSeen: Instant = Instant.now()): Unit =
     publisher(DeviceSeen(defaultNs, uuid, Instant.now())).futureValue
 
+  private def createGroupedAndUngroupedDevices(): Map[String, Seq[DeviceId]] = {
+    val deviceTs = genConflictFreeDeviceTs(12).sample.get
+    val deviceIds    = deviceTs.map(createDeviceOk)
+    val staticGroup = createStaticGroupOk()
+
+    deviceIds.take(4).foreach(addDeviceToGroupOk(staticGroup, _))
+    val expr = deviceTs.slice(4, 8).map(_.deviceId.underlying.take(6)).map(n => s"deviceid contains $n").reduce(_ + " or " + _)
+    createDynamicGroupOk(Refined.unsafeApply(expr))
+
+    Map("all" -> deviceIds, "groupedStatic" -> deviceIds.take(4),
+      "groupedDynamic" -> deviceIds.slice(4, 8), "ungrouped" -> deviceIds.drop(8))
+  }
+
   property("GET, PUT, DELETE, and POST '/ping' request fails on non-existent device") {
     forAll { (uuid: DeviceId, device: DeviceT) =>
       fetchDevice(uuid) ~> route ~> check { status shouldBe NotFound }
@@ -67,17 +81,18 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
     }
   }
 
-  private def createGroupedAndUngroupedDevices(): Map[String, Seq[DeviceId]] = {
-    val deviceTs = genConflictFreeDeviceTs(12).sample.get
-    val deviceIds    = deviceTs.map(createDeviceOk)
-    val staticGroup = createStaticGroupOk()
+  property("fetches only devices for the given namespace") {
+    forAll { (dt1: DeviceT, dt2: DeviceT) =>
+      val d1 = createDeviceInNamespaceOk(dt1, defaultNs)
+      val d2 = createDeviceInNamespaceOk(dt2, Namespace("test-namespace"))
 
-    deviceIds.take(4).foreach(addDeviceToGroupOk(staticGroup, _))
-    val expr = deviceTs.slice(4, 8).map(_.deviceId.underlying.take(4)).map(n => s"deviceid contains $n").reduce(_ + " or " + _)
-    createDynamicGroupOk(Refined.unsafeApply(expr))
-
-    Map("all" -> deviceIds, "groupedStatic" -> deviceIds.take(4),
-      "groupedDynamic" -> deviceIds.slice(4, 8), "ungrouped" -> deviceIds.drop(8))
+      listDevices() ~> route ~> check {
+        status shouldBe OK
+        val devices = responseAs[PaginationResult[Device]].values.map(_.uuid)
+        devices should contain(d1)
+        devices should not contain d2
+      }
+    }
   }
 
   property("GET request (for Id) after POST yields same device") {
@@ -99,7 +114,7 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
       val uuid = createDeviceOk(devicePre.copy(deviceId = deviceId))
       fetchByDeviceId(deviceId) ~> route ~> check {
         status shouldBe OK
-        val devicePost1: Device = responseAs[Seq[Device]].head
+        val devicePost1: Device = responseAs[PaginationResult[Device]].values.head
         fetchDevice(uuid) ~> route ~> check {
           status shouldBe OK
           val devicePost2: Device = responseAs[Device]
@@ -362,11 +377,9 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
     val deviceT = genDeviceT.sample.get
     createDeviceOk(deviceT)
 
-    fetchByDeviceId(deviceT.deviceId, Some(""), Some(genStaticGroup.sample.get.id)) ~> route ~> check {
+    fetchByDeviceId(deviceT.deviceId, Some(""), None) ~> route ~> check {
       status shouldBe BadRequest
-      val e = responseAs[ErrorRepresentation]
-      e.code shouldBe Errors.Codes.InvalidParameterCombination
-      responseAs[ErrorRepresentation].description should include ("deviceId, regex")
+      responseAs[ErrorRepresentation].description should include ("regex must be empty when searching by deviceId")
     }
   }
 
@@ -376,9 +389,7 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
 
     fetchByDeviceId(deviceT.deviceId, None, Some(genStaticGroup.sample.get.id)) ~> route ~> check {
       status shouldBe BadRequest
-      val e = responseAs[ErrorRepresentation]
-      e.code shouldBe Errors.Codes.InvalidParameterCombination
-      e.description should include ("deviceId, groupId")
+      responseAs[ErrorRepresentation].description should include ("groupId must be empty when searching by deviceId")
     }
   }
 
@@ -688,43 +699,63 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
     }
   }
 
+  property("finds all (and only) grouped devices") {
+    val m = createGroupedAndUngroupedDevices()
+
+    getDevicesByGrouping(grouped = true, None) ~> route ~> check {
+      status shouldBe OK
+      val result = responseAs[PaginationResult[Device]].values.map(_.uuid).filter(m("all").contains)
+      result should contain theSameElementsAs m("groupedStatic") ++ m("groupedDynamic")
+    }
+  }
+
+  property("finds all (and only) static grouped devices") {
+    val m = createGroupedAndUngroupedDevices()
+
+    getDevicesByGrouping(grouped = true, Some(GroupType.static)) ~> route ~> check {
+      status shouldBe OK
+      val result = responseAs[PaginationResult[Device]].values.map(_.uuid).filter(m("all").contains)
+      result should contain theSameElementsAs m("groupedStatic")
+    }
+  }
+
+  property("finds all (and only) dynamic grouped devices") {
+    val m = createGroupedAndUngroupedDevices()
+
+    getDevicesByGrouping(grouped = true, Some(GroupType.dynamic)) ~> route ~> check {
+      status shouldBe OK
+      val result = responseAs[PaginationResult[Device]].values.map(_.uuid).filter(m("all").contains)
+      result should contain theSameElementsAs m("groupedDynamic")
+    }
+  }
+
   property("finds all (and only) ungrouped devices") {
     val m = createGroupedAndUngroupedDevices()
 
     getDevicesByGrouping(grouped = false, None) ~> route ~> check {
       status shouldBe OK
       val result = responseAs[PaginationResult[Device]].values.map(_.uuid).filter(m("all").contains)
-      result should contain allElementsOf m("ungrouped")
+      result should contain theSameElementsAs m("ungrouped")
     }
   }
 
-  property("finds all (and only) static group devices") {
+  property("finds all (and only) non-static grouped devices") {
     val m = createGroupedAndUngroupedDevices()
 
-    getDevicesByGrouping(grouped = true, Some(GroupType.static)) ~> route ~> check {
+    getDevicesByGrouping(grouped = false, Some(GroupType.static)) ~> route ~> check {
       status shouldBe OK
       val result = responseAs[PaginationResult[Device]].values.map(_.uuid).filter(m("all").contains)
-      result should contain allElementsOf m("groupedStatic")
+      result should contain theSameElementsAs m("all").filterNot(m("groupedStatic").contains)
     }
   }
 
-  property("finds all (and only) dynamic group devices") {
+  property("finds all (and only) non-dynamic grouped devices") {
     val m = createGroupedAndUngroupedDevices()
 
-    getDevicesByGrouping(grouped = true, Some(GroupType.dynamic)) ~> route ~> check {
+    getDevicesByGrouping(grouped = false, Some(GroupType.dynamic)) ~> route ~> check {
       status shouldBe OK
       val result = responseAs[PaginationResult[Device]].values.map(_.uuid).filter(m("all").contains)
-      result should contain allElementsOf m("groupedDynamic")
-    }
-  }
-
-  property("finds all group devices of any group type") {
-    val m = createGroupedAndUngroupedDevices()
-
-    getDevicesByGrouping(grouped = true, None) ~> route ~> check {
-      status shouldBe OK
-      val result = responseAs[PaginationResult[Device]].values.map(_.uuid).filter(m("all").contains)
-      result should contain allElementsOf m("groupedStatic") ++ m("groupedDynamic")
+      result should contain theSameElementsAs m("all").filterNot(m("groupedDynamic").contains)
     }
   }
 

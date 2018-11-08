@@ -28,7 +28,7 @@ import com.advancedtelematic.libats.messaging_datatype.Messages.DeviceEventMessa
 import com.advancedtelematic.ota.deviceregistry.DevicesResource.EventPayload
 import com.advancedtelematic.ota.deviceregistry.common.Errors
 import com.advancedtelematic.ota.deviceregistry.data.Codecs._
-import com.advancedtelematic.ota.deviceregistry.data.DataType.{CorrelationId, DeviceT}
+import com.advancedtelematic.ota.deviceregistry.data.DataType.{CorrelationId, DeviceT, SearchParams}
 import com.advancedtelematic.ota.deviceregistry.data.Device.{ActiveDeviceCount, DeviceOemId}
 import com.advancedtelematic.ota.deviceregistry.data.Group.{GroupExpression, GroupId}
 import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
@@ -86,21 +86,8 @@ class DevicesResource(
       'groupId.as[GroupId].?,
       'regex.as[String Refined Regex].?,
       'offset.as[Long].?,
-      'limit.as[Long].?))
-    {
-      case (Some(oemId), _, _, None, None, _, _) =>
-        complete(db.run(DeviceRepository.findByDeviceId(ns, oemId)))
-      case (None, Some(true), gt, None, rx, o, l) =>
-        complete(db.run(DeviceRepository.searchGrouped(ns, gt, rx, o, l)))
-      case (None, Some(false), _, None, rx, o, l) =>
-        complete(db.run(DeviceRepository.searchUngrouped(ns, rx, o, l)))
-      case (None, _, _, gid, rx, o, l) =>
-        complete(db.run(DeviceRepository.search(ns, rx, gid, o, l)))
-      case (Some(_), _, _, Some(_), None, _, _) =>
-        complete(Errors.InvalidParameterCombination("deviceId", "groupId"))
-      case _ =>
-        complete(Errors.InvalidParameterCombination("deviceId", "regex"))
-    }
+      'limit.as[Long].?)).as(SearchParams)
+    { params => complete(db.run(DeviceRepository.search(ns, params))) }
 
   def createDevice(ns: Namespace, device: DeviceT): Route = {
     val f = db

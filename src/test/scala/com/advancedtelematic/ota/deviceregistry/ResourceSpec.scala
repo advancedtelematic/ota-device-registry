@@ -8,22 +8,18 @@
 
 package com.advancedtelematic.ota.deviceregistry
 
-import akka.http.scaladsl.server.{Directives, Route}
+import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.{RouteTestTimeout, ScalatestRouteTest}
-import com.advancedtelematic.libats.auth.AuthedNamespaceScope
+import com.advancedtelematic.libats.auth.NamespaceDirectives
 import com.advancedtelematic.libats.data.DataType.Namespace
 import com.advancedtelematic.libats.messaging.MessageBus
 import com.advancedtelematic.libats.test.DatabaseSpec
-import com.advancedtelematic.ota.deviceregistry.data.{
-  DeviceGenerators,
-  GroupGenerators,
-  PackageIdGenerators,
-  SimpleJsonGenerator
-}
+import com.advancedtelematic.ota.deviceregistry.data.{DeviceGenerators, GroupGenerators, PackageIdGenerators, SimpleJsonGenerator}
 import com.advancedtelematic.ota.deviceregistry.db.DeviceRepository
 import org.scalatest.{BeforeAndAfterAll, Matchers, PropSpec, Suite}
 import org.scalatest.prop.PropertyChecks
 import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
+
 import scala.concurrent.Future
 import scala.concurrent.duration._
 
@@ -47,7 +43,7 @@ trait ResourceSpec
 
   lazy val defaultNs: Namespace = Namespace("default")
 
-  lazy val namespaceExtractor = Directives.provide(AuthedNamespaceScope(defaultNs))
+  lazy val namespaceExtractor = NamespaceDirectives.defaultNamespaceExtractor
 
   private val namespaceAuthorizer = AllowUUIDPath.deviceUUID(namespaceExtractor, deviceAllowed)
 
