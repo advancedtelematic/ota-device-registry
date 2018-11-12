@@ -69,4 +69,23 @@ object UpdateReportRepository {
       .map(_.map(stat => FailedStat(stat._1, stat._2, stat._3)))
   }
 
+  def calculateFailedEcuStats(correlationId: CorrelationId)(implicit ec: ExecutionContext): DBIO[Seq[FailedStat]] = {
+    val totalDevices = ecuUpdateReports
+      .filter(_.correlationId === correlationId)
+      .length
+      .asColumnOf[Double]
+
+    ecuUpdateReports
+      .filter(_.correlationId === correlationId)
+      .filter(_.resultCode > 1)
+      .groupBy(_.resultCode)
+      .map {
+        case (resultCode, failedDevices) =>
+          val failedCount = failedDevices.length
+          (resultCode, failedCount, failedCount.asColumnOf[Double] / totalDevices)
+      }
+      .result
+      .map(_.map(stat => FailedStat(stat._1, stat._2, stat._3)))
+  }
+
 }

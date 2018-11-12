@@ -172,6 +172,9 @@ class DevicesResource(
   def fetchFailedStats(correlationId: CorrelationId): Route =
     complete(db.run(UpdateReportRepository.calculateFailedDevicesStats(correlationId)))
 
+  def fetchFailedEcuStats(correlationId: CorrelationId): Route =
+    complete(db.run(UpdateReportRepository.calculateFailedEcuStats(correlationId)))
+
   def api: Route = namespaceExtractor { ns =>
     val scope = Scopes.devices(ns)
     pathPrefix("devices") {
@@ -179,6 +182,9 @@ class DevicesResource(
         createDevice(ns.namespace, device)
       } ~
       scope.get {
+        (path("ecus" / "failed" / "stats") & parameter('correlationId.as[CorrelationId])) { cid =>
+          fetchFailedEcuStats(cid)
+        } ~
         (path("count") & parameter('expression.as[GroupExpression].?)) {
           case None      => complete(Errors.InvalidGroupExpression(""))
           case Some(exp) => countDynamicGroupCandidates(ns.namespace, exp)

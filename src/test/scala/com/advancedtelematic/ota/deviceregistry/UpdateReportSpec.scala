@@ -12,9 +12,11 @@ import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
 import eu.timepit.refined.api.Refined
 import org.scalacheck.Gen
 import org.scalatest.concurrent.{Eventually, ScalaFutures}
-import org.scalatest.time.SpanSugar._
+import org.scalatest.time.{Millis, Seconds, Span}
 
 class UpdateReportSpec extends ResourcePropSpec with ScalaFutures with Eventually {
+
+  implicit override val patienceConfig: PatienceConfig = PatienceConfig(Span(5, Seconds), Span(50, Millis))
 
   private def genOperationResult(resultCode: Int): Gen[OperationResult] = for {
     fileName <- Gen.alphaNumStr.retryUntil(_.length < 254)
@@ -39,10 +41,25 @@ class UpdateReportSpec extends ResourcePropSpec with ScalaFutures with Eventuall
 
     deviceReports.foreach(messageBus.publish(_))
 
-    eventually(timeout(5.seconds), interval(100.millis)) {
+    eventually {
       getFailedStats(CorrelationId.from(updateId)) ~> route ~> check {
         status shouldBe OK
         responseAs[Seq[FailedStat]] shouldBe Seq(FailedStat(2, 2, 2d / 7), FailedStat(3, 3, 3d / 7))
+      }
+    }
+  }
+
+  property("should save device reports and retrieve failed stats per ECUs") {
+    val updateId = UpdateId.generate()
+    val resultCodes = Seq(1, 2, 2, 3, 3, 3, 4, 4, 4, 4) // resultCode > 1 indicates an error
+    val deviceReports = resultCodes.map(genDeviceUpdateReport(updateId, _)).map(_.sample.get)
+
+    deviceReports.foreach(messageBus.publish(_))
+
+    eventually {
+      getFailedEcuStats(CorrelationId.from(updateId)) ~> route ~> check {
+        status shouldBe OK
+        responseAs[Seq[FailedStat]] shouldBe Seq(FailedStat(2, 2, 2d / 10), FailedStat(3, 3, 3d / 10), FailedStat(4, 4, 4d / 10))
       }
     }
   }
