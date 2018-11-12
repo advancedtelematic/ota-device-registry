@@ -179,4 +179,7 @@ trait DeviceRequests { self: ResourceSpec =>
       List("groupType" -> groupType, "regex" -> regex).collect { case (k, Some(v)) => k -> v }.toMap
     Get(Resource.uri(api).withQuery(Query(m.mapValues(_.toString))))
   }
+
+  def getFailedStats(correlationId: CorrelationId): HttpRequest =
+    Get(Resource.uri(api, "failed", "stats").withQuery(Query("correlationId" -> correlationId.id)))
 }

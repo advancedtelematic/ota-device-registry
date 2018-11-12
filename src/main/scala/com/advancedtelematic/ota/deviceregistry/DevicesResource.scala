@@ -33,7 +33,7 @@ import com.advancedtelematic.ota.deviceregistry.data.Device.{ActiveDeviceCount, 
 import com.advancedtelematic.ota.deviceregistry.data.Group.{GroupExpression, GroupId}
 import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
 import com.advancedtelematic.ota.deviceregistry.data.PackageId
-import com.advancedtelematic.ota.deviceregistry.db.{DeviceRepository, EventJournal, GroupMemberRepository, InstalledPackages}
+import com.advancedtelematic.ota.deviceregistry.db._
 import com.advancedtelematic.ota.deviceregistry.messages.{DeleteDeviceRequest, DeviceCreated}
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.string.Regex
@@ -169,6 +169,9 @@ class DevicesResource(
       complete(f)
     }
 
+  def fetchFailedStats(correlationId: CorrelationId): Route =
+    complete(db.run(UpdateReportRepository.calculateFailedDevicesStats(correlationId)))
+
   def api: Route = namespaceExtractor { ns =>
     val scope = Scopes.devices(ns)
     pathPrefix("devices") {
@@ -179,6 +182,9 @@ class DevicesResource(
         (path("count") & parameter('expression.as[GroupExpression].?)) {
           case None      => complete(Errors.InvalidGroupExpression(""))
           case Some(exp) => countDynamicGroupCandidates(ns.namespace, exp)
+        } ~
+        (path("failed" / "stats") & parameter('correlationId.as[CorrelationId])) { cid =>
+          fetchFailedStats(cid)
         } ~
         pathEnd {
           searchDevice(ns.namespace)

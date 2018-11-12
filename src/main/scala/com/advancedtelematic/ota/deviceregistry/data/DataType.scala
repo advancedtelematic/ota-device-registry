@@ -1,6 +1,6 @@
 package com.advancedtelematic.ota.deviceregistry.data
 import cats.Show
-import com.advancedtelematic.libats.messaging_datatype.DataType.{DeviceId, Event}
+import com.advancedtelematic.libats.messaging_datatype.DataType.{DeviceId, EcuSerial, Event, UpdateId}
 import com.advancedtelematic.ota.deviceregistry.data.CredentialsType.CredentialsType
 import com.advancedtelematic.ota.deviceregistry.data.DataType.IndexedEventType.IndexedEventType
 import com.advancedtelematic.ota.deviceregistry.data.Device.{DeviceName, DeviceOemId, DeviceType}
@@ -12,8 +12,14 @@ import eu.timepit.refined.string.Regex
 object DataType {
   case class IndexedEvent(device: DeviceId, eventID: String, eventType: IndexedEventType, correlationId: Option[CorrelationId])
 
-  case class CorrelationId(id: String) extends AnyVal
+  case class FailedStat(resultCode: Int, total: Int, percentage: Double)
 
+  case class CorrelationId(id: String) extends AnyVal
+  object CorrelationId {
+    val namespace = "here-ota"
+    def make(resource: String, id: String) = CorrelationId(s"$namespace:$resource:$id")
+    def from(id: UpdateId): CorrelationId = make("mtus", id.uuid.toString)
+  }
   object IndexedEventType extends Enumeration {
     type IndexedEventType = Value
 
@@ -31,6 +37,9 @@ object DataType {
   implicit val eventShow: Show[Event] = Show { event =>
     s"(device=${event.deviceUuid},eventId=${event.eventId},eventType=${event.eventType})"
   }
+
+  final case class DeviceReport(deviceId: DeviceId, correlationId: CorrelationId, resultCode: Int)
+  final case class EcuReport(ecuSerial: EcuSerial, correlationId: CorrelationId, resultCode: Int)
 
   final case class SearchParams(oemId: Option[DeviceOemId], grouped: Option[Boolean], groupType: Option[GroupType],
                           groupId: Option[GroupId], regex: Option[String Refined Regex], offset: Option[Long], limit: Option[Long]) {
