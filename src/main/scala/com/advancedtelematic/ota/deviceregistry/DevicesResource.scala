@@ -28,7 +28,7 @@ import com.advancedtelematic.libats.messaging_datatype.Messages.DeviceEventMessa
 import com.advancedtelematic.ota.deviceregistry.DevicesResource.EventPayload
 import com.advancedtelematic.ota.deviceregistry.common.Errors
 import com.advancedtelematic.ota.deviceregistry.data.Codecs._
-import com.advancedtelematic.ota.deviceregistry.data.DataType.{CorrelationId, DeviceT, SearchParams}
+import com.advancedtelematic.ota.deviceregistry.data.DataType.{CorrelationId, DeviceT, SearchParams, UpdateDevice}
 import com.advancedtelematic.ota.deviceregistry.data.Device.{ActiveDeviceCount, DeviceOemId}
 import com.advancedtelematic.ota.deviceregistry.data.Group.{GroupExpression, GroupId}
 import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
@@ -114,8 +114,8 @@ class DevicesResource(
   def fetchDevice(uuid: DeviceId): Route =
     complete(db.run(DeviceRepository.findByUuid(uuid)))
 
-  def updateDevice(ns: Namespace, uuid: DeviceId, device: DeviceT): Route =
-    complete(db.run(DeviceRepository.updateDeviceName(ns, uuid, device.deviceName)))
+  def updateDevice(ns: Namespace, uuid: DeviceId, updateDevice: UpdateDevice): Route =
+    complete(db.run(DeviceRepository.updateDeviceName(ns, uuid, updateDevice.deviceName)))
 
   def countDynamicGroupCandidates(ns: Namespace, expression: GroupExpression): Route =
     complete(db.run(DeviceRepository.countDevicesForExpression(ns, expression)))
@@ -185,8 +185,8 @@ class DevicesResource(
         }
       } ~
       deviceNamespaceAuthorizer { uuid =>
-        (scope.put & entity(as[DeviceT]) & pathEnd) { device =>
-          updateDevice(ns.namespace, uuid, device)
+        (scope.put & entity(as[UpdateDevice]) & pathEnd) { updateBody =>
+          updateDevice(ns.namespace, uuid, updateBody)
         } ~
         (scope.delete & pathEnd) {
           deleteDevice(ns.namespace, uuid)

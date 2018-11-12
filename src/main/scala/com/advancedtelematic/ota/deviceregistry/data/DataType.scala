@@ -26,6 +26,8 @@ object DataType {
                            credentials: Option[String] = None,
                            credentialsType: Option[CredentialsType] = None)
 
+  final case class UpdateDevice(deviceName: DeviceName)
+
   implicit val eventShow: Show[Event] = Show { event =>
     s"(device=${event.deviceUuid},eventId=${event.eventId},eventType=${event.eventType})"
   }
