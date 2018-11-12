@@ -16,9 +16,10 @@ import akka.http.scaladsl.model.{StatusCodes, Uri}
 import akka.http.scaladsl.server._
 import akka.http.scaladsl.unmarshalling.{FromStringUnmarshaller, Unmarshaller}
 import akka.stream.ActorMaterializer
+import cats.syntax.either._
 import cats.syntax.show._
 import com.advancedtelematic.libats.auth.{AuthedNamespaceScope, Scopes}
-import com.advancedtelematic.libats.data.DataType.Namespace
+import com.advancedtelematic.libats.data.DataType.{CorrelationId, Namespace}
 import com.advancedtelematic.libats.http.UUIDKeyAkka._
 import com.advancedtelematic.libats.messaging.MessageBusPublisher
 import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId._
@@ -28,12 +29,13 @@ import com.advancedtelematic.libats.messaging_datatype.Messages.DeviceEventMessa
 import com.advancedtelematic.ota.deviceregistry.DevicesResource.EventPayload
 import com.advancedtelematic.ota.deviceregistry.common.Errors
 import com.advancedtelematic.ota.deviceregistry.data.Codecs._
-import com.advancedtelematic.ota.deviceregistry.data.DataType.{CorrelationId, DeviceT, SearchParams, UpdateDevice}
+import com.advancedtelematic.ota.deviceregistry.data.DataType.InstallationStatsLevel.InstallationStatsLevel
+import com.advancedtelematic.ota.deviceregistry.data.DataType.{DeviceT, InstallationStatsLevel, SearchParams, UpdateDevice}
 import com.advancedtelematic.ota.deviceregistry.data.Device.{ActiveDeviceCount, DeviceOemId}
 import com.advancedtelematic.ota.deviceregistry.data.Group.{GroupExpression, GroupId}
 import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
 import com.advancedtelematic.ota.deviceregistry.data.PackageId
-import com.advancedtelematic.ota.deviceregistry.db.{DeviceRepository, EventJournal, GroupMemberRepository, InstalledPackages}
+import com.advancedtelematic.ota.deviceregistry.db._
 import com.advancedtelematic.ota.deviceregistry.messages.{DeleteDeviceRequest, DeviceCreated}
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.string.Regex
@@ -76,7 +78,20 @@ class DevicesResource(
 
   val eventJournal = new EventJournal()
 
-  implicit val groupIdUnmarshaller = GroupId.unmarshaller
+  implicit val groupIdUnmarshaller: Unmarshaller[String, GroupId] = GroupId.unmarshaller
+
+  implicit val correlationIdUnmarshaller: FromStringUnmarshaller[CorrelationId] = Unmarshaller.strict {
+    CorrelationId.fromString(_).leftMap(new IllegalArgumentException(_)).valueOr(throw _)
+  }
+
+  implicit val installationStatsLevelUnmarshaller: FromStringUnmarshaller[InstallationStatsLevel] =
+    Unmarshaller.strict {
+      _.toLowerCase match {
+        case "device" => InstallationStatsLevel.Device
+        case "ecu"    => InstallationStatsLevel.Ecu
+        case s        => throw new IllegalArgumentException(s"Invalid value for installation stats level parameter: $s.")
+      }
+  }
 
   def searchDevice(ns: Namespace): Route =
     parameters((
@@ -169,6 +184,17 @@ class DevicesResource(
       complete(f)
     }
 
+  def fetchInstallationHistory(deviceId: DeviceId, offset: Option[Long], limit: Option[Long]): Route =
+    complete(db.run(InstallationReportRepository.fetchInstallationHistory(deviceId, offset, limit)))
+
+  def fetchInstallationStats(correlationId: CorrelationId, reportLevel: Option[InstallationStatsLevel]): Route = {
+    val action = reportLevel match {
+      case Some(InstallationStatsLevel.Ecu) => InstallationReportRepository.installationStatsPerEcu(correlationId)
+      case _                                => InstallationReportRepository.installationStatsPerDevice(correlationId)
+    }
+    complete(db.run(action))
+  }
+
   def api: Route = namespaceExtractor { ns =>
     val scope = Scopes.devices(ns)
     pathPrefix("devices") {
@@ -179,6 +205,9 @@ class DevicesResource(
         (path("count") & parameter('expression.as[GroupExpression].?)) {
           case None      => complete(Errors.InvalidGroupExpression(""))
           case Some(exp) => countDynamicGroupCandidates(ns.namespace, exp)
+        } ~
+        (path("stats") & parameters('correlationId.as[CorrelationId], 'reportLevel.as[InstallationStatsLevel].?)) {
+          (cid, reportLevel) => fetchInstallationStats(cid, reportLevel)
         } ~
         pathEnd {
           searchDevice(ns.namespace)
@@ -199,6 +228,9 @@ class DevicesResource(
         } ~
         (path("packages") & scope.get) {
           listPackagesOnDevice(uuid)
+        } ~
+        (scope.get & path("installation_history") & parameters('offset.as[Long].?, 'limit.as[Long].?) & pathEnd) {
+          (offset, limit) => fetchInstallationHistory(uuid, offset, limit)
         } ~
         path("events") {
           import DevicesResource.EventPayloadDecoder

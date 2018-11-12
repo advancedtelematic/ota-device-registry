@@ -16,7 +16,7 @@ import java.util.UUID
 import cats.syntax.option._
 import akka.http.scaladsl.model.StatusCodes
 import com.advancedtelematic.libats.http.monitoring.MetricsSupport
-import com.advancedtelematic.libats.messaging_datatype.DataType.EventType
+import com.advancedtelematic.libats.messaging_datatype.DataType.{EventType, UpdateId}
 import com.advancedtelematic.ota.deviceregistry.daemon.DeviceEventListener
 import com.advancedtelematic.ota.deviceregistry.EventJournalSpec.EventPayload
 import io.circe.{Decoder, Json}
@@ -25,7 +25,8 @@ import org.scalacheck.{Arbitrary, Gen, Shrink}
 import org.scalatest.concurrent.{Eventually, ScalaFutures}
 import com.advancedtelematic.libats.messaging_datatype.MessageCodecs._
 import com.advancedtelematic.libats.codecs.CirceCodecs._
-import com.advancedtelematic.ota.deviceregistry.data.DataType.{CorrelationId, DeviceT}
+import com.advancedtelematic.libats.data.DataType.{CampaignId, CorrelationId, MultiTargetUpdateId}
+import com.advancedtelematic.ota.deviceregistry.data.DataType.DeviceT
 import io.circe.generic.semiauto._
 
 object EventJournalSpec {
@@ -63,6 +64,9 @@ class EventJournalSpec extends ResourcePropSpec with ScalaFutures with Eventuall
       ver <- Gen.chooseNum(1, 10)
     } yield EventType(id, ver)
 
+  val genCorrelationId: Gen[CorrelationId] =
+    Gen.uuid.flatMap(uuid => Gen.oneOf(CampaignId(uuid), MultiTargetUpdateId(uuid)))
+
   implicit val EventGen = for {
     id        <- Gen.uuid
     timestamp <- InstantGen
@@ -75,7 +79,7 @@ class EventJournalSpec extends ResourcePropSpec with ScalaFutures with Eventuall
 
   val installCompleteEventGen: Gen[(EventPayload, CorrelationId)] = for {
     event <- EventGen
-    correlationId <- Gen.uuid.map(uuid => CorrelationId(s"ota:update:uuid:$uuid"))
+    correlationId <- genCorrelationId
     json = Json.obj("correlationId" -> correlationId.asJson)
   } yield event.copy(event = json, eventType = EventType("InstallationComplete", 0)) -> correlationId
 
