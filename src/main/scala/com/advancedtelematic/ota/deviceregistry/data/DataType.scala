@@ -12,7 +12,7 @@ import eu.timepit.refined.string.Regex
 object DataType {
   case class IndexedEvent(device: DeviceId, eventID: String, eventType: IndexedEventType, correlationId: Option[CorrelationId])
 
-  case class FailedStat(resultCode: Int, total: Int, percentage: Double)
+  case class UpdateStat(resultCode: Int, total: Int)
 
   case class CorrelationId(id: String) extends AnyVal
   object CorrelationId {

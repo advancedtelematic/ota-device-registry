@@ -5,7 +5,7 @@ import com.advancedtelematic.libats.slick.codecs.SlickRefined._
 import com.advancedtelematic.libats.slick.db.SlickAnyVal._
 import com.advancedtelematic.libats.slick.db.SlickUUIDKey._
 import com.advancedtelematic.libtuf.data.TufDataType.OperationResult
-import com.advancedtelematic.ota.deviceregistry.data.DataType.{CorrelationId, DeviceReport, EcuReport, FailedStat}
+import com.advancedtelematic.ota.deviceregistry.data.DataType.{CorrelationId, DeviceReport, EcuReport, UpdateStat}
 import slick.jdbc.MySQLProfile.api._
 
 import scala.concurrent.ExecutionContext
@@ -37,9 +37,9 @@ object UpdateReportRepository {
   private val ecuUpdateReports = TableQuery[EcuUpdateReportTable]
 
   def saveUpdateReport(correlationId: CorrelationId,
-                 deviceUuid: DeviceId,
-                 deviceResultCode: Int,
-                 operationResults: Map[EcuSerial, OperationResult])(implicit ec: ExecutionContext): DBIO[Unit] = {
+                       deviceUuid: DeviceId,
+                       deviceResultCode: Int,
+                       operationResults: Map[EcuSerial, OperationResult])(implicit ec: ExecutionContext): DBIO[Unit] = {
     val q =
       for {
         _ <- deviceUpdateReports += DeviceReport(deviceUuid, correlationId, deviceResultCode)
@@ -50,42 +50,22 @@ object UpdateReportRepository {
     q.transactionally
   }
 
-  def calculateFailedDevicesStats(correlationId: CorrelationId)(implicit ec: ExecutionContext): DBIO[Seq[FailedStat]] = {
-    val totalDevices = deviceUpdateReports
-      .filter(_.correlationId === correlationId)
-      .length
-      .asColumnOf[Double]
-
+  def calculateFailedDevicesStats(correlationId: CorrelationId)(implicit ec: ExecutionContext): DBIO[Seq[UpdateStat]] = {
     deviceUpdateReports
       .filter(_.correlationId === correlationId)
-      .filter(_.resultCode > 1)
       .groupBy(_.resultCode)
-      .map {
-        case (resultCode, failedDevices) =>
-          val failedCount = failedDevices.length
-          (resultCode, failedCount, failedCount.asColumnOf[Double] / totalDevices)
-      }
+      .map { case (resultCode, failedDevices) => (resultCode, failedDevices.length) }
       .result
-      .map(_.map(stat => FailedStat(stat._1, stat._2, stat._3)))
+      .map(_.map(stat => UpdateStat(stat._1, stat._2)))
   }
 
-  def calculateFailedEcuStats(correlationId: CorrelationId)(implicit ec: ExecutionContext): DBIO[Seq[FailedStat]] = {
-    val totalDevices = ecuUpdateReports
-      .filter(_.correlationId === correlationId)
-      .length
-      .asColumnOf[Double]
-
+  def calculateFailedEcuStats(correlationId: CorrelationId)(implicit ec: ExecutionContext): DBIO[Seq[UpdateStat]] = {
     ecuUpdateReports
       .filter(_.correlationId === correlationId)
-      .filter(_.resultCode > 1)
       .groupBy(_.resultCode)
-      .map {
-        case (resultCode, failedDevices) =>
-          val failedCount = failedDevices.length
-          (resultCode, failedCount, failedCount.asColumnOf[Double] / totalDevices)
-      }
+      .map { case (resultCode, failedDevices) => (resultCode, failedDevices.length) }
       .result
-      .map(_.map(stat => FailedStat(stat._1, stat._2, stat._3)))
+      .map(_.map(stat => UpdateStat(stat._1, stat._2)))
   }
 
 }

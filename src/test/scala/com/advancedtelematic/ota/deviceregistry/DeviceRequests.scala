@@ -180,14 +180,6 @@ trait DeviceRequests { self: ResourceSpec =>
     Get(Resource.uri(api).withQuery(Query(m.mapValues(_.toString))))
   }
 
-  def getFailedStats(correlationId: CorrelationId): HttpRequest =
-    Get(Resource.uri(api, "failed", "stats").withQuery(Query("correlationId" -> correlationId.id)))
-
-  def getFailedEcuStats(correlationId: CorrelationId): HttpRequest = {
-    val request = Get(
-      Resource.uri(api, "ecus", "failed", "stats").withQuery(Query("correlationId" -> correlationId.id))
-    )
-    println(request)
-    request
-  }
+  def getStats(correlationId: CorrelationId, level: String): HttpRequest =
+    Get(Resource.uri(api, "stats").withQuery(Query("correlationId" -> correlationId.id, "level" -> level)))
 }

@@ -7,7 +7,7 @@ import com.advancedtelematic.libtuf.data.TufDataType.OperationResult
 import com.advancedtelematic.libtuf_server.data.Messages.{DeviceUpdateReport, deviceUpdateReportMessageLike}
 import com.advancedtelematic.ota.deviceregistry.daemon.DeviceUpdateReportListener
 import com.advancedtelematic.ota.deviceregistry.data.Codecs.failedStatDecoder
-import com.advancedtelematic.ota.deviceregistry.data.DataType.{CorrelationId, FailedStat}
+import com.advancedtelematic.ota.deviceregistry.data.DataType.{CorrelationId, UpdateStat}
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
 import eu.timepit.refined.api.Refined
 import org.scalacheck.Gen
@@ -36,30 +36,30 @@ class UpdateReportSpec extends ResourcePropSpec with ScalaFutures with Eventuall
 
   property("should save device reports and retrieve failed stats per devices") {
     val updateId = UpdateId.generate()
-    val resultCodes = Seq(0, 1, 2, 2, 3, 3, 3) // resultCode > 1 indicates an error
+    val resultCodes = Seq(0, 1, 2, 2, 3, 3, 3)
     val deviceReports = resultCodes.map(genDeviceUpdateReport(updateId, _)).map(_.sample.get)
 
     deviceReports.foreach(messageBus.publish(_))
 
     eventually {
-      getFailedStats(CorrelationId.from(updateId)) ~> route ~> check {
+      getStats(CorrelationId.from(updateId), "device") ~> route ~> check {
         status shouldBe OK
-        responseAs[Seq[FailedStat]] shouldBe Seq(FailedStat(2, 2, 2d / 7), FailedStat(3, 3, 3d / 7))
+        responseAs[Seq[UpdateStat]] shouldBe Seq(UpdateStat(0, 1), UpdateStat(1, 1), UpdateStat(2, 2), UpdateStat(3, 3))
       }
     }
   }
 
   property("should save device reports and retrieve failed stats per ECUs") {
     val updateId = UpdateId.generate()
-    val resultCodes = Seq(1, 2, 2, 3, 3, 3, 4, 4, 4, 4) // resultCode > 1 indicates an error
+    val resultCodes = Seq(1, 2, 2, 3, 3, 3, 4, 4, 4, 4)
     val deviceReports = resultCodes.map(genDeviceUpdateReport(updateId, _)).map(_.sample.get)
 
     deviceReports.foreach(messageBus.publish(_))
 
     eventually {
-      getFailedEcuStats(CorrelationId.from(updateId)) ~> route ~> check {
+      getStats(CorrelationId.from(updateId), "ecu") ~> route ~> check {
         status shouldBe OK
-        responseAs[Seq[FailedStat]] shouldBe Seq(FailedStat(2, 2, 2d / 10), FailedStat(3, 3, 3d / 10), FailedStat(4, 4, 4d / 10))
+        responseAs[Seq[UpdateStat]] shouldBe Seq(UpdateStat(1, 1), UpdateStat(2, 2), UpdateStat(3, 3), UpdateStat(4, 4))
       }
     }
   }
