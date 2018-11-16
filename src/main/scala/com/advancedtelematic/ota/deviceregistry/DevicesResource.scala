@@ -214,26 +214,38 @@ class DevicesResource(
         }
       } ~
       deviceNamespaceAuthorizer { uuid =>
+      scope.get {
+        (path("groups") & pathEnd) {
+          getGroupsForDevice(ns.namespace, uuid)
+        } ~
+        (path("packages") & pathEnd) {
+          listPackagesOnDevice(uuid)
+        } ~
+        (path("installation_history") & parameters('offset.as[Long].?, 'limit.as[Long].?) & pathEnd) {
+          (offset, limit) => fetchInstallationHistory(uuid, offset, limit)
+        } ~
+        (path("active_device_count") & pathEnd) {
+          getActiveDeviceCount(ns.namespace)
+        } ~
+        (pathPrefix("device_count") & extractPackageId) { pkg =>
+          getDevicesCount(pkg, ns.namespace)
+        } ~
+        pathEnd {
+          fetchDevice(uuid)
+        }
+      } ~
         (scope.put & entity(as[UpdateDevice]) & pathEnd) { updateBody =>
           updateDevice(ns.namespace, uuid, updateBody)
         } ~
         (scope.delete & pathEnd) {
           deleteDevice(ns.namespace, uuid)
         } ~
-        (scope.get & pathEnd) {
-          fetchDevice(uuid)
-        } ~
-        (scope.get & path("groups") & pathEnd) {
-          getGroupsForDevice(ns.namespace, uuid)
-        } ~
-        (path("packages") & scope.get) {
-          listPackagesOnDevice(uuid)
-        } ~
-        (scope.get & path("installation_history") & parameters('offset.as[Long].?, 'limit.as[Long].?) & pathEnd) {
-          (offset, limit) => fetchInstallationHistory(uuid, offset, limit)
-        } ~
         path("events") {
           import DevicesResource.EventPayloadDecoder
+          (get & parameter('correlationId.as[CorrelationId].?) & pathEnd) { correlationId =>
+            val events = eventJournal.getEvents(uuid, correlationId)
+            complete(events)
+          } ~
           (post & pathEnd) {
             extractLog { log =>
               entity(as[List[EventPayload]]) { xs =>
@@ -250,10 +262,6 @@ class DevicesResource(
                 }
               }
             }
-          } ~
-          (get & parameter('correlationId.as[CorrelationId].?) & pathEnd) { correlationId =>
-            val events = eventJournal.getEvents(uuid, correlationId)
-            complete(events)
           }
         }
       }
@@ -292,10 +300,5 @@ class DevicesResource(
     }
   }
 
-  /**
-    * Base API route for devices.
-    *
-    * @return      Route object containing routes for creating, deleting, and listing devices
-    */
-  def route: Route = api ~ mydeviceRoutes ~ devicePackagesRoutes
+  val route: Route = api ~ mydeviceRoutes ~ devicePackagesRoutes
 }
