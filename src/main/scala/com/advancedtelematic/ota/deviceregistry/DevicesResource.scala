@@ -214,26 +214,26 @@ class DevicesResource(
         }
       } ~
       deviceNamespaceAuthorizer { uuid =>
-      scope.get {
-        (path("groups") & pathEnd) {
-          getGroupsForDevice(ns.namespace, uuid)
+        scope.get {
+          path("groups") {
+            getGroupsForDevice(ns.namespace, uuid)
+          } ~
+          path("packages") {
+            listPackagesOnDevice(uuid)
+          } ~
+          path("active_device_count") {
+            getActiveDeviceCount(ns.namespace)
+          } ~
+          (path("installation_history") & parameters('offset.as[Long].?, 'limit.as[Long].?)) {
+            (offset, limit) => fetchInstallationHistory(uuid, offset, limit)
+          } ~
+          (pathPrefix("device_count") & extractPackageId) { pkg =>
+            getDevicesCount(pkg, ns.namespace)
+          } ~
+          pathEnd {
+            fetchDevice(uuid)
+          }
         } ~
-        (path("packages") & pathEnd) {
-          listPackagesOnDevice(uuid)
-        } ~
-        (path("installation_history") & parameters('offset.as[Long].?, 'limit.as[Long].?) & pathEnd) {
-          (offset, limit) => fetchInstallationHistory(uuid, offset, limit)
-        } ~
-        (path("active_device_count") & pathEnd) {
-          getActiveDeviceCount(ns.namespace)
-        } ~
-        (pathPrefix("device_count") & extractPackageId) { pkg =>
-          getDevicesCount(pkg, ns.namespace)
-        } ~
-        pathEnd {
-          fetchDevice(uuid)
-        }
-      } ~
         (scope.put & entity(as[UpdateDevice]) & pathEnd) { updateBody =>
           updateDevice(ns.namespace, uuid, updateBody)
         } ~
@@ -242,7 +242,7 @@ class DevicesResource(
         } ~
         path("events") {
           import DevicesResource.EventPayloadDecoder
-          (get & parameter('correlationId.as[CorrelationId].?) & pathEnd) { correlationId =>
+          (get & parameter('correlationId.as[CorrelationId].?)) { correlationId =>
             val events = eventJournal.getEvents(uuid, correlationId)
             complete(events)
           } ~

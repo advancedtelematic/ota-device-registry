@@ -20,14 +20,18 @@ import com.advancedtelematic.libats.http.monitoring.MetricsSupport
 import com.advancedtelematic.libats.messaging._
 import com.advancedtelematic.libats.messaging.daemon.MessageBusListenerActor.Subscribe
 import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
-import com.advancedtelematic.libats.messaging_datatype.Messages.{DeviceInstallationReport, DeviceSeen}
+import com.advancedtelematic.libats.messaging_datatype.Messages.{
+  DeviceEventMessage,
+  DeviceInstallationReport,
+  DeviceSeen
+}
 import com.advancedtelematic.libats.slick.db.{BootMigrations, DatabaseConfig}
 import com.advancedtelematic.libats.slick.monitoring.{DatabaseMetrics, DbHealthResource}
 import com.advancedtelematic.metrics.prometheus.PrometheusMetricsSupport
 import com.advancedtelematic.metrics.{AkkaHttpRequestMetrics, InfluxdbMetricsReporterSupport}
 import com.advancedtelematic.ota.deviceregistry.daemon._
 import com.advancedtelematic.ota.deviceregistry.db.DeviceRepository
-import com.advancedtelematic.ota.deviceregistry.messages.UpdateSpec
+import com.advancedtelematic.ota.deviceregistry.messages.{DeleteDeviceRequest, UpdateSpec}
 import slick.jdbc.MySQLProfile.api._
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -102,8 +106,8 @@ object Boot extends BootApp
     )
   deviceSeenListener ! Subscribe
 
-  new DeviceEventListener(system.settings.config, db, metricRegistry).start()
-  new DeleteDeviceHandler(system.settings.config, db, metricRegistry).start()
+  startListener[DeviceEventMessage](new DeviceEventListener())
+  startListener[DeleteDeviceRequest](new DeleteDeviceHandler())
   startListener[DeviceInstallationReport](new DeviceInstallationReportListener())
 
   val host = config.getString("server.host")
