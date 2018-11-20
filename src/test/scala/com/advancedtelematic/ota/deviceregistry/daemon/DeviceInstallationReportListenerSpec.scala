@@ -29,7 +29,7 @@ class DeviceInstallationReportListenerSpec
 
     listener.apply(message).futureValue shouldBe (())
 
-    val expectedDeviceReports       = Seq(DeviceInstallationResult(correlationId, message.result.code, deviceUuid, message.asJson))
+    val expectedDeviceReports       = Seq(DeviceInstallationResult(correlationId, message.result.code, deviceUuid, message.receivedAt, message.asJson))
     val deviceReports = db.run(InstallationReportRepository.fetchDeviceInstallationReport(correlationId))
     deviceReports.futureValue shouldBe expectedDeviceReports
 

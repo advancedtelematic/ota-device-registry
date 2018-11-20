@@ -1,4 +1,7 @@
 package com.advancedtelematic.ota.deviceregistry.data
+
+import java.time.Instant
+
 import cats.Show
 import com.advancedtelematic.libats.data.DataType.CorrelationId
 import com.advancedtelematic.libats.messaging_datatype.DataType.{DeviceId, EcuSerial, Event}
@@ -40,7 +43,7 @@ object DataType {
     s"(device=${event.deviceUuid},eventId=${event.eventId},eventType=${event.eventType})"
   }
 
-  final case class DeviceInstallationResult(correlationId: CorrelationId, resultCode: String, deviceId: DeviceId, installationReport: Json)
+  final case class DeviceInstallationResult(correlationId: CorrelationId, resultCode: String, deviceId: DeviceId, receivedAt: Instant, installationReport: Json)
   final case class EcuInstallationResult(correlationId: CorrelationId, resultCode: String, deviceId: DeviceId, ecuId: EcuSerial)
 
   final case class SearchParams(oemId: Option[DeviceOemId], grouped: Option[Boolean], groupType: Option[GroupType],

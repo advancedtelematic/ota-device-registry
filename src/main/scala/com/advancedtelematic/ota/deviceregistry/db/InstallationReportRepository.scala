@@ -1,5 +1,7 @@
 package com.advancedtelematic.ota.deviceregistry.db
 
+import java.time.Instant
+
 import com.advancedtelematic.libats.data.DataType.CorrelationId
 import com.advancedtelematic.libats.data.PaginationResult
 import com.advancedtelematic.libats.messaging_datatype.DataType.{DeviceId, EcuInstallationReport, EcuSerial}
@@ -8,11 +10,7 @@ import com.advancedtelematic.libats.slick.db.SlickCirceMapper._
 import com.advancedtelematic.libats.slick.db.SlickExtensions._
 import com.advancedtelematic.libats.slick.db.SlickUUIDKey._
 import com.advancedtelematic.libats.slick.db.SlickUrnMapper.correlationIdMapper
-import com.advancedtelematic.ota.deviceregistry.data.DataType.{
-  DeviceInstallationResult,
-  EcuInstallationResult,
-  InstallationStat
-}
+import com.advancedtelematic.ota.deviceregistry.data.DataType.{DeviceInstallationResult, EcuInstallationResult, InstallationStat}
 import com.advancedtelematic.ota.deviceregistry.db.DbOps.PaginationResultOps
 import io.circe.Json
 import slick.jdbc.MySQLProfile.api._
@@ -33,10 +31,11 @@ object InstallationReportRepository {
     def correlationId = column[CorrelationId]("correlation_id")
     def resultCode    = column[String]("result_code")
     def deviceUuid    = column[DeviceId]("device_uuid")
+    def receivedAt = column[Instant]("received_at")
     def installationReport = column[Json]("installation_report")
 
     def * =
-      (correlationId, resultCode, deviceUuid, installationReport) <>
+      (correlationId, resultCode, deviceUuid, receivedAt, installationReport) <>
       ((DeviceInstallationResult.apply _).tupled, DeviceInstallationResult.unapply)
 
     def pk = primaryKey("pk_device_report", (correlationId, deviceUuid))
@@ -65,10 +64,11 @@ object InstallationReportRepository {
                               deviceUuid: DeviceId,
                               deviceResultCode: String,
                               ecuReports: Map[EcuSerial, EcuInstallationReport],
+                              receivedAt: Instant,
                               installationReport: Json)(implicit ec: ExecutionContext): DBIO[Unit] = {
     val q =
       for {
-        _ <- deviceInstallationResults += DeviceInstallationResult(correlationId, deviceResultCode, deviceUuid, installationReport)
+        _ <- deviceInstallationResults += DeviceInstallationResult(correlationId, deviceResultCode, deviceUuid, receivedAt, installationReport)
         _ <- ecuInstallationResults ++= ecuReports.map {
           case (ecuId, ecuReport) => EcuInstallationResult(correlationId, ecuReport.result.code, deviceUuid, ecuId)
         }

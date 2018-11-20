@@ -13,7 +13,7 @@ class DeviceInstallationReportListener()(implicit val db: Database, ec: Executio
 
   override def apply(message: DeviceInstallationReport): Future[Unit] = db.run {
     InstallationReportRepository
-      .saveInstallationResults(message.correlationId, message.device, message.result.code, message.ecuReports, message.asJson)
+      .saveInstallationResults(message.correlationId, message.device, message.result.code, message.ecuReports, message.receivedAt, message.asJson)
       .map(_ => Done)
   }
 }
