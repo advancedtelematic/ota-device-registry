@@ -1,6 +1,10 @@
 package com.advancedtelematic.ota.deviceregistry.data
+
+import java.time.Instant
+
 import cats.Show
-import com.advancedtelematic.libats.messaging_datatype.DataType.{DeviceId, Event}
+import com.advancedtelematic.libats.data.DataType.CorrelationId
+import com.advancedtelematic.libats.messaging_datatype.DataType.{DeviceId, EcuSerial, Event}
 import com.advancedtelematic.ota.deviceregistry.data.CredentialsType.CredentialsType
 import com.advancedtelematic.ota.deviceregistry.data.DataType.IndexedEventType.IndexedEventType
 import com.advancedtelematic.ota.deviceregistry.data.Device.{DeviceName, DeviceOemId, DeviceType}
@@ -8,16 +12,23 @@ import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
 import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.string.Regex
+import io.circe.Json
 
 object DataType {
   case class IndexedEvent(device: DeviceId, eventID: String, eventType: IndexedEventType, correlationId: Option[CorrelationId])
 
-  case class CorrelationId(id: String) extends AnyVal
+  case class InstallationStat(resultCode: String, total: Int)
 
   object IndexedEventType extends Enumeration {
     type IndexedEventType = Value
 
     val DownloadComplete, InstallationComplete = Value
+  }
+
+  object InstallationStatsLevel {
+    sealed trait InstallationStatsLevel
+    case object Device extends InstallationStatsLevel
+    case object Ecu extends InstallationStatsLevel
   }
 
   final case class DeviceT(deviceName: DeviceName,
@@ -31,6 +42,9 @@ object DataType {
   implicit val eventShow: Show[Event] = Show { event =>
     s"(device=${event.deviceUuid},eventId=${event.eventId},eventType=${event.eventType})"
   }
+
+  final case class DeviceInstallationResult(correlationId: CorrelationId, resultCode: String, deviceId: DeviceId, receivedAt: Instant, installationReport: Json)
+  final case class EcuInstallationResult(correlationId: CorrelationId, resultCode: String, deviceId: DeviceId, ecuId: EcuSerial)
 
   final case class SearchParams(oemId: Option[DeviceOemId], grouped: Option[Boolean], groupType: Option[GroupType],
                           groupId: Option[GroupId], regex: Option[String Refined Regex], offset: Option[Long], limit: Option[Long]) {

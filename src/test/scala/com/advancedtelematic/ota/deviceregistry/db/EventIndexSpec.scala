@@ -3,18 +3,22 @@ package com.advancedtelematic.ota.deviceregistry.db
 import java.time.Instant
 
 import cats.syntax.option._
-import com.advancedtelematic.libats.messaging_datatype.DataType.{DeviceId, Event, EventType}
+import com.advancedtelematic.libats.data.DataType.{CampaignId, CorrelationId, MultiTargetUpdateId}
+import com.advancedtelematic.libats.messaging_datatype.DataType.{DeviceId, Event, EventType, UpdateId}
 import com.advancedtelematic.libats.test.DatabaseSpec
-import com.advancedtelematic.ota.deviceregistry.data.DataType.{CorrelationId, IndexedEvent, IndexedEventType}
+import com.advancedtelematic.ota.deviceregistry.data.DataType.{IndexedEvent, IndexedEventType}
 import com.advancedtelematic.ota.deviceregistry.data.GeneratorOps._
 import io.circe.Json
 import io.circe.syntax._
 import org.scalacheck.Gen
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.{EitherValues, FunSuite, Matchers}
-import com.advancedtelematic.circe.CirceInstances._
 
 class EventIndexSpec extends FunSuite with ScalaFutures with DatabaseSpec with Matchers with EitherValues {
+
+  val genCorrelationId: Gen[CorrelationId] =
+    Gen.uuid.flatMap(uuid => Gen.oneOf(CampaignId(uuid), MultiTargetUpdateId(uuid)))
+
   val downloadCompleteEventGen: Gen[Event] = for {
     device <- Gen.uuid.map(DeviceId.apply)
     eventId <- Gen.uuid.map(_.toString)
@@ -25,7 +29,7 @@ class EventIndexSpec extends FunSuite with ScalaFutures with DatabaseSpec with M
 
   val installCompleteEventGen: Gen[(Event, CorrelationId)] = for {
     event <- downloadCompleteEventGen
-    correlationId <- Gen.uuid.map(uuid => CorrelationId(s"ota:update:uuid:$uuid"))
+    correlationId <- genCorrelationId
     json = Json.obj("correlationId" -> correlationId.asJson)
   } yield event.copy(eventType = EventType("InstallationComplete", 0), payload = json) -> correlationId
 

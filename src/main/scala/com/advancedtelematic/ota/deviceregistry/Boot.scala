@@ -17,18 +17,18 @@ import com.advancedtelematic.libats.data.DataType.Namespace
 import com.advancedtelematic.libats.http.DefaultRejectionHandler.rejectionHandler
 import com.advancedtelematic.libats.http._
 import com.advancedtelematic.libats.http.monitoring.MetricsSupport
+import com.advancedtelematic.libats.messaging._
 import com.advancedtelematic.libats.messaging.daemon.MessageBusListenerActor.Subscribe
-import com.advancedtelematic.libats.messaging.{BusListenerMetrics, MessageBus, MessageBusPublisher, MessageListener}
-import com.advancedtelematic.libats.messaging_datatype.Messages.DeviceSeen
+import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
+import com.advancedtelematic.libats.messaging_datatype.Messages.{DeviceInstallationReport, DeviceSeen}
 import com.advancedtelematic.libats.slick.db.{BootMigrations, DatabaseConfig}
 import com.advancedtelematic.libats.slick.monitoring.{DatabaseMetrics, DbHealthResource}
 import com.advancedtelematic.metrics.prometheus.PrometheusMetricsSupport
 import com.advancedtelematic.metrics.{AkkaHttpRequestMetrics, InfluxdbMetricsReporterSupport}
-import com.advancedtelematic.ota.deviceregistry.daemon.{DeleteDeviceHandler, DeviceEventListener, DeviceSeenListener, DeviceUpdateStatusListener}
+import com.advancedtelematic.ota.deviceregistry.daemon._
 import com.advancedtelematic.ota.deviceregistry.db.DeviceRepository
 import com.advancedtelematic.ota.deviceregistry.messages.UpdateSpec
 import slick.jdbc.MySQLProfile.api._
-import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Try
@@ -57,17 +57,17 @@ class DeviceRegistryRoutes(
   }
 }
 
-object Boot
-    extends BootApp
-    with Directives
-    with BootMigrations
-    with VersionInfo
-    with DatabaseConfig
-    with MetricsSupport
-    with DatabaseMetrics
-    with InfluxdbMetricsReporterSupport
-    with AkkaHttpRequestMetrics
-    with PrometheusMetricsSupport {
+object Boot extends BootApp
+  with AkkaHttpRequestMetrics
+  with BootMigrations
+  with DatabaseConfig
+  with DatabaseMetrics
+  with Directives
+  with InfluxdbMetricsReporterSupport
+  with MessageListenerSupport
+  with MetricsSupport
+  with PrometheusMetricsSupport
+  with VersionInfo {
 
   import VersionDirectives._
 
@@ -104,6 +104,7 @@ object Boot
 
   new DeviceEventListener(system.settings.config, db, metricRegistry).start()
   new DeleteDeviceHandler(system.settings.config, db, metricRegistry).start()
+  startListener[DeviceInstallationReport](new DeviceInstallationReportListener())
 
   val host = config.getString("server.host")
   val port = config.getInt("server.port")

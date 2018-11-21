@@ -14,11 +14,12 @@ import akka.http.scaladsl.model.Uri.{Path, Query}
 import akka.http.scaladsl.model.{HttpRequest, StatusCodes, Uri}
 import akka.http.scaladsl.server.Route
 import cats.syntax.show._
-import com.advancedtelematic.libats.data.DataType.Namespace
+import com.advancedtelematic.libats.data.DataType.{CorrelationId, Namespace}
 import com.advancedtelematic.libats.http.HttpOps.HttpRequestOps
 import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
 import com.advancedtelematic.ota.deviceregistry.data.Codecs._
-import com.advancedtelematic.ota.deviceregistry.data.DataType.{CorrelationId, DeviceT, UpdateDevice}
+import com.advancedtelematic.ota.deviceregistry.data.DataType.InstallationStatsLevel.InstallationStatsLevel
+import com.advancedtelematic.ota.deviceregistry.data.DataType.{DeviceT, UpdateDevice}
 import com.advancedtelematic.ota.deviceregistry.data.Group.{GroupExpression, GroupId}
 import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
 import com.advancedtelematic.ota.deviceregistry.data.PackageId
@@ -26,6 +27,7 @@ import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.string.Regex
 import io.circe.Json
+import io.circe.syntax._
 
 import scala.concurrent.ExecutionContext
 
@@ -167,7 +169,7 @@ trait DeviceRequests { self: ResourceSpec =>
     Get(Resource.uri(api, "count").withQuery(Query(expression.map("expression" -> _.value).toMap)))
 
   def getEvents(deviceUuid: DeviceId, correlationId: Option[CorrelationId] = None): HttpRequest = {
-    val query = Query(correlationId.map("correlationId" -> _.id).toMap)
+    val query = Query(correlationId.map("correlationId" -> _.toString).toMap)
     Get(Resource.uri(api, deviceUuid.show, "events").withQuery(query))
   }
 
@@ -179,4 +181,10 @@ trait DeviceRequests { self: ResourceSpec =>
       List("groupType" -> groupType, "regex" -> regex).collect { case (k, Some(v)) => k -> v }.toMap
     Get(Resource.uri(api).withQuery(Query(m.mapValues(_.toString))))
   }
+
+  def getStats(correlationId: CorrelationId, level: InstallationStatsLevel): HttpRequest =
+    Get(Resource.uri(api, "stats").withQuery(Query("correlationId" -> correlationId.toString, "level" -> level.toString)))
+
+  def getReportBlob(deviceId: DeviceId): HttpRequest =
+    Get(Resource.uri(api, deviceId.show, "installation_history"))
 }

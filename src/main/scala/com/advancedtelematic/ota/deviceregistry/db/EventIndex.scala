@@ -3,9 +3,9 @@ package com.advancedtelematic.ota.deviceregistry.db
 import cats.syntax.either._
 import cats.syntax.option._
 import cats.syntax.show._
+import com.advancedtelematic.libats.data.DataType.CorrelationId
 import com.advancedtelematic.libats.messaging_datatype.DataType.{Event, EventType}
-import com.advancedtelematic.ota.deviceregistry.data.DataType.{CorrelationId, IndexedEvent, _}
-import com.advancedtelematic.circe.CirceInstances._
+import com.advancedtelematic.ota.deviceregistry.data.DataType.{IndexedEvent, _}
 
 object EventIndex {
   type EventIndexResult = Either[String, IndexedEvent]

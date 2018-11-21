@@ -9,19 +9,20 @@
 package com.advancedtelematic.ota.deviceregistry.db
 
 import java.time.Instant
-import com.advancedtelematic.libats.messaging_datatype.DataType.{Event, EventType, DeviceId}
-import com.advancedtelematic.libats.slick.db.SlickExtensions.javaInstantMapping
-import com.advancedtelematic.ota.deviceregistry.data.DataType.IndexedEventType.IndexedEventType
-import io.circe.Json
-import slick.jdbc.MySQLProfile.api._
-import com.advancedtelematic.ota.deviceregistry.data.DataType.{CorrelationId, IndexedEvent}
-import SlickMappings._
-import com.advancedtelematic.libats.slick.db.SlickUUIDKey._
-import org.slf4j.LoggerFactory
+
 import cats.syntax.show._
-import com.advancedtelematic.ota.deviceregistry.data.DataType._
+import com.advancedtelematic.libats.data.DataType.CorrelationId
+import com.advancedtelematic.libats.messaging_datatype.DataType.{DeviceId, Event, EventType}
 import com.advancedtelematic.libats.slick.db.SlickCirceMapper._
-import com.advancedtelematic.libats.slick.db.SlickAnyVal._
+import com.advancedtelematic.libats.slick.db.SlickExtensions.javaInstantMapping
+import com.advancedtelematic.libats.slick.db.SlickUUIDKey._
+import com.advancedtelematic.libats.slick.db.SlickUrnMapper.correlationIdMapper
+import com.advancedtelematic.ota.deviceregistry.data.DataType.IndexedEventType.IndexedEventType
+import com.advancedtelematic.ota.deviceregistry.data.DataType.{IndexedEvent, _}
+import com.advancedtelematic.ota.deviceregistry.db.SlickMappings._
+import io.circe.Json
+import org.slf4j.LoggerFactory
+import slick.jdbc.MySQLProfile.api._
 
 import scala.concurrent.{ExecutionContext, Future}
 
