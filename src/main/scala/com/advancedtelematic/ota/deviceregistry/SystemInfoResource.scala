@@ -135,5 +135,5 @@ class SystemInfoResource(
     }
   }
 
-  def route: Route = api ~ mydeviceRoutes
+  val route: Route = api ~ mydeviceRoutes
 }

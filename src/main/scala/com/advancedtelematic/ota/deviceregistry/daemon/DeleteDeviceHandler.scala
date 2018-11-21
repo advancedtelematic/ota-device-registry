@@ -9,28 +9,14 @@
 package com.advancedtelematic.ota.deviceregistry.daemon
 
 import akka.Done
-import akka.actor.ActorSystem
-import com.advancedtelematic.libats.messaging.MessageListener
-import com.advancedtelematic.libats.messaging.daemon.MessageBusListenerActor.Subscribe
 import com.advancedtelematic.ota.deviceregistry.db.DeviceRepository
 import com.advancedtelematic.ota.deviceregistry.messages.DeleteDeviceRequest
-import com.codahale.metrics.MetricRegistry
-import com.typesafe.config.Config
 import slick.jdbc.MySQLProfile.api._
 
 import scala.concurrent.{ExecutionContext, Future}
 
-class DeleteDeviceHandler(config: Config, db: Database, metrics: MetricRegistry)(
-    implicit val ec: ExecutionContext,
-    system: ActorSystem
-) {
-
-  def start(): Unit = {
-    val listener = system.actorOf(MessageListener.props[DeleteDeviceRequest](system.settings.config, handle, metrics),
-                                  "delete-device-handler")
-    listener ! Subscribe
-  }
-
-  private[this] def handle(message: DeleteDeviceRequest): Future[Done] =
+class DeleteDeviceHandler()(implicit val db: Database, ec: ExecutionContext)
+    extends (DeleteDeviceRequest => Future[Done]) {
+  override def apply(message: DeleteDeviceRequest): Future[Done] =
     db.run(DeviceRepository.delete(message.namespace, message.uuid).map(_ => Done))
 }

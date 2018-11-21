@@ -15,7 +15,6 @@ import akka.http.scaladsl.model.StatusCodes._
 import cats.syntax.option._
 import com.advancedtelematic.libats.data.DataType.Namespace
 import com.advancedtelematic.libats.data.{ErrorRepresentation, PaginationResult}
-import com.advancedtelematic.libats.http.monitoring.MetricsSupport
 import com.advancedtelematic.libats.messaging.MessageBusPublisher
 import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
 import com.advancedtelematic.libats.messaging_datatype.Messages.DeviceSeen
@@ -26,6 +25,7 @@ import com.advancedtelematic.ota.deviceregistry.data.Group.{GroupExpression, Gro
 import com.advancedtelematic.ota.deviceregistry.data.{Device, DeviceStatus, PackageId, _}
 import com.advancedtelematic.ota.deviceregistry.db.InstalledPackages
 import com.advancedtelematic.ota.deviceregistry.db.InstalledPackages.{DevicesCount, InstalledPackage}
+import com.advancedtelematic.ota.deviceregistry.messages.DeleteDeviceRequest
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.refineMV
 import eu.timepit.refined.string.Regex
@@ -567,7 +567,7 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
     }
   }
 
-  new DeleteDeviceHandler(system.settings.config, db, MetricsSupport.metricRegistry).start()
+  val listener = new DeleteDeviceHandler()
 
   property("DELETE device removes it from its group") {
     forAll { (devicePre: DeviceT, groupName: Group.Name) =>
@@ -581,9 +581,7 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
         devices.values.find(_ == uuid) shouldBe Some(uuid)
       }
 
-      deleteDevice(uuid) ~> route ~> check {
-        status shouldBe Accepted
-      }
+      listener.apply(new DeleteDeviceRequest(defaultNs, uuid))
 
       import org.scalatest.time.SpanSugar._
       eventually(timeout(5.seconds), interval(100.millis)) {
@@ -616,9 +614,8 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
     }
 
     val uuid: DeviceId = deviceIds.head
-    deleteDevice(uuid) ~> route ~> check {
-      status shouldBe Accepted
-    }
+
+    listener.apply(new DeleteDeviceRequest(defaultNs, uuid))
 
     import org.scalatest.time.SpanSugar._
     eventually(timeout(5.seconds), interval(100.millis)) {
@@ -638,9 +635,7 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
         val uuid1 = createDeviceOk(d1)
         val uuid2 = createDeviceOk(d2)
 
-        deleteDevice(uuid1) ~> route ~> check {
-          status shouldBe Accepted
-        }
+        listener.apply(new DeleteDeviceRequest(defaultNs, uuid1))
 
         sendDeviceSeen(uuid1)
         sendDeviceSeen(uuid2)

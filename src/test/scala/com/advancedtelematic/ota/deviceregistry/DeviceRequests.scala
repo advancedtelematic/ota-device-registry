@@ -162,9 +162,6 @@ trait DeviceRequests { self: ResourceSpec =>
   def getPackageStats(name: PackageId.Name): HttpRequest =
     Get(Resource.uri("device_packages", name))
 
-  def recordEvents(deviceUuid: DeviceId, events: Json): HttpRequest =
-    Post(Resource.uri(api, deviceUuid.show, "events"), events)
-
   def countDevicesForExpression(expression: Option[GroupExpression]): HttpRequest =
     Get(Resource.uri(api, "count").withQuery(Query(expression.map("expression" -> _.value).toMap)))
 
