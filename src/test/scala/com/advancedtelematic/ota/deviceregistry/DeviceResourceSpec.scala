@@ -681,7 +681,7 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
       .map(_.sample.get)
       .map(createDeviceOk)
 
-    val expression: GroupExpression = Refined.unsafeApply("deviceid contains abc and deviceid position(5) is b")
+    val expression: GroupExpression = Refined.unsafeApply("deviceid contains abc and deviceid position(5) is b and deviceid position(9) is 6")
     countDevicesForExpression(expression.some) ~> route ~> check {
       status shouldBe OK
       responseAs[Int] shouldBe 1
