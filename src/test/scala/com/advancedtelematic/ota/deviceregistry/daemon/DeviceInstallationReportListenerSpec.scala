@@ -1,8 +1,10 @@
 package com.advancedtelematic.ota.deviceregistry.daemon
+
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import com.advancedtelematic.libats.messaging_datatype.MessageCodecs.deviceInstallationReportEncoder
 import com.advancedtelematic.libats.test.DatabaseSpec
 import com.advancedtelematic.ota.deviceregistry.data.DataType.{DeviceInstallationResult, EcuInstallationResult}
+import com.advancedtelematic.ota.deviceregistry.data.GeneratorOps._
 import com.advancedtelematic.ota.deviceregistry.data.InstallationReportGenerators
 import com.advancedtelematic.ota.deviceregistry.db.InstallationReportRepository
 import io.circe.syntax._
@@ -22,9 +24,9 @@ class DeviceInstallationReportListenerSpec
 
   val listener = new DeviceInstallationReportListener()
 
-  property("should parse and save DeviceUpdateReport messages") {
-    val correlationId = genCorrelationId.sample.get
-    val message = genDeviceInstallationReport(correlationId, "0").sample.get
+  property("should parse and save DeviceUpdateReport messages and is idempotent") {
+    val correlationId = genCorrelationId.generate
+    val message = genDeviceInstallationReport(correlationId, "0").generate
     val deviceUuid = message.device
 
     listener.apply(message).futureValue shouldBe (())
@@ -38,6 +40,14 @@ class DeviceInstallationReportListenerSpec
     }.toSeq
     val ecuReports = db.run(InstallationReportRepository.fetchEcuInstallationReport(correlationId))
     ecuReports.futureValue shouldBe expectedEcuReports
+
+    // Saving the reports is idempotent
+    listener.apply(message).futureValue shouldBe (())
+
+    val deviceReportsAgain = db.run(InstallationReportRepository.fetchDeviceInstallationReport(correlationId))
+    deviceReportsAgain.futureValue shouldBe expectedDeviceReports
+    val ecuReportsAgain = db.run(InstallationReportRepository.fetchEcuInstallationReport(correlationId))
+    ecuReportsAgain.futureValue shouldBe expectedEcuReports
 
   }
 

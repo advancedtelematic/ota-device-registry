@@ -66,12 +66,15 @@ object InstallationReportRepository {
                               ecuReports: Map[EcuSerial, EcuInstallationReport],
                               receivedAt: Instant,
                               installationReport: Json)(implicit ec: ExecutionContext): DBIO[Unit] = {
+
+    val deviceResult = DeviceInstallationResult(correlationId, deviceResultCode, deviceUuid, receivedAt, installationReport)
+    val ecuResults = ecuReports.map {
+      case (ecuId, ecuReport) => EcuInstallationResult(correlationId, ecuReport.result.code, deviceUuid, ecuId)
+    }
     val q =
       for {
-        _ <- deviceInstallationResults += DeviceInstallationResult(correlationId, deviceResultCode, deviceUuid, receivedAt, installationReport)
-        _ <- ecuInstallationResults ++= ecuReports.map {
-          case (ecuId, ecuReport) => EcuInstallationResult(correlationId, ecuReport.result.code, deviceUuid, ecuId)
-        }
+        _ <- deviceInstallationResults.insertOrUpdate(deviceResult)
+        _ <- DBIO.sequence(ecuResults.map(ecuInstallationResults.insertOrUpdate))
       } yield ()
     q.transactionally
   }
