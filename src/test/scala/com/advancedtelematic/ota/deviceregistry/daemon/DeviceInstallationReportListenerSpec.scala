@@ -31,12 +31,13 @@ class DeviceInstallationReportListenerSpec
 
     listener.apply(message).futureValue shouldBe (())
 
-    val expectedDeviceReports       = Seq(DeviceInstallationResult(correlationId, message.result.code, deviceUuid, message.receivedAt, message.asJson))
+    val expectedDeviceReports =
+      Seq(DeviceInstallationResult(correlationId, message.result.code, deviceUuid, message.result.success, message.receivedAt, message.asJson))
     val deviceReports = db.run(InstallationReportRepository.fetchDeviceInstallationReport(correlationId))
     deviceReports.futureValue shouldBe expectedDeviceReports
 
     val expectedEcuReports = message.ecuReports.map{
-      case (ecuId, ecuReport) => EcuInstallationResult(correlationId, ecuReport.result.code, deviceUuid, ecuId)
+      case (ecuId, ecuReport) => EcuInstallationResult(correlationId, ecuReport.result.code, deviceUuid, ecuId, message.result.success)
     }.toSeq
     val ecuReports = db.run(InstallationReportRepository.fetchEcuInstallationReport(correlationId))
     ecuReports.futureValue shouldBe expectedEcuReports

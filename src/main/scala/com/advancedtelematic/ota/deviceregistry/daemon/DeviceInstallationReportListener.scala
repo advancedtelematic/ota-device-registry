@@ -11,9 +11,9 @@ import scala.concurrent.{ExecutionContext, Future}
 
 class DeviceInstallationReportListener()(implicit val db: Database, ec: ExecutionContext) extends (DeviceInstallationReport => Future[Unit]) {
 
-  override def apply(message: DeviceInstallationReport): Future[Unit] = db.run {
+  override def apply(msg: DeviceInstallationReport): Future[Unit] = db.run {
     InstallationReportRepository
-      .saveInstallationResults(message.correlationId, message.device, message.result.code, message.ecuReports, message.receivedAt, message.asJson)
+      .saveInstallationResults(msg.correlationId, msg.device, msg.result.code, msg.result.success, msg.ecuReports, msg.receivedAt, msg.asJson)
       .map(_ => Done)
   }
 }

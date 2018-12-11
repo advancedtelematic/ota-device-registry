@@ -1,4 +1,5 @@
 package com.advancedtelematic.ota.deviceregistry
+
 import akka.http.scaladsl.model.StatusCodes._
 import com.advancedtelematic.libats.data.PaginationResult
 import com.advancedtelematic.libats.messaging_datatype.MessageCodecs.deviceInstallationReportDecoder
@@ -29,7 +30,7 @@ class InstallationReportSpec extends ResourcePropSpec with ScalaFutures with Eve
       getStats(correlationId, InstallationStatsLevel.Device) ~> route ~> check {
         status shouldBe OK
         val expected =
-          Seq(InstallationStat("0", 1), InstallationStat("1", 1), InstallationStat("2", 2), InstallationStat("3", 3))
+          Seq(InstallationStat("0", 1, true), InstallationStat("1", 1, false), InstallationStat("2", 2, false), InstallationStat("3", 3, false))
         responseAs[Seq[InstallationStat]] shouldBe expected
       }
     }
@@ -37,7 +38,7 @@ class InstallationReportSpec extends ResourcePropSpec with ScalaFutures with Eve
 
   property("should save device reports and retrieve failed stats per ECUs") {
     val correlationId = genCorrelationId.sample.get
-    val resultCodes   = Seq("1", "2", "2", "3", "3", "3", "4", "4", "4", "4")
+    val resultCodes = Seq("0", "1", "2", "2", "3", "3", "3")
     val deviceReports = resultCodes.map(genDeviceInstallationReport(correlationId, _)).map(_.sample.get)
 
     deviceReports.foreach(listener.apply)
@@ -46,7 +47,7 @@ class InstallationReportSpec extends ResourcePropSpec with ScalaFutures with Eve
       getStats(correlationId, InstallationStatsLevel.Ecu) ~> route ~> check {
         status shouldBe OK
         val expected =
-          Seq(InstallationStat("1", 1), InstallationStat("2", 2), InstallationStat("3", 3), InstallationStat("4", 4))
+          Seq(InstallationStat("0", 1, true), InstallationStat("1", 1, false), InstallationStat("2", 2, false), InstallationStat("3", 3, false))
         responseAs[Seq[InstallationStat]] shouldBe expected
       }
     }
