@@ -194,6 +194,7 @@ object DeviceRepository {
   def delete(ns: Namespace, uuid: DeviceId)(implicit ec: ExecutionContext): DBIO[Unit] = {
     val dbIO = for {
       _ <- exists(ns, uuid)
+      _ <- EventJournal.archiveIndexedEvents(uuid)
       _ <- EventJournal.deleteEvents(uuid)
       _ <- GroupMemberRepository.removeGroupMemberAll(uuid)
       _ <- PublicCredentialsRepository.delete(uuid)

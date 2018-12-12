@@ -8,26 +8,28 @@
 
 package com.advancedtelematic.ota.deviceregistry
 
-import org.scalatest.time.SpanSugar._
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 import java.util.UUID
 
-import cats.syntax.option._
 import akka.http.scaladsl.model.StatusCodes
-import com.advancedtelematic.libats.messaging_datatype.DataType.{Event, EventType}
-import com.advancedtelematic.ota.deviceregistry.daemon.DeviceEventListener
-import com.advancedtelematic.ota.deviceregistry.EventJournalSpec.EventPayload
-import io.circe.{Decoder, Json}
-import io.circe.testing.ArbitraryInstances
-import org.scalacheck.{Arbitrary, Gen, Shrink}
-import org.scalatest.concurrent.{Eventually, ScalaFutures}
-import com.advancedtelematic.libats.messaging_datatype.MessageCodecs._
+import cats.syntax.option._
 import com.advancedtelematic.libats.codecs.CirceCodecs._
 import com.advancedtelematic.libats.data.DataType.{CampaignId, CorrelationId, MultiTargetUpdateId}
+import com.advancedtelematic.libats.messaging_datatype.DataType.{Event, EventType}
+import com.advancedtelematic.libats.messaging_datatype.MessageCodecs._
 import com.advancedtelematic.libats.messaging_datatype.Messages.DeviceEventMessage
+import com.advancedtelematic.ota.deviceregistry.EventJournalSpec.EventPayload
+import com.advancedtelematic.ota.deviceregistry.daemon.{DeleteDeviceHandler, DeviceEventListener}
 import com.advancedtelematic.ota.deviceregistry.data.DataType.DeviceT
+import com.advancedtelematic.ota.deviceregistry.db.EventJournal
+import com.advancedtelematic.ota.deviceregistry.messages.DeleteDeviceRequest
 import io.circe.generic.semiauto._
+import io.circe.testing.ArbitraryInstances
+import io.circe.{Decoder, Json}
+import org.scalacheck.{Arbitrary, Gen, Shrink}
+import org.scalatest.concurrent.{Eventually, ScalaFutures}
+import org.scalatest.time.SpanSugar._
 
 object EventJournalSpec {
   private[EventJournalSpec] final case class EventPayload(id: UUID,
@@ -50,8 +52,8 @@ object EventJournalSpec {
 
 class EventJournalSpec extends ResourcePropSpec with ScalaFutures with Eventually with ArbitraryInstances {
   import com.advancedtelematic.ota.deviceregistry.data.GeneratorOps._
-  import io.circe.syntax._
   import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
+  import io.circe.syntax._
 
   private[this] val InstantGen: Gen[Instant] = Gen
     .chooseNum(0, 2 * 365 * 24 * 60)
@@ -84,7 +86,6 @@ class EventJournalSpec extends ResourcePropSpec with ScalaFutures with Eventuall
 
   implicit val ArbitraryEvents = Arbitrary(EventsGen)
 
-  // TODO send messages via apply
   val listener = new DeviceEventListener()
 
   implicit def noShrink[T]: Shrink[T] = Shrink.shrinkAny
@@ -130,6 +131,22 @@ class EventJournalSpec extends ResourcePropSpec with ScalaFutures with Eventuall
         events should contain(event0.id)
         events shouldNot contain(event1.id)
       }
+    }
+  }
+
+  property("DELETE device archives its indexed events") {
+    val uuid = createDeviceOk(genDeviceT.generate)
+    val (e, _) = installCompleteEventGen.generate
+    val event = Event(uuid, e.id.toString, e.eventType, e.deviceTime, Instant.now, e.event)
+    val deviceEventMessage = DeviceEventMessage(defaultNs, event)
+    val journal = new EventJournal()
+
+    listener.apply(deviceEventMessage).futureValue
+    new DeleteDeviceHandler().apply(new DeleteDeviceRequest(defaultNs, uuid))
+
+    eventually(timeout(5.seconds), interval(100.millis)) {
+      journal.getIndexedEvents(uuid).futureValue shouldBe Nil
+      journal.getArchivedIndexedEvents(uuid).futureValue.map(_.eventID) shouldBe Seq(event.eventId)
     }
   }
 }
