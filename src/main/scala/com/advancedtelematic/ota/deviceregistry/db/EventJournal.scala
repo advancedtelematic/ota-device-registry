@@ -64,17 +64,41 @@ object EventJournal {
 
     def pk = primaryKey("indexed_event_pk", (deviceUuid, eventId))
 
-    def * = (deviceUuid, eventId, eventType, correlationId).shaped <> ((IndexedEvent.apply _).tupled, IndexedEvent.unapply)
+    def * = (deviceUuid, eventId, eventType, correlationId).shaped <> (IndexedEvent.tupled, IndexedEvent.unapply)
   }
 
   protected [db] val indexedEvents = TableQuery[IndexedEventTable]
 
+  class IndexedEventArchiveTable(tag: Tag) extends Table[IndexedEvent](tag, "IndexedEventsArchive") {
+    def deviceUuid    = column[DeviceId]("device_uuid")
+    def eventId       = column[String]("event_id")
+    def eventType     = column[IndexedEventType]("event_type")
+    def correlationId = column[Option[CorrelationId]]("correlation_id")
+
+    def pk = primaryKey("indexed_event_pk", (deviceUuid, eventId))
+
+    def * = (deviceUuid, eventId, eventType, correlationId).shaped <> (IndexedEvent.tupled, IndexedEvent.unapply)
+  }
+
+  protected[db] val indexedEventsArchive = TableQuery[IndexedEventArchiveTable]
+
   def deleteEvents(deviceUuid: DeviceId)(implicit ec: ExecutionContext): DBIO[Int] =
     events.filter(_.deviceUuid === deviceUuid).delete
+
+  def archiveIndexedEvents(deviceUuid: DeviceId)(implicit ec: ExecutionContext): DBIO[Int] = {
+    val q = indexedEvents.filter(_.deviceUuid === deviceUuid)
+    val io = for {
+      ies <- q.result
+      _   <- indexedEventsArchive ++= ies
+      n   <- q.delete
+    } yield n
+    io.transactionally
+  }
+
 }
 
 class EventJournal()(implicit db: Database, ec: ExecutionContext) {
-  import EventJournal.{events, indexedEvents}
+  import EventJournal.{events, indexedEvents, indexedEventsArchive}
 
   private lazy val _log = LoggerFactory.getLogger(this.getClass)
 
@@ -98,6 +122,11 @@ class EventJournal()(implicit db: Database, ec: ExecutionContext) {
     else
       db.run(events.filter(_.deviceUuid === deviceUuid).result)
 
+  def getIndexedEvents(deviceUuid: DeviceId): Future[Seq[IndexedEvent]] =
+    db.run(indexedEvents.filter(_.deviceUuid === deviceUuid).result)
+
+  def getArchivedIndexedEvents(deviceUuid: DeviceId): Future[Seq[IndexedEvent]] =
+    db.run(indexedEventsArchive.filter(_.deviceUuid === deviceUuid).result)
 
   protected [db] def findEventsByCorrelationId(deviceUuid: DeviceId, correlationId: CorrelationId): DBIO[Seq[Event]] = {
     EventJournal.events
