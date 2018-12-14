@@ -23,7 +23,7 @@ class MigrateOldInstallationReports(auditor: AuditorClient)(implicit db: Databas
 
   private def saveReport(r: DeviceInstallationReport): DBIO[Unit] = {
     _log.info(s"Saving migrated installation report: $r")
-    saveInstallationResults(r.correlationId, r.device, r.result.code, r.ecuReports, r.receivedAt, r.asJson)
+    saveInstallationResults(r.correlationId, r.device, r.result.code, r.result.success, r.ecuReports, r.receivedAt, r.asJson)
   }
 
   def toNewSchema(oldReport: DeviceUpdateReport): DeviceInstallationReport = {

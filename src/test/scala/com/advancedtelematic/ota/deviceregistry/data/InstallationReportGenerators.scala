@@ -14,12 +14,11 @@ trait InstallationReportGenerators extends DeviceGenerators {
   val genCorrelationId: Gen[CorrelationId] =
     Gen.uuid.flatMap(uuid => Gen.oneOf(CampaignId(uuid), MultiTargetUpdateId(uuid)))
 
-  private def genInstallationResult(resultCode: String): Gen[InstallationResult] = {
-    Try(resultCode.toInt == 0 || resultCode.toInt == 1)
+  private def genInstallationResult(resultCode: String): Gen[InstallationResult] =
+    Try(resultCode.toInt == 0)
       .orElse(Success(false))
       .map(b => Gen.alphaStr.flatMap(InstallationResult(b, resultCode, _)))
       .get
-  }
 
   private def genEcuReports(correlationId: CorrelationId,
                             resultCode: String,

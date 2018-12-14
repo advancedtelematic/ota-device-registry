@@ -23,6 +23,7 @@ object InstallationReportRepository {
   trait InstallationResultTable {
     def correlationId: Rep[CorrelationId]
     def resultCode: Rep[String]
+    def success: Rep[Boolean]
   }
 
   class DeviceInstallationResultTable(tag: Tag)
@@ -31,11 +32,12 @@ object InstallationReportRepository {
     def correlationId = column[CorrelationId]("correlation_id")
     def resultCode    = column[String]("result_code")
     def deviceUuid    = column[DeviceId]("device_uuid")
+    def success = column[Boolean]("success")
     def receivedAt = column[Instant]("received_at")
     def installationReport = column[Json]("installation_report")
 
     def * =
-      (correlationId, resultCode, deviceUuid, receivedAt, installationReport) <>
+      (correlationId, resultCode, deviceUuid, success, receivedAt, installationReport) <>
       ((DeviceInstallationResult.apply _).tupled, DeviceInstallationResult.unapply)
 
     def pk = primaryKey("pk_device_report", (correlationId, deviceUuid))
@@ -50,9 +52,10 @@ object InstallationReportRepository {
     def resultCode    = column[String]("result_code")
     def deviceUuid    = column[DeviceId]("device_uuid")
     def ecuId     = column[EcuSerial]("ecu_id")
+    def success = column[Boolean]("success")
 
     def * =
-      (correlationId, resultCode, deviceUuid, ecuId) <>
+      (correlationId, resultCode, deviceUuid, ecuId, success) <>
       ((EcuInstallationResult.apply _).tupled, EcuInstallationResult.unapply)
 
     def pk = primaryKey("pk_ecu_report", (deviceUuid, ecuId))
@@ -63,13 +66,14 @@ object InstallationReportRepository {
   def saveInstallationResults(correlationId: CorrelationId,
                               deviceUuid: DeviceId,
                               deviceResultCode: String,
+                              success: Boolean,
                               ecuReports: Map[EcuSerial, EcuInstallationReport],
                               receivedAt: Instant,
                               installationReport: Json)(implicit ec: ExecutionContext): DBIO[Unit] = {
 
-    val deviceResult = DeviceInstallationResult(correlationId, deviceResultCode, deviceUuid, receivedAt, installationReport)
+    val deviceResult = DeviceInstallationResult(correlationId, deviceResultCode, deviceUuid, success, receivedAt, installationReport)
     val ecuResults = ecuReports.map {
-      case (ecuId, ecuReport) => EcuInstallationResult(correlationId, ecuReport.result.code, deviceUuid, ecuId)
+      case (ecuId, ecuReport) => EcuInstallationResult(correlationId, ecuReport.result.code, deviceUuid, ecuId, ecuReport.result.success)
     }
     val q =
       for {
@@ -82,12 +86,12 @@ object InstallationReportRepository {
   private def statsQuery[T <: AbstractTable[_]](tableQuery: TableQuery[T], correlationId: CorrelationId)
                                                (implicit ec: ExecutionContext, ev: T <:< InstallationResultTable): DBIO[Seq[InstallationStat]] = {
     tableQuery
-      .map(r => (r.correlationId, r.resultCode))
+      .map(r => (r.correlationId, r.resultCode, r.success))
       .filter(_._1 === correlationId)
-      .groupBy(_._2)
-      .map(r => (r._1, r._2.length))
+      .groupBy(r => (r._2, r._3))
+      .map(r => (r._1._1, r._2.length, r._1._2))
       .result
-      .map(_.map(stat => InstallationStat(stat._1, stat._2)))
+      .map(_.map(stat => InstallationStat(stat._1, stat._2, stat._3)))
   }
 
   def installationStatsPerDevice(correlationId: CorrelationId)(implicit ec: ExecutionContext): DBIO[Seq[InstallationStat]] =
