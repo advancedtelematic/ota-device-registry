@@ -31,7 +31,8 @@ object DataType {
     case object Ecu extends InstallationStatsLevel
   }
 
-  final case class DeviceT(deviceName: DeviceName,
+  final case class DeviceT(uuid: Option[DeviceId] = None,
+                           deviceName: DeviceName,
                            deviceId: DeviceOemId,
                            deviceType: DeviceType = DeviceType.Other,
                            credentials: Option[String] = None,
