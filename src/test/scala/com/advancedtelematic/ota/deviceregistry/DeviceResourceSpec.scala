@@ -149,6 +149,7 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
   property("POST request creates a new device.") {
     forAll { devicePre: DeviceT =>
       val uuid = createDeviceOk(devicePre)
+      devicePre.uuid.foreach(_ should equal(uuid))
       fetchDevice(uuid) ~> route ~> check {
         status shouldBe OK
         val devicePost: Device = responseAs[Device]

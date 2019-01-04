@@ -44,7 +44,7 @@ class PublicCredentialsResourceSpec extends ResourcePropSpec {
   property("PUT uses existing uuid if device exists") {
     forAll { (devId: DeviceOemId, mdevT: DeviceT, creds: Array[Byte]) =>
       val devT = mdevT.copy(deviceId = devId)
-      val uuid = createDeviceOk(devT)
+      val uuid: DeviceId = createDeviceOk(devT)
       uuid shouldBe updatePublicCredentialsOk(devId, creds)
 
       // updatePublicCredentials didn't change the device
@@ -70,7 +70,7 @@ class PublicCredentialsResourceSpec extends ResourcePropSpec {
   property("Type of credentials is set correctly") {
     forAll { (deviceId: DeviceOemId, mdevT: DeviceT, creds: String, cType: CredentialsType.CredentialsType) =>
       val devT = mdevT.copy(deviceId = deviceId, credentials = Some(creds), credentialsType = Some(cType))
-      val uuid = createDeviceWithCredentials(devT) ~> route ~> check {
+      val uuid: DeviceId = createDeviceWithCredentials(devT) ~> route ~> check {
         status shouldBe OK
         responseAs[DeviceId]
       }

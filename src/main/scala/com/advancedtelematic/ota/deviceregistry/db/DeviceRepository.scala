@@ -62,7 +62,7 @@ object DeviceRepository {
   val devices = TableQuery[DeviceTable]
 
   def create(ns: Namespace, device: DeviceT)(implicit ec: ExecutionContext): DBIO[DeviceId] = {
-    val uuid = DeviceId.generate
+    val uuid = device.uuid.getOrElse(DeviceId.generate)
 
     val dbDevice = Device(ns,
       uuid,

@@ -13,8 +13,8 @@ import org.scalacheck.{Arbitrary, Gen}
 import java.time.Instant
 
 import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
-import com.advancedtelematic.ota.deviceregistry.data
 import com.advancedtelematic.ota.deviceregistry.data.DataType.DeviceT
+import com.advancedtelematic.ota.deviceregistry.data.Namespaces.defaultNs
 
 trait DeviceGenerators {
 
@@ -50,16 +50,17 @@ trait DeviceGenerators {
       deviceType <- genDeviceType
       lastSeen   <- Gen.option(genInstant)
       activated  <- Gen.option(genInstant)
-    } yield data.Device(Namespaces.defaultNs, uuid, name, deviceId, deviceType, lastSeen, Instant.now(), activated)
+    } yield Device(defaultNs, uuid, name, deviceId, deviceType, lastSeen, Instant.now(), activated)
 
   val genDevice: Gen[Device] = genDeviceWith(genDeviceName, genDeviceId)
 
   def genDeviceTWith(deviceNameGen: Gen[DeviceName], deviceIdGen: Gen[DeviceOemId]): Gen[DeviceT] =
     for {
+      uuid       <- Gen.option(genDeviceUUID)
       name       <- deviceNameGen
       deviceId   <- deviceIdGen
       deviceType <- genDeviceType
-    } yield DeviceT(name, deviceId, deviceType)
+    } yield DeviceT(uuid, name, deviceId, deviceType)
 
   val genDeviceT: Gen[DeviceT] = genDeviceTWith(genDeviceName, genDeviceId)
 
@@ -94,7 +95,7 @@ object InvalidDeviceGenerators extends DeviceGenerators with DeviceIdGenerators 
     // TODO: for now, just generate an invalid VIN with a valid namespace
     deviceId <- genInvalidDeviceId
     d        <- genDevice
-  } yield d.copy(deviceId = deviceId, namespace = Namespaces.defaultNs)
+  } yield d.copy(deviceId = deviceId, namespace = defaultNs)
 
   def getInvalidVehicle: Device = genInvalidVehicle.sample.getOrElse(getInvalidVehicle)
 }

@@ -49,6 +49,7 @@ trait PublicCredentialsRequests { self: ResourceSpec =>
   def updatePublicCredentials(device: DeviceOemId, creds: Array[Byte], cType: Option[CredentialsType])
                              (implicit ec: ExecutionContext): HttpRequest = {
     val devT = DeviceT(
+      None,
       Refined.unsafeApply(device.underlying),
       device,
       credentials = Some(base64Encoder.encodeToString(creds)),
@@ -59,8 +60,7 @@ trait PublicCredentialsRequests { self: ResourceSpec =>
   def updatePublicCredentialsOk(device: DeviceOemId, creds: Array[Byte], cType: Option[CredentialsType] = None)
                                (implicit ec: ExecutionContext): DeviceId =
     updatePublicCredentials(device, creds, cType) ~> route ~> check {
-      val uuid = responseAs[DeviceId]
       status shouldBe OK
-      uuid
+      responseAs[DeviceId]
     }
 }

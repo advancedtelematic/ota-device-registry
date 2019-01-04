@@ -117,7 +117,7 @@ class DynamicGroupsResourceSpec extends FunSuite with ResourceSpec with Eventual
 
   test("getting the groups of a device returns the correct dynamic groups") {
     val deviceT = genDeviceT.sample.get.copy(deviceName = Refined.unsafeApply("12347890800808"))
-    val deviceId   = deviceT.deviceId
+    val deviceId: DeviceOemId = deviceT.deviceId
     val deviceUuid = createDeviceOk(deviceT)
 
     val expression1 = Refined.unsafeApply[String, ValidExpression](s"deviceid contains ${deviceId.show.substring(0, 5)}") // To test "starts with"
@@ -135,11 +135,8 @@ class DynamicGroupsResourceSpec extends FunSuite with ResourceSpec with Eventual
   }
 
   test("getting the groups of a device using two 'contains' returns the correct dynamic groups") {
-    val groupName1 = genGroupName().sample.get
-    val groupName2 = genGroupName().sample.get
-
     val deviceT = genDeviceT.sample.get.copy(deviceName = Refined.unsafeApply("ABCDEFGHIJ"))
-    val deviceId   = deviceT.deviceId
+    val deviceId: DeviceOemId = deviceT.deviceId
     val deviceUuid = createDeviceOk(deviceT)
 
     val expression1 = Refined.unsafeApply[String, ValidExpression](s"deviceid contains ${deviceId.show.substring(0, 3)} and deviceid contains ${deviceId.show.substring(6, 9)}")
@@ -157,7 +154,6 @@ class DynamicGroupsResourceSpec extends FunSuite with ResourceSpec with Eventual
 
   test("getting the groups of a device returns the correct groups (dynamic and static)") {
     val deviceT = genDeviceT.sample.get.copy(deviceName = Refined.unsafeApply("ABCDE"))
-    val deviceId   = deviceT.deviceId
     val deviceUuid = createDeviceOk(deviceT)
 
     // Add the device to a static group
@@ -165,7 +161,7 @@ class DynamicGroupsResourceSpec extends FunSuite with ResourceSpec with Eventual
     addDeviceToGroupOk(staticGroupId, deviceUuid)
 
     // Make the device show up for a dynamic group
-    val expression = Refined.unsafeApply[String, ValidExpression](s"deviceid contains ${deviceId.show.substring(1, 5)}")
+    val expression = Refined.unsafeApply[String, ValidExpression](s"deviceid contains ${deviceT.deviceId.show.substring(1, 5)}")
     val dynamicGroupId = createDynamicGroupOk(expression)
 
     getGroupsOfDevice(deviceUuid) ~> route ~> check {
