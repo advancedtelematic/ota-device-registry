@@ -2,9 +2,10 @@ package com.advancedtelematic.ota.deviceregistry.data
 import java.time.Instant
 
 import com.advancedtelematic.libats.data.DataType.{CampaignId, CorrelationId, MultiTargetUpdateId, Namespace}
-import com.advancedtelematic.libats.messaging_datatype.DataType.{DeviceId, EcuInstallationReport, EcuSerial, InstallationResult, ValidEcuSerial}
+import com.advancedtelematic.libats.data.EcuIdentifier
+import com.advancedtelematic.libats.data.EcuIdentifier.validatedEcuIdentifier
+import com.advancedtelematic.libats.messaging_datatype.DataType.{DeviceId, EcuInstallationReport, InstallationResult}
 import com.advancedtelematic.libats.messaging_datatype.Messages.DeviceInstallationReport
-import eu.timepit.refined.api.Refined
 import org.scalacheck.Gen
 
 import scala.util.{Success, Try}
@@ -22,13 +23,13 @@ trait InstallationReportGenerators extends DeviceGenerators {
 
   private def genEcuReports(correlationId: CorrelationId,
                             resultCode: String,
-                            n: Int = 1): Gen[Map[EcuSerial, EcuInstallationReport]] =
+                            n: Int = 1): Gen[Map[EcuIdentifier, EcuInstallationReport]] =
     Gen.listOfN(n, genEcuReportTuple(correlationId, resultCode)).map(_.toMap)
 
   private def genEcuReportTuple(correlationId: CorrelationId,
-                                resultCode: String): Gen[(EcuSerial, EcuInstallationReport)] =
+                                resultCode: String): Gen[(EcuIdentifier, EcuInstallationReport)] =
     for {
-      ecuId  <- Gen.listOfN(64, Gen.alphaNumChar).map(_.mkString("")).map(Refined.unsafeApply[String, ValidEcuSerial])
+      ecuId  <- Gen.listOfN(64, Gen.alphaNumChar).map(_.mkString("")).map(validatedEcuIdentifier.from(_).right.get)
       report <- genEcuInstallationReport(resultCode)
     } yield ecuId -> report
 
