@@ -799,6 +799,18 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
     }
   }
 
+  property("creates a device with ECU information") {
+    val newDevice = genCreateDevice.generate
+    val deviceUuid = createDeviceOk(newDevice)
+
+    fetchEcuInfo(deviceUuid) ~> route ~> check {
+      status shouldBe OK
+      val result = responseAs[PaginationResult[Ecu]].values
+      val expected = newDevice.ecus.map(e => (e.ecuId, e.ecuType, e.clientKey, e.ecuId == newDevice.primaryEcu)).toList
+      result.map(e => (e.ecuId, e.ecuType, e.tufKey, e.primary)) shouldBe expected
+    }
+  }
+
   property("fails to create a device if no ECUs are given") {
     val newDevice = parse("""{
                          "deviceName" : "A device without ECUs",

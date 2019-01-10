@@ -112,6 +112,9 @@ trait DeviceRequests { self: ResourceSpec =>
   def deleteDevice(uuid: DeviceId)(implicit ec: ExecutionContext): HttpRequest =
     Delete(Resource.uri(api, uuid.show))
 
+  def fetchEcuInfo(uuid: DeviceId): HttpRequest =
+    Get(Resource.uri(api, uuid.show, "ecus"))
+
   def fetchSystemInfo(uuid: DeviceId): HttpRequest =
     Get(Resource.uri(api, uuid.show, "system_info"))
 

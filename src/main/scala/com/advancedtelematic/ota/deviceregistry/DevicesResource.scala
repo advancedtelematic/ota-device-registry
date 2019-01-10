@@ -146,6 +146,11 @@ class DevicesResource(
   def countDynamicGroupCandidates(ns: Namespace, expression: GroupExpression): Route =
     complete(db.run(DeviceRepository.countDevicesForExpression(ns, expression)))
 
+  def getEcusForDevice(ns: Namespace, deviceId: DeviceId): Route =
+    parameters(('offset.as[Long].?, 'limit.as[Long].?)) { (offset, limit) =>
+      complete(db.run(EcuRepository.listEcusForDevice(deviceId, offset, limit)))
+    }
+
   def getGroupsForDevice(ns: Namespace, uuid: DeviceId): Route =
     parameters(('offset.as[Long].?, 'limit.as[Long].?)) { (offset, limit) =>
       complete(db.run(GroupMemberRepository.listGroupsForDevice(ns, uuid, offset, limit)))
@@ -238,6 +243,9 @@ class DevicesResource(
       } ~
       deviceNamespaceAuthorizer { uuid =>
         scope.get {
+          path("ecus") {
+            getEcusForDevice(ns.namespace, uuid)
+          } ~
           path("groups") {
             getGroupsForDevice(ns.namespace, uuid)
           } ~
