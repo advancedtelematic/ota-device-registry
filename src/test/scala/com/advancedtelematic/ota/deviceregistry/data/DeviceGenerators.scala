@@ -16,8 +16,8 @@ import com.advancedtelematic.libats.data.EcuIdentifier
 import com.advancedtelematic.libats.data.EcuIdentifier.validatedEcuIdentifier
 import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
 import com.advancedtelematic.libtuf.crypt.TufCrypto
-import com.advancedtelematic.libtuf.data.TufDataType.{HardwareIdentifier, RsaKeyType, TufKey, ValidHardwareIdentifier}
-import com.advancedtelematic.ota.deviceregistry.data.DataType.{CreateDevice, CreateEcu, Ecu}
+import com.advancedtelematic.libtuf.data.TufDataType.{HardwareIdentifier, RsaKeyType, TargetFilename, TufKey, ValidHardwareIdentifier, ValidTargetFilename}
+import com.advancedtelematic.ota.deviceregistry.data.DataType.{CreateDevice, CreateEcu, Ecu, SoftwareImage}
 import com.advancedtelematic.ota.deviceregistry.data.Namespaces.defaultNs
 import eu.timepit.refined.api.Refined
 import org.bouncycastle.jce.provider.BouncyCastleProvider
@@ -57,7 +57,18 @@ trait DeviceGenerators {
   val genEcuType: Gen[HardwareIdentifier] =
     Gen.chooseNum(10, 200).flatMap(Gen.listOfN(_, Gen.alphaNumChar)).map(_.mkString).map(Refined.unsafeApply[String, ValidHardwareIdentifier])
 
+  val genFilePath: Gen[TargetFilename] =
+    Gen.chooseNum(10, 200).flatMap(Gen.listOfN(_, Gen.alphaNumChar)).map(_.mkString).map(Refined.unsafeApply[String, ValidTargetFilename])
+
   val genTufKey: Gen[TufKey] = Gen.const(TufCrypto.generateKeyPair(RsaKeyType, 2048).pubkey)
+
+  val genHexDigit: Gen[Char] = Gen.oneOf(('0' to '9') ++ ('a' to 'f'))
+
+  val genSoftwareImage: Gen[SoftwareImage] = for {
+    filepath <- genFilePath
+    checksum <- Gen.listOfN(64, genHexDigit).map(_.mkString).map(Checksum(_).right.get)
+    size <- Gen.posNum[Long]
+  } yield SoftwareImage(filepath, checksum, size)
 
   val genDevice: Gen[Device] = genDeviceWith(genDeviceName, genDeviceId)
 

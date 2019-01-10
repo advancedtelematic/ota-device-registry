@@ -7,7 +7,7 @@ import cats.data.NonEmptyList
 import com.advancedtelematic.libats.data.DataType.CorrelationId
 import com.advancedtelematic.libats.data.EcuIdentifier
 import com.advancedtelematic.libats.messaging_datatype.DataType.{DeviceId, Event}
-import com.advancedtelematic.libtuf.data.TufDataType.{HardwareIdentifier, TufKey}
+import com.advancedtelematic.libtuf.data.TufDataType.{HardwareIdentifier, TargetFilename, TufKey}
 import com.advancedtelematic.ota.deviceregistry.data.CredentialsType.CredentialsType
 import com.advancedtelematic.ota.deviceregistry.data.DataType.IndexedEventType.IndexedEventType
 import com.advancedtelematic.ota.deviceregistry.data.Device.{DeviceName, DeviceOemId, DeviceType}
@@ -63,4 +63,8 @@ object DataType {
                                 deviceType: DeviceType = DeviceType.Other,
                                 credentials: Option[String] = None,
                                 credentialsType: Option[CredentialsType] = None)
+
+  final case class SoftwareImage(filepath: TargetFilename, checksum: Checksum, size: Long)
+  final case class CurrentSoftwareImage(deviceId: DeviceId, ecuId: EcuIdentifier, image: SoftwareImage)
+
 }
