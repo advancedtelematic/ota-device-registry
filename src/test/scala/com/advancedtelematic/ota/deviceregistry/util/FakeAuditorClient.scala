@@ -1,4 +1,5 @@
 package com.advancedtelematic.ota.deviceregistry.util
+
 import java.util.concurrent.ConcurrentHashMap
 
 import akka.http.scaladsl.util.FastFuture
