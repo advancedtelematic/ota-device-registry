@@ -18,7 +18,7 @@ import eu.timepit.refined.api.Refined
 import scala.concurrent.ExecutionContext
 import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
 import com.advancedtelematic.ota.deviceregistry.data.Codecs._
-import com.advancedtelematic.ota.deviceregistry.data.DataType.DeviceT
+import com.advancedtelematic.ota.deviceregistry.data.DataType.CreateDevice
 
 trait PublicCredentialsRequests { self: ResourceSpec =>
   import StatusCodes._
@@ -43,18 +43,18 @@ trait PublicCredentialsRequests { self: ResourceSpec =>
       base64Decoder.decode(resp.credentials)
     }
 
-  def createDeviceWithCredentials(devT: DeviceT)(implicit ec: ExecutionContext): HttpRequest =
-    Put(Resource.uri(credentialsApi), devT)
+  def createDeviceWithCredentials(payload: CreateDevice)(implicit ec: ExecutionContext): HttpRequest =
+    Put(Resource.uri(credentialsApi), payload)
 
   def updatePublicCredentials(device: DeviceOemId, creds: Array[Byte], cType: Option[CredentialsType])
                              (implicit ec: ExecutionContext): HttpRequest = {
-    val devT = DeviceT(
-      None,
-      Refined.unsafeApply(device.underlying),
-      device,
+    val payload = genCreateDevice.sample.get.copy(
+      deviceName = Refined.unsafeApply(device.underlying),
+      deviceId = device,
       credentials = Some(base64Encoder.encodeToString(creds)),
       credentialsType = cType)
-    createDeviceWithCredentials(devT)
+
+    createDeviceWithCredentials(payload)
   }
 
   def updatePublicCredentialsOk(device: DeviceOemId, creds: Array[Byte], cType: Option[CredentialsType] = None)

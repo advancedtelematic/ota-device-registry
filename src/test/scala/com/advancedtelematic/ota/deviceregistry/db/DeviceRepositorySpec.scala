@@ -11,7 +11,7 @@ package com.advancedtelematic.ota.deviceregistry.db
 import java.time.Instant
 
 import com.advancedtelematic.libats.test.DatabaseSpec
-import com.advancedtelematic.ota.deviceregistry.data.DeviceGenerators.{genDeviceId, genDeviceT}
+import com.advancedtelematic.ota.deviceregistry.data.DeviceGenerators.{genDeviceId, genCreateDevice}
 import com.advancedtelematic.ota.deviceregistry.data.Namespaces
 import org.scalatest.concurrent.PatienceConfiguration.Timeout
 import org.scalatest.concurrent.ScalaFutures
@@ -24,7 +24,7 @@ class DeviceRepositorySpec extends FunSuite with DatabaseSpec with ScalaFutures 
 
   test("updateLastSeen sets activated_at the first time only") {
 
-    val device = genDeviceT.sample.get.copy(deviceId = genDeviceId.sample.get)
+    val device = genCreateDevice.sample.get.copy(deviceId = genDeviceId.sample.get)
     val setTwice = for {
       uuid   <- DeviceRepository.create(Namespaces.defaultNs, device)
       first  <- DeviceRepository.updateLastSeen(uuid, Instant.now()).map(_._1)
@@ -40,7 +40,7 @@ class DeviceRepositorySpec extends FunSuite with DatabaseSpec with ScalaFutures 
 
   test("activated_at can be counted") {
 
-    val device = genDeviceT.sample.get.copy(deviceId = genDeviceId.sample.get)
+    val device = genCreateDevice.sample.get.copy(deviceId = genDeviceId.sample.get)
     val createDevice = for {
       uuid <- DeviceRepository.create(Namespaces.defaultNs, device)
       now = Instant.now()

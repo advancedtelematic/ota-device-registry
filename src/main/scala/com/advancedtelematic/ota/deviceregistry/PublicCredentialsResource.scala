@@ -27,7 +27,7 @@ import com.advancedtelematic.ota.deviceregistry.messages.{DeviceCreated, DeviceP
 import slick.jdbc.MySQLProfile.api._
 import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
 import com.advancedtelematic.ota.deviceregistry.data.Codecs._
-import com.advancedtelematic.ota.deviceregistry.data.DataType.DeviceT
+import com.advancedtelematic.ota.deviceregistry.data.DataType.CreateDevice
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -52,7 +52,7 @@ class PublicCredentialsResource(
       FetchPublicCredentials(uuid, creds.typeCredentials, new String(creds.credentials))
     })
 
-  def createDeviceWithPublicCredentials(ns: Namespace, devT: DeviceT): Route = {
+  def createDeviceWithPublicCredentials(ns: Namespace, devT: CreateDevice): Route = {
     val act = devT.credentials match {
       case Some(credentials) => {
         val cType = devT.credentialsType.getOrElse(CredentialsType.PEM)
@@ -82,7 +82,7 @@ class PublicCredentialsResource(
     (pathPrefix("devices") & authNamespace) { ns =>
       val scope = Scopes.devices(ns)
       pathEnd {
-        (scope.put & entity(as[DeviceT])) { devT =>
+        (scope.put & entity(as[CreateDevice])) { devT =>
           createDeviceWithPublicCredentials(ns.namespace, devT)
         }
       } ~

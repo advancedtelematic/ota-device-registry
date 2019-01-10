@@ -22,6 +22,7 @@ lazy val `ota-device-registry` =
       libraryDependencies += "org.tpolecat" %% "atto-core" % "0.6.2"
     )
     .settings(libraryDependencies ++= library.libAts)
+    .settings(libraryDependencies ++= library.libTuf)
     .settings(dependencyOverrides += "com.typesafe.akka" %% "akka-stream-kafka" % "0.18")
 
 // *****************************************************************************
@@ -31,12 +32,13 @@ lazy val `ota-device-registry` =
 lazy val library =
   new {
     object Version {
+      val akkaHttp = "10.0.10"
+      val circe = "0.9.1"
+      val libAts = "0.2.1-2-g962e326"
+      val libTuf = "0.6.0-18-g5b8b259"
+      val mariaDb = "1.4.4"
       val scalaCheck = "1.13.5"
       val scalaTest  = "3.0.4"
-      val libAts     = "0.2.1-2-g962e326"
-      val akkaHttp = "10.0.10"
-      val mariaDb = "1.4.4"
-      val circe = "0.9.1"
     }
     val scalaCheck = "org.scalacheck" %% "scalacheck" % Version.scalaCheck
     val scalaTest  = "org.scalatest"  %% "scalatest"  % Version.scalaTest
@@ -52,6 +54,7 @@ lazy val library =
       "libats-http-tracing",
       "libats-logging"
     ).map("com.advancedtelematic" %% _ % Version.libAts)
+    val libTuf = Seq("libtuf", "libtuf-server").map("com.advancedtelematic" %% _ % Version.libTuf)
     val akkaHttpTestKit = "com.typesafe.akka" %% "akka-http-testkit" % Version.akkaHttp
     val mariaDb = "org.mariadb.jdbc" % "mariadb-java-client" % Version.mariaDb
     val circeTesting = "io.circe" %% "circe-testing" % Version.circe

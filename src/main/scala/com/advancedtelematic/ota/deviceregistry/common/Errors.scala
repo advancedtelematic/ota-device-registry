@@ -18,13 +18,14 @@ import com.advancedtelematic.ota.deviceregistry.db.PublicCredentialsRepository.D
 import com.advancedtelematic.ota.deviceregistry.db.SystemInfoRepository.SystemInfo
 
 object Errors {
-  import akka.http.scaladsl.model.StatusCodes
+  import akka.http.scaladsl.model.StatusCodes._
 
   object Codes {
     val MissingDevice                      = ErrorCode("missing_device")
     val ConflictingDevice                  = ErrorCode("conflicting_device")
     val SystemInfoAlreadyExists            = ErrorCode("system_info_already_exists")
     val MissingGroupInfo                   = ErrorCode("missing_group_info")
+    val MissingPrimaryEcu                  = ErrorCode("missing_primary_ecu")
     val GroupAlreadyExists                 = ErrorCode("group_already_exists")
     val MemberAlreadyExists                = ErrorCode("device_already_a_group_member")
     val RequestNeedsCredentials            = ErrorCode("request_needs_credentials")
@@ -34,16 +35,16 @@ object Errors {
     val InvalidGroupExpression             = ErrorCode("invalid_group_expression")
   }
 
-  def InvalidGroupExpression(err: String) = RawError(Codes.InvalidGroupExpression, StatusCodes.BadRequest, s"Invalid group expression: '$err'")
+  def InvalidGroupExpression(err: String) = RawError(Codes.InvalidGroupExpression, BadRequest, s"Invalid group expression: '$err'")
 
   def InvalidGroupExpressionForGroupType(groupType: GroupType, expression: Option[GroupExpression]) =
     RawError(Codes.InvalidGroupExpressionForGroupType,
-             StatusCodes.BadRequest,
+             BadRequest,
              s"Invalid group expression $expression for group type $groupType")
 
-  val MissingDevice = RawError(Codes.MissingDevice, StatusCodes.NotFound, "device doesn't exist")
+  val MissingDevice = RawError(Codes.MissingDevice, NotFound, "device doesn't exist")
   val ConflictingDevice =
-    RawError(Codes.ConflictingDevice, StatusCodes.Conflict, "deviceId or deviceName is already in use")
+    RawError(Codes.ConflictingDevice, Conflict, "deviceId or deviceName is already in use")
   val MissingSystemInfo     = MissingEntity[SystemInfo]
   val ConflictingSystemInfo = EntityAlreadyExists[SystemInfo]
 
@@ -53,13 +54,15 @@ object Errors {
 
   val MissingDevicePublicCredentials = MissingEntity[DevicePublicCredentials]
   val RequestNeedsCredentials =
-    RawError(Codes.RequestNeedsCredentials, StatusCodes.BadRequest, "request should contain credentials")
+    RawError(Codes.RequestNeedsCredentials, BadRequest, "request should contain credentials")
 
   val CannotAddDeviceToDynamicGroup =
-    RawError(Codes.CannotAddDeviceToDynamicGroup, StatusCodes.BadRequest, "cannot add device to dynamic group")
+    RawError(Codes.CannotAddDeviceToDynamicGroup, BadRequest, "cannot add device to dynamic group")
 
   val CannotRemoveDeviceFromDynamicGroup =
     RawError(Codes.CannotRemoveDeviceFromDynamicGroup,
-             StatusCodes.BadRequest,
+             BadRequest,
              "cannot remove device from dynamic group")
+
+  val MissingPrimaryEcu = RawError(Codes.MissingPrimaryEcu, BadRequest, "Missing primary ecu id in the request.")
 }

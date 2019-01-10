@@ -31,7 +31,7 @@ import com.advancedtelematic.ota.deviceregistry.DevicesResource.EventPayload
 import com.advancedtelematic.ota.deviceregistry.common.Errors
 import com.advancedtelematic.ota.deviceregistry.data.Codecs._
 import com.advancedtelematic.ota.deviceregistry.data.DataType.InstallationStatsLevel.InstallationStatsLevel
-import com.advancedtelematic.ota.deviceregistry.data.DataType.{DeviceT, InstallationStatsLevel, SearchParams, UpdateDevice}
+import com.advancedtelematic.ota.deviceregistry.data.DataType.{CreateDevice, InstallationStatsLevel, SearchParams, UpdateDevice}
 import com.advancedtelematic.ota.deviceregistry.data.Device.{ActiveDeviceCount, DeviceOemId}
 import com.advancedtelematic.ota.deviceregistry.data.Group.{GroupExpression, GroupId}
 import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
@@ -113,22 +113,24 @@ class DevicesResource(
       'limit.as[Long].?)).as(SearchParams)
     { params => complete(db.run(DeviceRepository.search(ns, params))) }
 
-  def createDevice(ns: Namespace, device: DeviceT): Route = {
-    val f = db
-      .run(DeviceRepository.create(ns, device))
-      .andThen {
-        case scala.util.Success(uuid) =>
-          messageBus.publish(
-            DeviceCreated(ns, uuid, device.deviceName, device.deviceId, device.deviceType, Instant.now())
-          )
-      }
+  def createDevice(ns: Namespace, payload: CreateDevice): Route =
+    if (payload.ecus.exists(_.ecuId == payload.primaryEcu)) {
+      val f = db
+        .run(DeviceRepository.create(ns, payload))
+        .flatMap { uuid =>
+          messageBus
+            .publishSafe(DeviceCreated(ns, uuid, payload.deviceName, payload.deviceId, payload.deviceType, Instant.now()))
+            .map(_ => uuid)
+        }
 
-    onSuccess(f) { uuid =>
-      respondWithHeaders(List(Location(Uri("/devices/" + uuid.show)))) {
-        complete(Created -> uuid)
+      onSuccess(f) { uuid =>
+        respondWithHeaders(List(Location(Uri("/devices/" + uuid.show)))) {
+          complete(Created -> uuid)
+        }
       }
+    } else {
+      failWith(Errors.MissingPrimaryEcu)
     }
-  }
 
   def deleteDevice(ns: Namespace, uuid: DeviceId): Route = {
     val f = messageBus.publish(DeleteDeviceRequest(ns, uuid, Instant.now()))
@@ -216,8 +218,8 @@ class DevicesResource(
   def api: Route = namespaceExtractor { ns =>
     val scope = Scopes.devices(ns)
     pathPrefix("devices") {
-      (scope.post & entity(as[DeviceT]) & pathEnd) { device =>
-        createDevice(ns.namespace, device)
+      (scope.post & entity(as[CreateDevice])) { device =>
+          createDevice(ns.namespace, device)
       } ~
       scope.get {
         (path("count") & parameter('expression.as[GroupExpression].?)) {

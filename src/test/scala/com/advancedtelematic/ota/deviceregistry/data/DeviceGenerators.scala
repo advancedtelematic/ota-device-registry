@@ -8,18 +8,27 @@
 
 package com.advancedtelematic.ota.deviceregistry.data
 
-import eu.timepit.refined.api.Refined
-import org.scalacheck.{Arbitrary, Gen}
+import java.security.Security
 import java.time.Instant
 
+import cats.data.NonEmptyList
+import com.advancedtelematic.libats.data.EcuIdentifier
+import com.advancedtelematic.libats.data.EcuIdentifier.validatedEcuIdentifier
 import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
-import com.advancedtelematic.ota.deviceregistry.data.DataType.DeviceT
+import com.advancedtelematic.libtuf.crypt.TufCrypto
+import com.advancedtelematic.libtuf.data.TufDataType.{HardwareIdentifier, RsaKeyType, TufKey, ValidHardwareIdentifier}
+import com.advancedtelematic.ota.deviceregistry.data.DataType.{CreateDevice, CreateEcu, Ecu}
 import com.advancedtelematic.ota.deviceregistry.data.Namespaces.defaultNs
+import eu.timepit.refined.api.Refined
+import org.bouncycastle.jce.provider.BouncyCastleProvider
+import org.scalacheck.{Arbitrary, Gen}
 
 trait DeviceGenerators {
 
   import Arbitrary._
   import Device._
+
+  Security.addProvider(new BouncyCastleProvider())
 
   val genDeviceName: Gen[DeviceName] = for {
     //use a minimum length for DeviceName to reduce possibility of naming conflicts
@@ -42,6 +51,18 @@ trait DeviceGenerators {
     millis <- Gen.chooseNum[Long](0, 10000000000000L)
   } yield Instant.ofEpochMilli(millis)
 
+  val genEcuId: Gen[EcuIdentifier] =
+    Gen.listOfN(64, Gen.alphaNumChar).map(_.mkString).map(validatedEcuIdentifier.from(_).right.get)
+
+  val genEcuType: Gen[HardwareIdentifier] =
+    Gen.chooseNum(10, 200).flatMap(Gen.listOfN(_, Gen.alphaNumChar)).map(_.mkString).map(Refined.unsafeApply[String, ValidHardwareIdentifier])
+
+  val genTufKey: Gen[TufKey] = Gen.const(TufCrypto.generateKeyPair(RsaKeyType, 2048).pubkey)
+
+  val genDevice: Gen[Device] = genDeviceWith(genDeviceName, genDeviceId)
+
+  val genCreateDevice: Gen[CreateDevice] = genCreateDeviceWith(genDeviceName, genDeviceId)
+
   def genDeviceWith(deviceNameGen: Gen[DeviceName], deviceIdGen: Gen[DeviceOemId]): Gen[Device] =
     for {
       uuid       <- genDeviceUUID
@@ -52,29 +73,44 @@ trait DeviceGenerators {
       activated  <- Gen.option(genInstant)
     } yield Device(defaultNs, uuid, name, deviceId, deviceType, lastSeen, Instant.now(), activated)
 
-  val genDevice: Gen[Device] = genDeviceWith(genDeviceName, genDeviceId)
+  def genEcu(deviceId: DeviceId, primary: Boolean): Gen[Ecu] =
+    for {
+      ecuId   <- genEcuId
+      ecuType <- genEcuType
+      tufKey  <- genTufKey
+    } yield Ecu(deviceId, ecuId, ecuType, primary, tufKey)
 
-  def genDeviceTWith(deviceNameGen: Gen[DeviceName], deviceIdGen: Gen[DeviceOemId]): Gen[DeviceT] =
+  val genCreateEcu: Gen[CreateEcu] = for {
+    ecuId <- genEcuId
+    ecuType <- genEcuType
+    clientKey <- genTufKey
+  } yield CreateEcu(ecuId, ecuType, clientKey)
+
+  def genCreateEcus(n: Int): Gen[NonEmptyList[CreateEcu]] =
+    Gen.listOfN(n, genCreateEcu).map(NonEmptyList.fromListUnsafe)
+
+  def genCreateDeviceWith(deviceNameGen: Gen[DeviceName], deviceIdGen: Gen[DeviceOemId], nEcus: Int = 1): Gen[CreateDevice] =
     for {
       uuid       <- Gen.option(genDeviceUUID)
       name       <- deviceNameGen
       deviceId   <- deviceIdGen
       deviceType <- genDeviceType
-    } yield DeviceT(uuid, name, deviceId, deviceType)
+      createEcus <- genCreateEcus(nEcus)
+    } yield CreateDevice(uuid, name, deviceId, createEcus.head.ecuId, createEcus, deviceType)
 
-  val genDeviceT: Gen[DeviceT] = genDeviceTWith(genDeviceName, genDeviceId)
+  def genCreateDeviceWithNEcus(n: Int): Gen[CreateDevice] = genCreateDeviceWith(genDeviceName, genDeviceId, n)
 
-  def genConflictFreeDeviceTs(): Gen[Seq[DeviceT]] =
-    genConflictFreeDeviceTs(arbitrary[Int].sample.get)
+  def genConflictFreeCreateDevices(): Gen[Seq[CreateDevice]] =
+    genConflictFreeCreateDevices(arbitrary[Int].sample.get)
 
-  def genConflictFreeDeviceTs(n: Int): Gen[Seq[DeviceT]] =
+  def genConflictFreeCreateDevices(n: Int): Gen[Seq[CreateDevice]] =
     for {
       dns  <- Gen.containerOfN[Seq, DeviceName](n, genDeviceName)
       dids <- Gen.containerOfN[Seq, DeviceOemId](n, genDeviceId)
     } yield {
       dns.zip(dids).map {
         case (nameG, idG) =>
-          genDeviceTWith(nameG, idG).sample.get
+          genCreateDeviceWith(nameG, idG).sample.get
       }
     }
 
@@ -84,7 +120,7 @@ trait DeviceGenerators {
   implicit lazy val arbDeviceType: Arbitrary[DeviceType] = Arbitrary(genDeviceType)
   implicit lazy val arbLastSeen: Arbitrary[Instant]      = Arbitrary(genInstant)
   implicit lazy val arbDevice: Arbitrary[Device]         = Arbitrary(genDevice)
-  implicit lazy val arbDeviceT: Arbitrary[DeviceT]       = Arbitrary(genDeviceT)
+  implicit lazy val arbCreateDevice: Arbitrary[CreateDevice]       = Arbitrary(genCreateDevice)
 
 }
 

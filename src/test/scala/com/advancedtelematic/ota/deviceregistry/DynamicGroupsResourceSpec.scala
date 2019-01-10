@@ -36,7 +36,7 @@ class DynamicGroupsResourceSpec extends FunSuite with ResourceSpec with Eventual
   }
 
   test("device gets added to dynamic group") {
-    val deviceT    = genDeviceT.sample.get
+    val deviceT    = genCreateDevice.sample.get
     val deviceUuid = createDeviceOk(deviceT)
     val groupId    = createDynamicGroupOk(deviceT.deviceId.toValidExp)
 
@@ -66,7 +66,7 @@ class DynamicGroupsResourceSpec extends FunSuite with ResourceSpec with Eventual
   }
 
   test("manually adding a device to dynamic group fails") {
-    val deviceT    = genDeviceT.sample.get
+    val deviceT    = genCreateDevice.sample.get
     val deviceUuid = createDeviceOk(deviceT)
     val groupId    = createDynamicGroupOk(deviceT.deviceId.toValidExp)
 
@@ -76,7 +76,7 @@ class DynamicGroupsResourceSpec extends FunSuite with ResourceSpec with Eventual
   }
 
   test("counts devices for dynamic group") {
-    val deviceT = genDeviceT.sample.get
+    val deviceT = genCreateDevice.sample.get
     val _       = createDeviceOk(deviceT)
     val groupId    = createDynamicGroupOk(deviceT.deviceId.toValidExp)
 
@@ -87,7 +87,7 @@ class DynamicGroupsResourceSpec extends FunSuite with ResourceSpec with Eventual
   }
 
   test("removing a device from a dynamic group fails") {
-    val deviceT    = genDeviceT.sample.get
+    val deviceT    = genCreateDevice.sample.get
     val deviceUuid = createDeviceOk(deviceT)
     val groupId    = createDynamicGroupOk(deviceT.deviceId.toValidExp)
 
@@ -97,7 +97,7 @@ class DynamicGroupsResourceSpec extends FunSuite with ResourceSpec with Eventual
   }
 
   test("deleting a device causes it to be removed from dynamic group") {
-    val deviceT    = genDeviceT.sample.get
+    val deviceT    = genCreateDevice.sample.get
     val deviceUuid = createDeviceOk(deviceT)
     val groupId    = createDynamicGroupOk(deviceT.deviceId.toValidExp)
     listDevicesInGroup(groupId) ~> route ~> check {
@@ -116,7 +116,7 @@ class DynamicGroupsResourceSpec extends FunSuite with ResourceSpec with Eventual
   }
 
   test("getting the groups of a device returns the correct dynamic groups") {
-    val deviceT = genDeviceT.sample.get.copy(deviceName = Refined.unsafeApply("12347890800808"))
+    val deviceT = genCreateDevice.sample.get.copy(deviceName = Refined.unsafeApply("12347890800808"))
     val deviceId: DeviceOemId = deviceT.deviceId
     val deviceUuid = createDeviceOk(deviceT)
 
@@ -135,7 +135,7 @@ class DynamicGroupsResourceSpec extends FunSuite with ResourceSpec with Eventual
   }
 
   test("getting the groups of a device using two 'contains' returns the correct dynamic groups") {
-    val deviceT = genDeviceT.sample.get.copy(deviceName = Refined.unsafeApply("ABCDEFGHIJ"))
+    val deviceT = genCreateDevice.sample.get.copy(deviceName = Refined.unsafeApply("ABCDEFGHIJ"))
     val deviceId: DeviceOemId = deviceT.deviceId
     val deviceUuid = createDeviceOk(deviceT)
 
@@ -153,7 +153,7 @@ class DynamicGroupsResourceSpec extends FunSuite with ResourceSpec with Eventual
   }
 
   test("getting the groups of a device returns the correct groups (dynamic and static)") {
-    val deviceT = genDeviceT.sample.get.copy(deviceName = Refined.unsafeApply("ABCDE"))
+    val deviceT = genCreateDevice.sample.get.copy(deviceName = Refined.unsafeApply("ABCDE"))
     val deviceUuid = createDeviceOk(deviceT)
 
     // Add the device to a static group

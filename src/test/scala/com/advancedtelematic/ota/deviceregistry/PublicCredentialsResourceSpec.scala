@@ -14,7 +14,7 @@ import com.advancedtelematic.ota.deviceregistry.PublicCredentialsResource.FetchP
 import io.circe.generic.auto._
 import org.scalacheck.{Arbitrary, Gen}
 import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
-import com.advancedtelematic.ota.deviceregistry.data.DataType.DeviceT
+import com.advancedtelematic.ota.deviceregistry.data.DataType.CreateDevice
 
 class PublicCredentialsResourceSpec extends ResourcePropSpec {
   import Device._
@@ -42,7 +42,7 @@ class PublicCredentialsResourceSpec extends ResourcePropSpec {
   }
 
   property("PUT uses existing uuid if device exists") {
-    forAll { (devId: DeviceOemId, mdevT: DeviceT, creds: Array[Byte]) =>
+    forAll { (devId: DeviceOemId, mdevT: CreateDevice, creds: Array[Byte]) =>
       val devT = mdevT.copy(deviceId = devId)
       val uuid: DeviceId = createDeviceOk(devT)
       uuid shouldBe updatePublicCredentialsOk(devId, creds)
@@ -68,7 +68,7 @@ class PublicCredentialsResourceSpec extends ResourcePropSpec {
   }
 
   property("Type of credentials is set correctly") {
-    forAll { (deviceId: DeviceOemId, mdevT: DeviceT, creds: String, cType: CredentialsType.CredentialsType) =>
+    forAll { (deviceId: DeviceOemId, mdevT: CreateDevice, creds: String, cType: CredentialsType.CredentialsType) =>
       val devT = mdevT.copy(deviceId = deviceId, credentials = Some(creds), credentialsType = Some(cType))
       val uuid: DeviceId = createDeviceWithCredentials(devT) ~> route ~> check {
         status shouldBe OK

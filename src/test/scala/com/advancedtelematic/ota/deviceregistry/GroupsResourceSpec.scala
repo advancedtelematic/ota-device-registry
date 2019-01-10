@@ -93,7 +93,7 @@ class GroupsResourceSpec extends FunSuite with ResourceSpec {
     val deviceNumber = 50
     val groupId      = createStaticGroupOk()
 
-    val deviceTs             = genConflictFreeDeviceTs(deviceNumber).sample.get
+    val deviceTs             = genConflictFreeCreateDevices(deviceNumber).sample.get
     val deviceIds = deviceTs.map(createDeviceOk)
 
     deviceIds.foreach(deviceId => addDeviceToGroupOk(groupId, deviceId))
@@ -110,7 +110,7 @@ class GroupsResourceSpec extends FunSuite with ResourceSpec {
     val deviceNumber = 50
     val groupId      = createStaticGroupOk()
 
-    val deviceTs             = genConflictFreeDeviceTs(deviceNumber).sample.get
+    val deviceTs             = genConflictFreeCreateDevices(deviceNumber).sample.get
     val deviceIds = deviceTs.map(createDeviceOk)
 
     deviceIds.foreach(deviceId => addDeviceToGroupOk(groupId, deviceId))
@@ -170,7 +170,7 @@ class GroupsResourceSpec extends FunSuite with ResourceSpec {
 
   test("adds devices to groups") {
     val groupId    = createStaticGroupOk()
-    val deviceUuid = createDeviceOk(genDeviceT.sample.get)
+    val deviceUuid = createDeviceOk(genCreateDevice.sample.get)
 
     addDeviceToGroup(groupId, deviceUuid) ~> route ~> check {
       status shouldBe OK
@@ -194,7 +194,7 @@ class GroupsResourceSpec extends FunSuite with ResourceSpec {
   }
 
   test("removes devices from a group") {
-    val deviceId  = createDeviceOk(genDeviceT.sample.get)
+    val deviceId  = createDeviceOk(genCreateDevice.sample.get)
     val groupId   = createStaticGroupOk()
 
     addDeviceToGroup(groupId, deviceId) ~> route ~> check {

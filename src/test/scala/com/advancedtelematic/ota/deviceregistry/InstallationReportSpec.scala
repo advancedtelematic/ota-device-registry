@@ -62,7 +62,7 @@ class InstallationReportSpec extends ResourcePropSpec with ScalaFutures with Eve
   }
 
   property("should save the whole message as a blob and get back the history for a device") {
-    val deviceId       = createDeviceOk(genDeviceT.generate)
+    val deviceId       = createDeviceOk(genCreateDevice.generate)
     val correlationIds = Gen.listOfN(50, genCorrelationId).generate
     val deviceReports  = correlationIds.map(cid => genDeviceInstallationReport(cid, "0", deviceId)).map(_.generate)
 
@@ -88,7 +88,7 @@ class InstallationReportSpec extends ResourcePropSpec with ScalaFutures with Eve
     val resultCodes = Seq("0", "1", "2", "2", "3", "3", "3")
     val resultDescriptions = Map("0" -> "Description-0", "1" -> "Description-1", "2" -> "Description-2", "3" -> "Description-3")
 
-    val createDevices = genConflictFreeDeviceTs(resultCodes.length).generate
+    val createDevices = genConflictFreeCreateDevices(resultCodes.length).generate
     val deviceUuids = createDevices.map(createDeviceOk)
     val rows = deviceUuids.zip(createDevices).zip(resultCodes).map {
       case ((uuid, cd), rc) => (uuid, cd.deviceId, rc, resultDescriptions(rc))
@@ -112,7 +112,7 @@ class InstallationReportSpec extends ResourcePropSpec with ScalaFutures with Eve
     val resultCodes = Seq("0", "1", "2", "2")
     val resultDescriptions = Map("0" -> "Description-0", "1" -> "Description-1", "2" -> "Description-2")
 
-    val createDevices = genConflictFreeDeviceTs(resultCodes.length).generate
+    val createDevices = genConflictFreeCreateDevices(resultCodes.length).generate
     val deviceUuids = createDevices.map(createDeviceOk)
     val rows = deviceUuids.zip(createDevices).zip(resultCodes).map {
       case ((uuid, cd), rc) => (uuid, cd.deviceId, rc, resultDescriptions(rc))

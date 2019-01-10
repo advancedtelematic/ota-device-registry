@@ -19,7 +19,7 @@ import com.advancedtelematic.libats.slick.db.SlickAnyVal._
 import com.advancedtelematic.libats.slick.db.SlickExtensions._
 import com.advancedtelematic.libats.slick.db.SlickUUIDKey._
 import com.advancedtelematic.ota.deviceregistry.common.Errors
-import com.advancedtelematic.ota.deviceregistry.data.DataType.{DeviceT, SearchParams}
+import com.advancedtelematic.ota.deviceregistry.data.DataType.{CreateDevice, Ecu, SearchParams}
 import com.advancedtelematic.ota.deviceregistry.data.Device._
 import com.advancedtelematic.ota.deviceregistry.data.DeviceStatus.DeviceStatus
 import com.advancedtelematic.ota.deviceregistry.data.Group.{GroupExpression, GroupId}
@@ -61,31 +61,26 @@ object DeviceRepository {
   // scalastyle:on
   val devices = TableQuery[DeviceTable]
 
-  def create(ns: Namespace, device: DeviceT)(implicit ec: ExecutionContext): DBIO[DeviceId] = {
-    val uuid = device.uuid.getOrElse(DeviceId.generate)
+  def create(ns: Namespace, payload: CreateDevice)(implicit ec: ExecutionContext): DBIO[DeviceId] = {
+    val uuid = payload.uuid.getOrElse(DeviceId.generate)
+    val newDevice = Device(ns, uuid, payload.deviceName, payload.deviceId, payload.deviceType, createdAt = Instant.now())
+    val newEcus = payload.ecus.map(ecu => Ecu(uuid, ecu.ecuId, ecu.ecuType, ecu.ecuId == payload.primaryEcu, ecu.clientKey))
 
-    val dbDevice = Device(ns,
-      uuid,
-      device.deviceName,
-      device.deviceId,
-      device.deviceType,
-      createdAt = Instant.now())
-
-    val dbIO = devices += dbDevice
-    dbIO
-      .handleIntegrityErrors(Errors.ConflictingDevice)
-      .andThen { GroupMemberRepository.addDeviceToDynamicGroups(ns, dbDevice) }
+    (devices += newDevice)
+      .andThen(EcuRepository.ecus ++= newEcus.toList)
+      .andThen(GroupMemberRepository.addDeviceToDynamicGroups(ns, newDevice))
       .map(_ => uuid)
       .transactionally
+      .handleIntegrityErrors(Errors.ConflictingDevice)
   }
 
-  def findUuidFromUniqueDeviceIdOrCreate(ns: Namespace, deviceId: DeviceOemId, devT: DeviceT)(
+  def findUuidFromUniqueDeviceIdOrCreate(ns: Namespace, deviceId: DeviceOemId, payload: CreateDevice)(
       implicit ec: ExecutionContext
   ): DBIO[(Boolean, DeviceId)] =
     for {
       devs <- findByDeviceIdQuery(ns, deviceId).result
       (created, uuid) <- devs match {
-        case Seq()  => create(ns, devT).map((true, _))
+        case Seq()  => create(ns, payload).map((true, _))
         case Seq(d) => DBIO.successful((false, d.uuid))
         case _      => DBIO.failed(Errors.ConflictingDevice)
       }
@@ -199,6 +194,7 @@ object DeviceRepository {
       _ <- GroupMemberRepository.removeGroupMemberAll(uuid)
       _ <- PublicCredentialsRepository.delete(uuid)
       _ <- SystemInfoRepository.delete(uuid)
+      _ <- EcuRepository.delete(uuid)
       _ <- devices.filter(d => d.namespace === ns && d.uuid === uuid).delete
     } yield ()
 

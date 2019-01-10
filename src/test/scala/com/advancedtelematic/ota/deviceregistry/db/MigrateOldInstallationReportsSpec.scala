@@ -40,9 +40,6 @@ class MigrateOldInstallationReportsSpec
   implicit val materializer: ActorMaterializer = ActorMaterializer()
   import system.dispatcher
 
-  private val genEcuId: Gen[EcuIdentifier] =
-    Gen.listOfN(64, Gen.alphaNumChar).map(_.mkString("")).map(validatedEcuIdentifier.from(_).right.get)
-
   private val genOperationResultPair: Gen[(EcuIdentifier, OperationResult)] =
     genEcuId.flatMap(ecuId => genOperationResult.map(ecuId -> _))
 
@@ -121,7 +118,7 @@ class MigrateOldInstallationReportsSpec
   }
 
   test("should store the reports in the new format and be idempotent") {
-    val deviceT  = genDeviceT.sample.get
+    val deviceT  = genCreateDevice.sample.get
     val deviceId = db.run(DeviceRepository.create(defaultNs, deviceT)).futureValue
 
     val auditor = new FakeAuditorClient

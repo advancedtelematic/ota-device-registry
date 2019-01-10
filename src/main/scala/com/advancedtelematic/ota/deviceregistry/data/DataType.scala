@@ -3,9 +3,11 @@ package com.advancedtelematic.ota.deviceregistry.data
 import java.time.Instant
 
 import cats.Show
+import cats.data.NonEmptyList
 import com.advancedtelematic.libats.data.DataType.CorrelationId
 import com.advancedtelematic.libats.data.EcuIdentifier
 import com.advancedtelematic.libats.messaging_datatype.DataType.{DeviceId, Event}
+import com.advancedtelematic.libtuf.data.TufDataType.{HardwareIdentifier, TufKey}
 import com.advancedtelematic.ota.deviceregistry.data.CredentialsType.CredentialsType
 import com.advancedtelematic.ota.deviceregistry.data.DataType.IndexedEventType.IndexedEventType
 import com.advancedtelematic.ota.deviceregistry.data.Device.{DeviceName, DeviceOemId, DeviceType}
@@ -16,6 +18,9 @@ import eu.timepit.refined.string.Regex
 import io.circe.Json
 
 object DataType {
+
+  final case class Ecu(deviceUuid: DeviceId, ecuId: EcuIdentifier, ecuType: HardwareIdentifier, primary: Boolean, tufKey: TufKey)
+
   case class IndexedEvent(device: DeviceId, eventID: String, eventType: IndexedEventType, correlationId: Option[CorrelationId])
 
   case class InstallationStat(resultCode: String, total: Int, success: Boolean)
@@ -31,13 +36,6 @@ object DataType {
     case object Device extends InstallationStatsLevel
     case object Ecu extends InstallationStatsLevel
   }
-
-  final case class DeviceT(uuid: Option[DeviceId] = None,
-                           deviceName: DeviceName,
-                           deviceId: DeviceOemId,
-                           deviceType: DeviceType = DeviceType.Other,
-                           credentials: Option[String] = None,
-                           credentialsType: Option[CredentialsType] = None)
 
   final case class UpdateDevice(deviceName: DeviceName)
 
@@ -55,4 +53,14 @@ object DataType {
       require(regex.isEmpty, "Invalid parameters: regex must be empty when searching by deviceId.")
     }
   }
+
+  final case class CreateEcu(ecuId: EcuIdentifier, ecuType: HardwareIdentifier, clientKey: TufKey)
+  final case class CreateDevice(uuid: Option[DeviceId] = None,
+                                deviceName: DeviceName,
+                                deviceId: DeviceOemId,
+                                primaryEcu: EcuIdentifier,
+                                ecus: NonEmptyList[CreateEcu],
+                                deviceType: DeviceType = DeviceType.Other,
+                                credentials: Option[String] = None,
+                                credentialsType: Option[CredentialsType] = None)
 }

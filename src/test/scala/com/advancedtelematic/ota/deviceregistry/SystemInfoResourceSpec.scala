@@ -12,7 +12,7 @@ import com.advancedtelematic.ota.deviceregistry.db.SystemInfoRepository.removeId
 import io.circe.Json
 import org.scalacheck.Shrink
 import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
-import com.advancedtelematic.ota.deviceregistry.data.DataType.DeviceT
+import com.advancedtelematic.ota.deviceregistry.data.DataType.CreateDevice
 
 class SystemInfoResourceSpec extends ResourcePropSpec {
   import akka.http.scaladsl.model.StatusCodes._
@@ -35,7 +35,7 @@ class SystemInfoResourceSpec extends ResourcePropSpec {
   implicit def noShrink[T]: Shrink[T] = Shrink.shrinkAny
 
   property("GET /system_info/network returns empty strings if network info was not reported") {
-    forAll { (device: DeviceT, json: Option[Json]) =>
+    forAll { (device: CreateDevice, json: Option[Json]) =>
       val uuid = createDeviceOk(device)
 
       json.foreach { sysinfo =>
@@ -55,7 +55,7 @@ class SystemInfoResourceSpec extends ResourcePropSpec {
   }
 
   property("GET /system_info return empty if device have not set system_info") {
-    forAll { device: DeviceT =>
+    forAll { device: CreateDevice =>
       val uuid = createDeviceOk(device)
 
       fetchSystemInfo(uuid) ~> route ~> check {
@@ -68,7 +68,7 @@ class SystemInfoResourceSpec extends ResourcePropSpec {
   }
 
   property("GET system_info after POST should return what was posted.") {
-    forAll { (device: DeviceT, json0: Json) =>
+    forAll { (device: CreateDevice, json0: Json) =>
       val uuid  = createDeviceOk(device)
       val json1: Json = removeIdNrs(json0)
 
@@ -85,7 +85,7 @@ class SystemInfoResourceSpec extends ResourcePropSpec {
   }
 
   property("GET system_info after PUT should return what was updated.") {
-    forAll { (device: DeviceT, json1: Json, json2: Json) =>
+    forAll { (device: CreateDevice, json1: Json, json2: Json) =>
       val uuid = createDeviceOk(device)
 
       createSystemInfo(uuid, json1) ~> route ~> check {
@@ -105,7 +105,7 @@ class SystemInfoResourceSpec extends ResourcePropSpec {
   }
 
   property("PUT system_info if not previously created should create it.") {
-    forAll { (device: DeviceT, json: Json) =>
+    forAll { (device: CreateDevice, json: Json) =>
       val uuid = createDeviceOk(device)
 
       updateSystemInfo(uuid, json) ~> route ~> check {
@@ -136,7 +136,7 @@ class SystemInfoResourceSpec extends ResourcePropSpec {
                              case (_, v)               => getField(field)(v)
                          })
 
-    forAll { (device: DeviceT, json0: Json) =>
+    forAll { (device: CreateDevice, json0: Json) =>
       val uuid = createDeviceOk(device)
       val json       = removeIdNrs(json0)
 

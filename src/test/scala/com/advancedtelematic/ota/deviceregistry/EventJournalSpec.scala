@@ -21,7 +21,7 @@ import com.advancedtelematic.libats.messaging_datatype.MessageCodecs._
 import com.advancedtelematic.libats.messaging_datatype.Messages.DeviceEventMessage
 import com.advancedtelematic.ota.deviceregistry.EventJournalSpec.EventPayload
 import com.advancedtelematic.ota.deviceregistry.daemon.{DeleteDeviceHandler, DeviceEventListener}
-import com.advancedtelematic.ota.deviceregistry.data.DataType.DeviceT
+import com.advancedtelematic.ota.deviceregistry.data.DataType.CreateDevice
 import com.advancedtelematic.ota.deviceregistry.db.EventJournal
 import com.advancedtelematic.ota.deviceregistry.messages.DeleteDeviceRequest
 import io.circe.generic.semiauto._
@@ -91,7 +91,7 @@ class EventJournalSpec extends ResourcePropSpec with ScalaFutures with Eventuall
   implicit def noShrink[T]: Shrink[T] = Shrink.shrinkAny
 
   property("events can be recorded in journal and retrieved") {
-    forAll { (device: DeviceT, events: List[EventPayload]) =>
+    forAll { (device: CreateDevice, events: List[EventPayload]) =>
       val deviceUuid = createDeviceOk(device)
 
       events
@@ -113,7 +113,7 @@ class EventJournalSpec extends ResourcePropSpec with ScalaFutures with Eventuall
   }
 
   property("indexes an event by type") {
-    val deviceUuid = createDeviceOk(genDeviceT.generate)
+    val deviceUuid = createDeviceOk(genCreateDevice.generate)
     val (event0, correlationId0) = installCompleteEventGen.generate
     val event1 = EventGen.retryUntil(_.eventType.id != "InstallationComplete").generate
 
@@ -135,7 +135,7 @@ class EventJournalSpec extends ResourcePropSpec with ScalaFutures with Eventuall
   }
 
   property("DELETE device archives its indexed events") {
-    val uuid = createDeviceOk(genDeviceT.generate)
+    val uuid = createDeviceOk(genCreateDevice.generate)
     val (e, _) = installCompleteEventGen.generate
     val event = Event(uuid, e.id.toString, e.eventType, e.deviceTime, Instant.now, e.event)
     val deviceEventMessage = DeviceEventMessage(defaultNs, event)

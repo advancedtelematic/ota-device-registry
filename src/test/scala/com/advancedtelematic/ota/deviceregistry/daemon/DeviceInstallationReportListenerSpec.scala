@@ -29,7 +29,7 @@ class DeviceUpdateEventListenerSpec
   val listener = new DeviceUpdateEventListener(msgPub)
 
   property("should parse and save DeviceUpdateReport messages and is idempotent") {
-    val deviceUuid = createDeviceOk(genDeviceT.generate)
+    val deviceUuid = createDeviceOk(genCreateDevice.generate)
     val correlationId = genCorrelationId.generate
     val message = genDeviceInstallationReport(correlationId, "0", deviceUuid).generate
 

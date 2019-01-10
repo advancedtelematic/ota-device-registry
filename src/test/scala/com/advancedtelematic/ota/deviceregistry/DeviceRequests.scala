@@ -20,7 +20,7 @@ import com.advancedtelematic.libats.http.HttpOps.HttpRequestOps
 import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
 import com.advancedtelematic.ota.deviceregistry.data.Codecs._
 import com.advancedtelematic.ota.deviceregistry.data.DataType.InstallationStatsLevel.InstallationStatsLevel
-import com.advancedtelematic.ota.deviceregistry.data.DataType.{DeviceT, UpdateDevice}
+import com.advancedtelematic.ota.deviceregistry.data.DataType.{CreateDevice, UpdateDevice}
 import com.advancedtelematic.ota.deviceregistry.data.Group.{GroupExpression, GroupId}
 import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
 import com.advancedtelematic.ota.deviceregistry.data.PackageId
@@ -91,16 +91,19 @@ trait DeviceRequests { self: ResourceSpec =>
   def updateDevice(uuid: DeviceId, newName: DeviceName)(implicit ec: ExecutionContext): HttpRequest =
     Put(Resource.uri(api, uuid.show), UpdateDevice(newName))
 
-  def createDevice(device: DeviceT)(implicit ec: ExecutionContext): HttpRequest =
+  def createDevice(device: Json)(implicit ec: ExecutionContext): HttpRequest =
     Post(Resource.uri(api), device)
 
-  def createDeviceOk(device: DeviceT)(implicit ec: ExecutionContext): DeviceId =
+  def createDevice(device: CreateDevice)(implicit ec: ExecutionContext): HttpRequest =
+    Post(Resource.uri(api), device)
+
+  def createDeviceOk(device: CreateDevice)(implicit ec: ExecutionContext): DeviceId =
     createDevice(device) ~> route ~> check {
       status shouldBe Created
       responseAs[DeviceId]
   }
 
-  def createDeviceInNamespaceOk(device: DeviceT, ns: Namespace)(implicit ec: ExecutionContext): DeviceId =
+  def createDeviceInNamespaceOk(device: CreateDevice, ns: Namespace)(implicit ec: ExecutionContext): DeviceId =
     Post(Resource.uri(api), device).withNs(ns) ~> route ~> check {
       status shouldBe Created
       responseAs[DeviceId]

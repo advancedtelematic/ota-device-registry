@@ -180,12 +180,12 @@ class GroupExpressionRunSpec extends FunSuite with Matchers with DatabaseSpec wi
   override implicit def patienceConfig: PatienceConfig = PatienceConfig(timeout = Span(300, Millis), interval = Span(30, Millis))
 
   val device0 =
-    DeviceGenerators.genDeviceT
+    DeviceGenerators.genCreateDevice
       .sample
       .get
       .copy(deviceId = DeviceOemId("deviceABC"))
   val device1 =
-    DeviceGenerators.genDeviceT
+    DeviceGenerators.genCreateDevice
       .sample
       .get
       .copy(deviceId = DeviceOemId("deviceDEF"))
