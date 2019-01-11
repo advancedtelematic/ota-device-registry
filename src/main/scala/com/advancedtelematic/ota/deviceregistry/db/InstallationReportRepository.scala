@@ -2,15 +2,19 @@ package com.advancedtelematic.ota.deviceregistry.db
 
 import java.time.Instant
 
+import akka.NotUsed
+import akka.stream.scaladsl.Source
 import com.advancedtelematic.libats.data.DataType.CorrelationId
 import com.advancedtelematic.libats.data.{EcuIdentifier, PaginationResult}
 import com.advancedtelematic.libats.messaging_datatype.DataType.{DeviceId, EcuInstallationReport}
+import com.advancedtelematic.libats.slick.db.SlickAnyVal._
 import com.advancedtelematic.libats.slick.db.SlickCirceMapper._
 import com.advancedtelematic.libats.slick.db.SlickExtensions._
 import com.advancedtelematic.libats.slick.db.SlickUUIDKey._
 import com.advancedtelematic.libats.slick.db.SlickUrnMapper.correlationIdMapper
 import com.advancedtelematic.libats.slick.db.SlickValidatedGeneric.validatedStringMapper
 import com.advancedtelematic.ota.deviceregistry.data.DataType.{DeviceInstallationResult, EcuInstallationResult, InstallationStat}
+import com.advancedtelematic.ota.deviceregistry.data.Device.DeviceOemId
 import com.advancedtelematic.ota.deviceregistry.db.DbOps.PaginationResultOps
 import io.circe.Json
 import slick.jdbc.MySQLProfile.api._
@@ -112,5 +116,16 @@ object InstallationReportRepository {
       .filter(_.deviceUuid === deviceId)
       .map(_.installationReport)
       .paginateResult(offset.orDefaultOffset, limit.orDefaultLimit)
+
+  def fetchDeviceFailures(correlationId: CorrelationId)(implicit ec: ExecutionContext, db: Database): Source[(DeviceId, DeviceOemId, String), NotUsed] =
+    Source.fromPublisher(db.stream {
+      deviceInstallationResults
+        .filter(_.correlationId === correlationId)
+        .filter(_.success === false)
+        .join(DeviceRepository.devices)
+        .on(_.deviceUuid === _.uuid)
+        .map{ case (r, d) => (d.uuid, d.deviceId, r.resultCode) }
+        .result
+    })
 
 }
