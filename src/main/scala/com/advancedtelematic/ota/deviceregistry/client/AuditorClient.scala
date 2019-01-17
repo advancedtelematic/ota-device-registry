@@ -8,10 +8,10 @@ import akka.stream.Materializer
 import cats.syntax.show._
 import com.advancedtelematic.libats.codecs.CirceCodecs.{dateTimeDecoder, namespaceDecoder}
 import com.advancedtelematic.libats.data.DataType.Namespace
-import com.advancedtelematic.libats.data.PaginationResult
+import com.advancedtelematic.libats.data.{EcuIdentifier, PaginationResult}
 import com.advancedtelematic.libats.http.HttpOps.HttpRequestOps
 import com.advancedtelematic.libats.http.ServiceHttpClient
-import com.advancedtelematic.libats.messaging_datatype.DataType.{DeviceId, EcuSerial, OperationResult, UpdateId}
+import com.advancedtelematic.libats.messaging_datatype.DataType.{DeviceId, OperationResult, UpdateId}
 import com.advancedtelematic.libats.messaging_datatype.MessageCodecs._
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
 import io.circe.Decoder
@@ -22,7 +22,7 @@ final case class DeviceUpdateReport(namespace: Namespace,
                                     device: DeviceId,
                                     updateId: UpdateId,
                                     timestampVersion: Int,
-                                    operationResult: Map[EcuSerial, OperationResult],
+                                    operationResult: Map[EcuIdentifier, OperationResult],
                                     resultCode: Int,
                                     receivedAt: Instant)
 

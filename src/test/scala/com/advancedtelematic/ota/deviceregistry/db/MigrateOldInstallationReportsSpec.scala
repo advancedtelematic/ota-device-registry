@@ -8,6 +8,8 @@ import akka.stream.ActorMaterializer
 import cats.syntax.either._
 import com.advancedtelematic.libats.data.DataType.HashMethod.HashMethod
 import com.advancedtelematic.libats.data.DataType.{HashMethod, MultiTargetUpdateId, Namespace, ValidChecksum}
+import com.advancedtelematic.libats.data.EcuIdentifier
+import com.advancedtelematic.libats.data.EcuIdentifier.validatedEcuIdentifier
 import com.advancedtelematic.libats.messaging_datatype.DataType._
 import com.advancedtelematic.libats.messaging_datatype.MessageCodecs.deviceInstallationReportDecoder
 import com.advancedtelematic.libats.messaging_datatype.Messages.DeviceInstallationReport
@@ -15,9 +17,9 @@ import com.advancedtelematic.libats.test.DatabaseSpec
 import com.advancedtelematic.ota.deviceregistry.client.DeviceUpdateReport
 import com.advancedtelematic.ota.deviceregistry.data.GeneratorOps._
 import com.advancedtelematic.ota.deviceregistry.data.{DeviceGenerators, Namespaces}
+import com.advancedtelematic.ota.deviceregistry.db.InstallationReportRepository.fetchInstallationHistory
 import com.advancedtelematic.ota.deviceregistry.util.FakeAuditorClient
 import eu.timepit.refined.api.Refined
-import InstallationReportRepository.fetchInstallationHistory
 import org.scalacheck.Gen
 import org.scalatest.concurrent.{Eventually, ScalaFutures}
 import org.scalatest.time.SpanSugar._
@@ -38,11 +40,11 @@ class MigrateOldInstallationReportsSpec
   implicit val materializer: ActorMaterializer = ActorMaterializer()
   import system.dispatcher
 
-  private val genEcuSerial: Gen[EcuSerial] =
-    Gen.listOfN(64, Gen.alphaNumChar).map(_.mkString("")).map(Refined.unsafeApply[String, ValidEcuSerial])
+  private val genEcuId: Gen[EcuIdentifier] =
+    Gen.listOfN(64, Gen.alphaNumChar).map(_.mkString("")).map(validatedEcuIdentifier.from(_).right.get)
 
-  private val genOperationResultPair: Gen[(EcuSerial, OperationResult)] =
-    genEcuSerial.flatMap(ecuId => genOperationResult.map(ecuId -> _))
+  private val genOperationResultPair: Gen[(EcuIdentifier, OperationResult)] =
+    genEcuId.flatMap(ecuId => genOperationResult.map(ecuId -> _))
 
   private val genValidChecksumPair: Gen[(HashMethod, Refined[String, ValidChecksum])] = for {
     hashMethod <- Gen.const(HashMethod.SHA256)
@@ -75,14 +77,14 @@ class MigrateOldInstallationReportsSpec
       UpdateId(UUID.fromString("99999999-5555-5555-5555-DDDDDDDDDDDD")),
       8,
       Map(
-        Refined.unsafeApply[String, ValidEcuSerial]("1234abcd") -> OperationResult(
+        validatedEcuIdentifier.from("1234abcd").right.get -> OperationResult(
           Refined.unsafeApply[String, ValidTargetFilename]("the-target-file"),
           Map(HashMethod.SHA256 -> Refined.unsafeApply[String, ValidChecksum]("1234ABCD" * 8)),
           27,
           0,
           "All good."
         ),
-        Refined.unsafeApply[String, ValidEcuSerial]("3456cdef") -> OperationResult(
+        validatedEcuIdentifier.from("3456cdef").right.get -> OperationResult(
           Refined.unsafeApply[String, ValidTargetFilename]("the-other-target-file"),
           Map(HashMethod.SHA256 -> Refined.unsafeApply[String, ValidChecksum]("3456CDEF" * 8)),
           72,
@@ -100,12 +102,12 @@ class MigrateOldInstallationReportsSpec
       MultiTargetUpdateId(UUID.fromString("99999999-5555-5555-5555-DDDDDDDDDDDD")),
       InstallationResult(success = false, "19", "One or more targeted ECUs failed to update"),
       Map(
-        Refined.unsafeApply[String, ValidEcuSerial]("1234abcd") -> EcuInstallationReport(
+        validatedEcuIdentifier.from("1234abcd").right.get -> EcuInstallationReport(
           InstallationResult(success = true, "0", "All good."),
           Seq("the-target-file"),
           None
         ),
-        Refined.unsafeApply[String, ValidEcuSerial]("3456cdef") -> EcuInstallationReport(
+        validatedEcuIdentifier.from("3456cdef").right.get -> EcuInstallationReport(
           InstallationResult(success = false, "2", "Something went wrong."),
           Seq("the-other-target-file"),
           None

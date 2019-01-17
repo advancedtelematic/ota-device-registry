@@ -3,13 +3,13 @@ package com.advancedtelematic.ota.deviceregistry.db
 import java.time.Instant
 
 import com.advancedtelematic.libats.data.DataType.CorrelationId
-import com.advancedtelematic.libats.data.PaginationResult
-import com.advancedtelematic.libats.messaging_datatype.DataType.{DeviceId, EcuInstallationReport, EcuSerial}
-import com.advancedtelematic.libats.slick.codecs.SlickRefined._
+import com.advancedtelematic.libats.data.{EcuIdentifier, PaginationResult}
+import com.advancedtelematic.libats.messaging_datatype.DataType.{DeviceId, EcuInstallationReport}
 import com.advancedtelematic.libats.slick.db.SlickCirceMapper._
 import com.advancedtelematic.libats.slick.db.SlickExtensions._
 import com.advancedtelematic.libats.slick.db.SlickUUIDKey._
 import com.advancedtelematic.libats.slick.db.SlickUrnMapper.correlationIdMapper
+import com.advancedtelematic.libats.slick.db.SlickValidatedGeneric.validatedStringMapper
 import com.advancedtelematic.ota.deviceregistry.data.DataType.{DeviceInstallationResult, EcuInstallationResult, InstallationStat}
 import com.advancedtelematic.ota.deviceregistry.db.DbOps.PaginationResultOps
 import io.circe.Json
@@ -51,7 +51,7 @@ object InstallationReportRepository {
     def correlationId = column[CorrelationId]("correlation_id")
     def resultCode    = column[String]("result_code")
     def deviceUuid    = column[DeviceId]("device_uuid")
-    def ecuId     = column[EcuSerial]("ecu_id")
+    def ecuId     = column[EcuIdentifier]("ecu_id")
     def success = column[Boolean]("success")
 
     def * =
@@ -67,7 +67,7 @@ object InstallationReportRepository {
                               deviceUuid: DeviceId,
                               deviceResultCode: String,
                               success: Boolean,
-                              ecuReports: Map[EcuSerial, EcuInstallationReport],
+                              ecuReports: Map[EcuIdentifier, EcuInstallationReport],
                               receivedAt: Instant,
                               installationReport: Json)(implicit ec: ExecutionContext): DBIO[Unit] = {
 
