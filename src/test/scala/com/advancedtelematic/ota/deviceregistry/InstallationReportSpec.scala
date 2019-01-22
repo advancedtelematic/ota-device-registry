@@ -1,6 +1,9 @@
 package com.advancedtelematic.ota.deviceregistry
 
+import akka.http.scaladsl.model.ContentTypes
 import akka.http.scaladsl.model.StatusCodes._
+import akka.util.ByteString
+import cats.syntax.show._
 import com.advancedtelematic.libats.data.PaginationResult
 import com.advancedtelematic.libats.messaging_datatype.MessageCodecs.deviceInstallationReportDecoder
 import com.advancedtelematic.libats.messaging_datatype.Messages.DeviceInstallationReport
@@ -64,6 +67,27 @@ class InstallationReportSpec extends ResourcePropSpec with ScalaFutures with Eve
       getReportBlob(deviceId) ~> route ~> check {
         status shouldBe OK
         responseAs[PaginationResult[DeviceInstallationReport]].values should contain allElementsOf deviceReports
+      }
+    }
+  }
+
+  property("should get the device failures as a CSV") {
+    val correlationId = genCorrelationId.sample.get
+    val resultCodes = Seq("0", "1", "2", "2", "3", "3", "3")
+    val createDevices = genConflictFreeDeviceTs(resultCodes.length).sample.get
+    val deviceIds = createDevices.map(createDeviceOk)
+    val rows = deviceIds.zip(createDevices).zip(resultCodes).map { case ((did, cd), rc) => (did, cd.deviceId, rc) }
+    val deviceReports = rows.map { case (did, _, rc) => genDeviceInstallationReport(correlationId, rc, did) }.map(_.sample.get)
+
+    deviceReports.foreach(listener.apply)
+
+    eventually {
+      getFailedExport(correlationId) ~> route ~> check {
+        status shouldBe OK
+        contentType shouldBe ContentTypes.`text/csv(UTF-8)`
+        val expected = rows.filter(_._3 != "0").map { case (did, cd, rc) => did.show + ";" + cd.show + ";" + rc }
+        val result = entityAs[ByteString].utf8String.split("\n")
+        result.tail should contain allElementsOf expected
       }
     }
   }
