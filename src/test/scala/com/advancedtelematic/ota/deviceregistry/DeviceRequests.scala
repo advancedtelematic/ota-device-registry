@@ -183,7 +183,7 @@ trait DeviceRequests { self: ResourceSpec =>
     Get(Resource.uri(api, "stats").withQuery(Query("correlationId" -> correlationId.toString, "level" -> level.toString)))
 
   def getFailedExport(correlationId: CorrelationId): HttpRequest =
-    Get(Resource.uri(api, "stats").withQuery(Query("correlationId" -> correlationId.toString)))
+    Get(Resource.uri(api, "failed-installations").withQuery(Query("correlationId" -> correlationId.toString)))
       .withHeaders(Accept(MediaTypes.`text/csv`))
 
   def getReportBlob(deviceId: DeviceId): HttpRequest =

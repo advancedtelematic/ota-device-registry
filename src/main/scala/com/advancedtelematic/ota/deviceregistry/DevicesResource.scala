@@ -11,6 +11,7 @@ package com.advancedtelematic.ota.deviceregistry
 import java.time.{Instant, OffsetDateTime}
 
 import akka.actor.ActorSystem
+import akka.http.scaladsl.marshalling.{Marshaller, ToResponseMarshaller}
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.headers._
 import akka.http.scaladsl.server._
@@ -92,6 +93,16 @@ class DevicesResource(
         case s        => throw new IllegalArgumentException(s"Invalid value for installation stats level parameter: $s.")
       }
   }
+
+  val installationFailureMarshaller = implicitly[ToResponseMarshaller[Seq[(DeviceOemId, String)]]]
+
+  val installationFailureCsvMarshaller: ToResponseMarshaller[Seq[(DeviceOemId, String)]] =
+    Marshaller.withFixedContentType(ContentTypes.`text/csv(UTF-8)`) { t =>
+      val csv = CsvSerializer.asCsv(Seq("Device ID", "Failure Code"), t)
+      val e = HttpEntity(ContentTypes.`text/csv(UTF-8)`, csv)
+      val h = `Content-Disposition`(ContentDispositionTypes.attachment, Map("filename" -> "device-failures.csv"))
+      HttpResponse(headers = h :: Nil, entity = e)
+    }
 
   def searchDevice(ns: Namespace): Route =
     parameters((
@@ -195,19 +206,10 @@ class DevicesResource(
     complete(db.run(action))
   }
 
-  def exportFailureStats(correlationId: CorrelationId): Route = {
-    val csvHeader = CsvSerializer.header("Device UUID", "Device ID", "Failure Code")
-    val f =
-      InstallationReportRepository
-        .fetchDeviceFailures(correlationId)
-        .runFold(csvHeader)((s, t) => s ++ CsvSerializer.asCsvRow(t))
-
-    onSuccess(f) { s =>
-      val h = `Content-Disposition`(ContentDispositionTypes.attachment, Map("filename" -> "device-failures.csv"))
-      respondWithHeader(h) {
-        complete(HttpEntity(ContentTypes.`text/csv(UTF-8)`, s))
-      }
-    }
+  def fetchFailureStats(correlationId: CorrelationId): Route = {
+    implicit val exportMarshaller: Marshaller[Seq[(DeviceOemId, String)], HttpResponse] =
+      Marshaller.oneOf(installationFailureMarshaller, installationFailureCsvMarshaller)
+    complete(db.run(InstallationReportRepository.fetchDeviceFailures(correlationId)))
   }
 
   def api: Route = namespaceExtractor { ns =>
@@ -221,15 +223,11 @@ class DevicesResource(
           case None      => complete(Errors.InvalidGroupExpression(""))
           case Some(exp) => countDynamicGroupCandidates(ns.namespace, exp)
         } ~
-        (path("stats") & parameters('correlationId.as[CorrelationId], 'reportLevel.as[InstallationStatsLevel].?)) { (cid, reportLevel) =>
-          optionalHeaderValueByType[Accept]() { accept =>
-            // TODO IL This is ugly. If the endpoint returns the same kind of data implement a Marshaller
-            // that will negotiate the content-type of the response. Else use another endpoint.
-            if (accept.exists(_.mediaRanges.exists(m => m.isText && m.matches(MediaTypes.`text/csv`))))
-              exportFailureStats(cid)
-            else
-              fetchInstallationStats(cid, reportLevel)
-          }
+        (path("failed-installations") & parameter('correlationId.as[CorrelationId])) {
+          cid => fetchFailureStats(cid)
+        } ~
+        (path("stats") & parameters('correlationId.as[CorrelationId], 'reportLevel.as[InstallationStatsLevel].?)) {
+          (cid, reportLevel) => fetchInstallationStats(cid, reportLevel)
         } ~
         pathEnd {
           searchDevice(ns.namespace)

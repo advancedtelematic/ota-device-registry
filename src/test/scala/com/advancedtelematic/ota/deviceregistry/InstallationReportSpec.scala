@@ -75,9 +75,9 @@ class InstallationReportSpec extends ResourcePropSpec with ScalaFutures with Eve
     val correlationId = genCorrelationId.sample.get
     val resultCodes = Seq("0", "1", "2", "2", "3", "3", "3")
     val createDevices = genConflictFreeDeviceTs(resultCodes.length).sample.get
-    val deviceIds = createDevices.map(createDeviceOk)
-    val rows = deviceIds.zip(createDevices).zip(resultCodes).map { case ((did, cd), rc) => (did, cd.deviceId, rc) }
-    val deviceReports = rows.map { case (did, _, rc) => genDeviceInstallationReport(correlationId, rc, did) }.map(_.sample.get)
+    val deviceUuids = createDevices.map(createDeviceOk)
+    val rows = deviceUuids.zip(createDevices).zip(resultCodes).map { case ((uuid, cd), rc) => (uuid, cd.deviceId, rc) }
+    val deviceReports = rows.map { case (uuid, _, rc) => genDeviceInstallationReport(correlationId, rc, uuid) }.map(_.sample.get)
 
     deviceReports.foreach(listener.apply)
 
@@ -85,7 +85,7 @@ class InstallationReportSpec extends ResourcePropSpec with ScalaFutures with Eve
       getFailedExport(correlationId) ~> route ~> check {
         status shouldBe OK
         contentType shouldBe ContentTypes.`text/csv(UTF-8)`
-        val expected = rows.filter(_._3 != "0").map { case (did, cd, rc) => did.show + ";" + cd.show + ";" + rc }
+        val expected = rows.filter(_._3 != "0").map { case (_, cd, rc) => cd.show + ";" + rc }
         val result = entityAs[ByteString].utf8String.split("\n")
         result.tail should contain allElementsOf expected
       }
