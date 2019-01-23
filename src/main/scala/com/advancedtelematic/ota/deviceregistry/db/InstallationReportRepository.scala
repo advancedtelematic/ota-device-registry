@@ -117,15 +117,13 @@ object InstallationReportRepository {
       .map(_.installationReport)
       .paginateResult(offset.orDefaultOffset, limit.orDefaultLimit)
 
-  def fetchDeviceFailures(correlationId: CorrelationId)(implicit ec: ExecutionContext, db: Database): Source[(DeviceId, DeviceOemId, String), NotUsed] =
-    Source.fromPublisher(db.stream {
+  def fetchDeviceFailures(correlationId: CorrelationId)(implicit ec: ExecutionContext): DBIO[Seq[(DeviceOemId, String)]] =
       deviceInstallationResults
         .filter(_.correlationId === correlationId)
         .filter(_.success === false)
         .join(DeviceRepository.devices)
         .on(_.deviceUuid === _.uuid)
-        .map{ case (r, d) => (d.uuid, d.deviceId, r.resultCode) }
+        .map{ case (r, d) => (d.deviceId, r.resultCode) }
         .result
-    })
 
 }
