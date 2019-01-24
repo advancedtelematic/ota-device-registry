@@ -32,7 +32,7 @@ object GroupExpressionAST {
 
   private def evalToScala(exp: Expression): Device => Boolean = exp match {
     case DeviceIdContains(word) =>
-      (d: Device) => d.deviceId.underlying.contains(word)
+      (d: Device) => d.deviceId.underlying.toLowerCase.contains(word.toLowerCase)
 
     case DeviceIdCharAt(c, p) =>
       (d: Device) =>  p < d.deviceId.underlying.length && d.deviceId.underlying.charAt(p).toLower == c.toLower
@@ -51,7 +51,7 @@ object GroupExpressionAST {
 
   def eval(exp: Expression): DeviceTable => Rep[Boolean] = exp match {
     case DeviceIdContains(word) =>
-      (d: DeviceTable) => d.deviceId.mappedTo[String].like("%" + word + "%")
+      (d: DeviceTable) => d.deviceId.mappedTo[String].toLowerCase.like("%" + word.toLowerCase + "%")
 
     case DeviceIdCharAt(c, p) =>
       (d: DeviceTable) => d.deviceId.mappedTo[String].substring(p, p + 1).toLowerCase.mappedTo[Char] === c.toLower

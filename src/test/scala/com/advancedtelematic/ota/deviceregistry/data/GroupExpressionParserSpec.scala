@@ -216,7 +216,11 @@ class GroupExpressionRunSpec extends FunSuite with Matchers with DatabaseSpec wi
   }
 
   test("returns matching device") {
-    runGroupExpression(s"deviceid contains ABC") shouldBe Seq(device0.deviceId)
+    runGroupExpression(s"deviceid contains ABC") should contain only device0.deviceId
+  }
+
+  test("returns matching device is case-insensitive") {
+    runGroupExpression(s"deviceid contains abc") should contain only device0.deviceId
   }
 
   test("returns matching devices with or") {
@@ -226,12 +230,12 @@ class GroupExpressionRunSpec extends FunSuite with Matchers with DatabaseSpec wi
   }
 
   test("does not match devices that do not contain value") {
-    runGroupExpression(s"deviceid contains Z") should be(empty)
+    runGroupExpression(s"deviceid contains Z") shouldBe empty
   }
 
   test("matches both expressions when using and") {
     runGroupExpression(s"(deviceid contains A) and (deviceid contains C)") shouldBe Seq(device0.deviceId)
-    runGroupExpression(s"(deviceid contains A) and (deviceid contains D)") should be(empty)
+    runGroupExpression(s"(deviceid contains A) and (deviceid contains F)") shouldBe empty
   }
 
   test("matches all expressions when using and") {
