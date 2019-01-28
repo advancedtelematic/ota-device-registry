@@ -6,6 +6,7 @@ import cats.syntax.show._
 import com.advancedtelematic.libats.data.{ErrorCodes, ErrorRepresentation, PaginationResult}
 import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
 import com.advancedtelematic.ota.deviceregistry.data.Device.DeviceOemId
+import com.advancedtelematic.ota.deviceregistry.data.DeviceName.validatedDeviceType
 import com.advancedtelematic.ota.deviceregistry.data.Group.{GroupExpression, ValidExpression, _}
 import com.advancedtelematic.ota.deviceregistry.data.{Group, GroupType}
 import com.advancedtelematic.ota.deviceregistry.db.DeviceRepository
@@ -116,7 +117,7 @@ class DynamicGroupsResourceSpec extends FunSuite with ResourceSpec with Eventual
   }
 
   test("getting the groups of a device returns the correct dynamic groups") {
-    val deviceT = genDeviceT.sample.get.copy(deviceName = Refined.unsafeApply("12347890800808"))
+    val deviceT = genDeviceT.sample.get.copy(deviceName = validatedDeviceType.from("12347890800808").right.get)
     val deviceId: DeviceOemId = deviceT.deviceId
     val deviceUuid = createDeviceOk(deviceT)
 
@@ -135,7 +136,7 @@ class DynamicGroupsResourceSpec extends FunSuite with ResourceSpec with Eventual
   }
 
   test("getting the groups of a device using two 'contains' returns the correct dynamic groups") {
-    val deviceT = genDeviceT.sample.get.copy(deviceName = Refined.unsafeApply("ABCDEFGHIJ"))
+    val deviceT = genDeviceT.sample.get.copy(deviceName = validatedDeviceType.from("ABCDEFGHIJ").right.get)
     val deviceId: DeviceOemId = deviceT.deviceId
     val deviceUuid = createDeviceOk(deviceT)
 
@@ -153,7 +154,7 @@ class DynamicGroupsResourceSpec extends FunSuite with ResourceSpec with Eventual
   }
 
   test("getting the groups of a device returns the correct groups (dynamic and static)") {
-    val deviceT = genDeviceT.sample.get.copy(deviceName = Refined.unsafeApply("ABCDE"))
+    val deviceT = genDeviceT.sample.get.copy(deviceName = validatedDeviceType.from("ABCDE").right.get)
     val deviceUuid = createDeviceOk(deviceT)
 
     // Add the device to a static group

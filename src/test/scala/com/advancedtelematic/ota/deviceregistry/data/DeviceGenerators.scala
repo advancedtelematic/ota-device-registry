@@ -8,13 +8,13 @@
 
 package com.advancedtelematic.ota.deviceregistry.data
 
-import eu.timepit.refined.api.Refined
-import org.scalacheck.{Arbitrary, Gen}
 import java.time.Instant
 
 import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
 import com.advancedtelematic.ota.deviceregistry.data.DataType.DeviceT
+import com.advancedtelematic.ota.deviceregistry.data.DeviceName.validatedDeviceType
 import com.advancedtelematic.ota.deviceregistry.data.Namespaces.defaultNs
+import org.scalacheck.{Arbitrary, Gen}
 
 trait DeviceGenerators {
 
@@ -25,7 +25,7 @@ trait DeviceGenerators {
     //use a minimum length for DeviceName to reduce possibility of naming conflicts
     size <- Gen.choose(10, 100)
     name <- Gen.containerOfN[Seq, Char](size, Gen.alphaNumChar)
-  } yield Refined.unsafeApply(name.mkString)
+  } yield validatedDeviceType.from(name.mkString).right.get
 
   val genDeviceUUID: Gen[DeviceId] = Gen.delay(DeviceId.generate)
 
