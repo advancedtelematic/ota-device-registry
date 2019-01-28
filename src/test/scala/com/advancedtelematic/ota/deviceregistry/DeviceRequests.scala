@@ -11,8 +11,7 @@ package com.advancedtelematic.ota.deviceregistry
 import java.time.OffsetDateTime
 
 import akka.http.scaladsl.model.Uri.{Path, Query}
-import akka.http.scaladsl.model.headers.Accept
-import akka.http.scaladsl.model.{HttpRequest, MediaTypes, StatusCodes, Uri}
+import akka.http.scaladsl.model.{HttpRequest, StatusCodes, Uri}
 import akka.http.scaladsl.server.Route
 import cats.syntax.show._
 import com.advancedtelematic.libats.data.DataType.{CorrelationId, Namespace}
@@ -23,10 +22,8 @@ import com.advancedtelematic.ota.deviceregistry.data.DataType.InstallationStatsL
 import com.advancedtelematic.ota.deviceregistry.data.DataType.{DeviceT, UpdateDevice}
 import com.advancedtelematic.ota.deviceregistry.data.Group.{GroupExpression, GroupId}
 import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
-import com.advancedtelematic.ota.deviceregistry.data.PackageId
+import com.advancedtelematic.ota.deviceregistry.data.{DeviceName, PackageId}
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
-import eu.timepit.refined.api.Refined
-import eu.timepit.refined.string.Regex
 import io.circe.Json
 
 import scala.concurrent.ExecutionContext

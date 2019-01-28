@@ -13,10 +13,10 @@ import java.time.Instant
 import com.advancedtelematic.libats.data.DataType.Namespace
 import com.advancedtelematic.libats.data.PaginationResult
 import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
-import com.advancedtelematic.libats.slick.codecs.SlickRefined._
 import com.advancedtelematic.libats.slick.db.SlickAnyVal._
 import com.advancedtelematic.libats.slick.db.SlickExtensions._
 import com.advancedtelematic.libats.slick.db.SlickUUIDKey._
+import com.advancedtelematic.libats.slick.db.SlickValidatedGeneric.validatedStringMapper
 import com.advancedtelematic.ota.deviceregistry.common.Errors
 import com.advancedtelematic.ota.deviceregistry.data.DataType.{DeviceT, DeletedDevice, SearchParams}
 import com.advancedtelematic.ota.deviceregistry.data.Device._
@@ -28,8 +28,6 @@ import com.advancedtelematic.ota.deviceregistry.db.DbOps.PaginationResultOps
 import com.advancedtelematic.ota.deviceregistry.db.GroupInfoRepository.groupInfos
 import com.advancedtelematic.ota.deviceregistry.db.GroupMemberRepository.groupMembers
 import com.advancedtelematic.ota.deviceregistry.db.SlickMappings._
-import eu.timepit.refined.api.Refined
-import eu.timepit.refined.string.Regex
 import slick.jdbc.MySQLProfile.api._
 
 import scala.concurrent.ExecutionContext

@@ -21,6 +21,7 @@ import com.advancedtelematic.libats.messaging_datatype.Messages.DeviceSeen
 import com.advancedtelematic.ota.deviceregistry.common.{Errors, PackageStat}
 import com.advancedtelematic.ota.deviceregistry.daemon.{DeleteDeviceHandler, DeviceSeenListener}
 import com.advancedtelematic.ota.deviceregistry.data.DataType.DeviceT
+import com.advancedtelematic.ota.deviceregistry.data.DeviceName.validatedDeviceType
 import com.advancedtelematic.ota.deviceregistry.data.Group.{GroupExpression, GroupId, ValidExpression}
 import com.advancedtelematic.ota.deviceregistry.data.{Device, DeviceStatus, PackageId, _}
 import com.advancedtelematic.ota.deviceregistry.db.InstalledPackages
@@ -449,10 +450,10 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
   }
 
   property("search by 'nameContains' is case-insensitive") {
-    val originalDeviceName = Gen.alphaStr.generate
+    val originalDeviceName = genDeviceName.generate.value
     val deviceUuids =
       Seq(originalDeviceName, originalDeviceName.toLowerCase, originalDeviceName.toUpperCase)
-        .map(Refined.unsafeApply[String, ValidDeviceName])
+        .map(DeviceName(_).right.get)
         .map(deviceName => genDeviceT.generate.copy(deviceName = deviceName))
         .map(createDeviceOk)
 
@@ -481,8 +482,8 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
   }
 
   property("can search dynamic group devices") {
-    val deviceT1    = genDeviceTWith(Gen.const(refineMV[ValidDeviceName]("d1-xxyy-1234")), Gen.const(DeviceOemId("d1-xxyy-1234"))).generate
-    val deviceT2    = genDeviceTWith(Gen.const(refineMV[ValidDeviceName]("d2-xxyy-5678")), Gen.const(DeviceOemId("d2-xxyy-5678"))).generate
+    val deviceT1    = genDeviceTWith(Gen.const(validatedDeviceType.from("d1-xxyy-1234").right.get), Gen.const(DeviceOemId("d1-xxyy-1234"))).generate
+    val deviceT2    = genDeviceTWith(Gen.const(validatedDeviceType.from("d2-xxyy-5678").right.get), Gen.const(DeviceOemId("d2-xxyy-5678"))).generate
     val deviceUuid1 = createDeviceOk(deviceT1)
     val deviceUuid2 = createDeviceOk(deviceT2)
     createDynamicGroupOk(refineMV[ValidExpression]("deviceid contains xxyy"))
@@ -687,9 +688,9 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
 
   property("counts devices that satisfy a dynamic group expression") {
     val testDevices = Map(
-      Refined.unsafeApply[String, ValidDeviceName]("device1") -> DeviceOemId("abc123"),
-      Refined.unsafeApply[String, ValidDeviceName]("device2") -> DeviceOemId("123abc456"),
-      Refined.unsafeApply[String, ValidDeviceName]("device3") -> DeviceOemId("123aba456")
+      validatedDeviceType.from("device1").right.get -> DeviceOemId("abc123"),
+      validatedDeviceType.from("device2").right.get -> DeviceOemId("123abc456"),
+      validatedDeviceType.from("device3").right.get -> DeviceOemId("123aba456")
     )
     testDevices
       .map(t => (Gen.const(t._1), Gen.const(t._2)))

@@ -11,7 +11,6 @@ package com.advancedtelematic.ota.deviceregistry
 import java.time.{Instant, OffsetDateTime}
 
 import akka.actor.ActorSystem
-import akka.http.scaladsl.marshalling.{Marshaller, ToResponseMarshaller}
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.headers._
 import akka.http.scaladsl.server._
@@ -20,7 +19,7 @@ import akka.stream.ActorMaterializer
 import cats.syntax.either._
 import cats.syntax.show._
 import com.advancedtelematic.libats.auth.{AuthedNamespaceScope, Scopes}
-import com.advancedtelematic.libats.data.DataType.{CorrelationId, Namespace, ResultCode, ResultDescription}
+import com.advancedtelematic.libats.data.DataType.{CorrelationId, Namespace, ResultCode}
 import com.advancedtelematic.libats.http.UUIDKeyAkka._
 import com.advancedtelematic.libats.messaging.MessageBusPublisher
 import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId._
