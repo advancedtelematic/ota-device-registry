@@ -21,7 +21,7 @@ import com.advancedtelematic.ota.deviceregistry.common.Errors
 import com.advancedtelematic.ota.deviceregistry.data.DataType.{DeviceT, DeletedDevice, SearchParams}
 import com.advancedtelematic.ota.deviceregistry.data.Device._
 import com.advancedtelematic.ota.deviceregistry.data.DeviceStatus.DeviceStatus
-import com.advancedtelematic.ota.deviceregistry.data.Group.{GroupExpression, GroupId}
+import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
 import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
 import com.advancedtelematic.ota.deviceregistry.data._
 import com.advancedtelematic.ota.deviceregistry.db.DbOps.PaginationResultOps

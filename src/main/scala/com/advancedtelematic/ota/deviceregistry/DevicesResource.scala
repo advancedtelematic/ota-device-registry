@@ -21,6 +21,7 @@ import cats.syntax.show._
 import com.advancedtelematic.libats.auth.{AuthedNamespaceScope, Scopes}
 import com.advancedtelematic.libats.data.DataType.{CorrelationId, Namespace, ResultCode}
 import com.advancedtelematic.libats.http.UUIDKeyAkka._
+import com.advancedtelematic.libats.http.ValidatedGenericMarshalling.validatedStringUnmarshaller
 import com.advancedtelematic.libats.messaging.MessageBusPublisher
 import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId._
 import com.advancedtelematic.libats.messaging_datatype.DataType.{DeviceId, Event, EventType}
@@ -32,9 +33,9 @@ import com.advancedtelematic.ota.deviceregistry.data.Codecs._
 import com.advancedtelematic.ota.deviceregistry.data.DataType.InstallationStatsLevel.InstallationStatsLevel
 import com.advancedtelematic.ota.deviceregistry.data.DataType.{DeviceT, InstallationStatsLevel, SearchParams, UpdateDevice}
 import com.advancedtelematic.ota.deviceregistry.data.Device.{ActiveDeviceCount, DeviceOemId}
-import com.advancedtelematic.ota.deviceregistry.data.Group.{GroupExpression, GroupId}
+import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
 import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
-import com.advancedtelematic.ota.deviceregistry.data.PackageId
+import com.advancedtelematic.ota.deviceregistry.data.{GroupExpression, PackageId}
 import com.advancedtelematic.ota.deviceregistry.db._
 import com.advancedtelematic.ota.deviceregistry.messages.{DeleteDeviceRequest, DeviceCreated}
 import eu.timepit.refined.api.Refined

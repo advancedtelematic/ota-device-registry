@@ -12,15 +12,15 @@ import java.time.Instant
 
 import com.advancedtelematic.libats.data.DataType.Namespace
 import com.advancedtelematic.libats.data.PaginationResult
-import com.advancedtelematic.libats.slick.codecs.SlickRefined._
 import com.advancedtelematic.libats.slick.db.SlickExtensions._
 import com.advancedtelematic.libats.slick.db.SlickUUIDKey._
+import com.advancedtelematic.libats.slick.db.SlickValidatedGeneric.validatedStringMapper
 import com.advancedtelematic.ota.deviceregistry.common.Errors
 import com.advancedtelematic.ota.deviceregistry.data
-import com.advancedtelematic.ota.deviceregistry.data.Group
-import com.advancedtelematic.ota.deviceregistry.data.Group.{GroupExpression, GroupId, Name}
+import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
 import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
 import com.advancedtelematic.ota.deviceregistry.data.SortBy.SortBy
+import com.advancedtelematic.ota.deviceregistry.data.{Group, GroupExpression, GroupName}
 import com.advancedtelematic.ota.deviceregistry.db.DbOps.{PaginationResultOps, sortBySlickOrderedConversion}
 import com.advancedtelematic.ota.deviceregistry.db.SlickMappings._
 import slick.jdbc.MySQLProfile.api._
@@ -31,7 +31,7 @@ object GroupInfoRepository {
   // scalastyle:off
   class GroupInfoTable(tag: Tag) extends Table[Group](tag, "DeviceGroup") {
     def id         = column[GroupId]("id", O.PrimaryKey)
-    def groupName  = column[Name]("group_name")
+    def groupName  = column[GroupName]("group_name")
     def namespace  = column[Namespace]("namespace")
     def groupType     = column[GroupType]("type")
     def expression = column[Option[GroupExpression]]("expression")
@@ -59,15 +59,15 @@ object GroupInfoRepository {
       .result
       .failIfNotSingle(Errors.MissingGroup)
 
-  def create(id: GroupId, groupName: Name, namespace: Namespace, groupType: GroupType, expression: Option[GroupExpression])
+  def create(id: GroupId, groupName: GroupName, namespace: Namespace, groupType: GroupType, expression: Option[GroupExpression])
             (implicit ec: ExecutionContext): DBIO[GroupId] =
     (groupInfos += data.Group(id, groupName, namespace, groupType, expression))
       .handleIntegrityErrors(Errors.ConflictingGroup)
       .map(_ => id)
 
-  def renameGroup(id: GroupId, newGroupName: Name)(implicit ec: ExecutionContext): DBIO[Unit] =
+  def renameGroup(id: GroupId, newGroupName: GroupName)(implicit ec: ExecutionContext): DBIO[Unit] =
     groupInfos
-      .filter(r => r.id === id)
+      .filter(_.id === id)
       .map(_.groupName)
       .update(newGroupName)
       .handleIntegrityErrors(Errors.ConflictingDevice)
