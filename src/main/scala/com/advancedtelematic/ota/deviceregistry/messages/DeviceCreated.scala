@@ -10,11 +10,15 @@ package com.advancedtelematic.ota.deviceregistry.messages
 
 import java.time.Instant
 
+import cats.syntax.show._
+import com.advancedtelematic.libats.codecs.CirceCodecs._
 import com.advancedtelematic.libats.data.DataType.Namespace
-import com.advancedtelematic.libats.messaging_datatype.MessageLike
-import com.advancedtelematic.ota.deviceregistry.data.Device.{DeviceOemId, DeviceType}
 import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
-import com.advancedtelematic.ota.deviceregistry.data.DeviceName
+import com.advancedtelematic.libats.messaging_datatype.MessageLike
+import com.advancedtelematic.ota.deviceregistry.data.DeviceType.DeviceType
+import com.advancedtelematic.ota.deviceregistry.data.{DeviceName, DeviceOemId}
+import io.circe.generic.semiauto.{deriveDecoder, deriveEncoder}
+import io.circe.{Decoder, Encoder}
 
 final case class DeviceCreated(namespace: Namespace,
                                uuid: DeviceId,
@@ -24,9 +28,7 @@ final case class DeviceCreated(namespace: Namespace,
                                timestamp: Instant = Instant.now())
 
 object DeviceCreated {
-  import cats.syntax.show._
-  import com.advancedtelematic.libats.codecs.CirceCodecs._
-  implicit val EncoderInstance     = io.circe.generic.semiauto.deriveEncoder[DeviceCreated]
-  implicit val DecoderInstance     = io.circe.generic.semiauto.deriveDecoder[DeviceCreated]
-  implicit val MessageLikeInstance = MessageLike[DeviceCreated](_.uuid.show)
+  implicit val deviceCreatedEncoder: Encoder[DeviceCreated] = deriveEncoder[DeviceCreated]
+  implicit val deviceCreatedDecoder: Decoder[DeviceCreated] = deriveDecoder[DeviceCreated]
+  implicit val deviceCreatedMessageLike: MessageLike[DeviceCreated] = MessageLike[DeviceCreated](_.uuid.show)
 }

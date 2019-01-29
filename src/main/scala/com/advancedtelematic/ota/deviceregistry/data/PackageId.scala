@@ -9,6 +9,8 @@
 package com.advancedtelematic.ota.deviceregistry.data
 
 import cats.{Eq, Show}
+import io.circe.{Decoder, Encoder}
+import io.circe.generic.semiauto.{deriveDecoder, deriveEncoder}
 
 final case class PackageId(name: PackageId.Name, version: PackageId.Version)
 
@@ -16,17 +18,15 @@ object PackageId {
   type Name    = String
   type Version = String
 
-  implicit val EncoderInstance = io.circe.generic.semiauto.deriveEncoder[PackageId]
-  implicit val DecoderInstance = io.circe.generic.semiauto.deriveDecoder[PackageId]
+  implicit val packageIdEncoder: Encoder[PackageId] = deriveEncoder[PackageId]
+  implicit val packageIdDecoder: Decoder[PackageId] = deriveDecoder[PackageId]
 
   /**
     * Use the underlying (string) ordering, show and equality for
     * package ids.
     */
-  implicit val PackageIdOrdering: Ordering[PackageId] = new Ordering[PackageId] {
-    override def compare(id1: PackageId, id2: PackageId): Int =
-      id1.name + id1.version compare id2.name + id2.version
-  }
+  implicit val PackageIdOrdering: Ordering[PackageId] =
+    (id1: PackageId, id2: PackageId) => id1.name + id1.version compare id2.name + id2.version
 
   implicit val showInstance: Show[PackageId] =
     Show.show(id => s"${id.name}-${id.version}")

@@ -44,8 +44,8 @@ class PublicCredentialsResource(
 )(implicit db: Database, mat: ActorMaterializer, ec: ExecutionContext) {
   import PublicCredentialsResource._
   import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
-  lazy val base64Decoder = Base64.getDecoder()
-  lazy val base64Encoder = Base64.getEncoder()
+  lazy val base64Decoder = Base64.getDecoder
+  lazy val base64Encoder = Base64.getEncoder
 
   def fetchPublicCredentials(uuid: DeviceId): Route =
     complete(db.run(PublicCredentialsRepository.findByUuid(uuid)).map { creds =>

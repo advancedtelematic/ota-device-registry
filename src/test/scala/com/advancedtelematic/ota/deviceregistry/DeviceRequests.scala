@@ -23,7 +23,7 @@ import com.advancedtelematic.ota.deviceregistry.data.DataType.InstallationStatsL
 import com.advancedtelematic.ota.deviceregistry.data.DataType.{DeviceT, UpdateDevice}
 import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
 import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
-import com.advancedtelematic.ota.deviceregistry.data.{DeviceName, GroupExpression, PackageId}
+import com.advancedtelematic.ota.deviceregistry.data.{DeviceName, DeviceOemId, GroupExpression, PackageId}
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.string.Regex

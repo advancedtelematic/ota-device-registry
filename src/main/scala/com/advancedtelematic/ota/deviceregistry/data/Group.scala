@@ -10,7 +10,6 @@ package com.advancedtelematic.ota.deviceregistry.data
 
 import java.util.UUID
 
-import akka.http.scaladsl.unmarshalling.Unmarshaller
 import com.advancedtelematic.libats.codecs.CirceCodecs._
 import com.advancedtelematic.libats.data.DataType.Namespace
 import com.advancedtelematic.libats.data.UUIDKey.{UUIDKey, UUIDKeyObj}
@@ -18,26 +17,12 @@ import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
 import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
 import io.circe.generic.semiauto.{deriveDecoder, deriveEncoder}
 import io.circe.{Decoder, Encoder}
-import slick.jdbc.MySQLProfile.api._
 
 case class Group(id: GroupId,
                  groupName: GroupName,
                  namespace: Namespace,
                  groupType: GroupType,
                  expression: Option[GroupExpression] = None)
-
-object GroupType extends Enumeration {
-  type GroupType = Value
-
-  val static, dynamic = Value
-
-  implicit val groupTypeMapper = MappedColumnType.base[GroupType, String](_.toString, GroupType.withName)
-
-  implicit val groupTypeEncoder: Encoder[GroupType] = Encoder.enumEncoder(GroupType)
-  implicit val groupTypeDecoder: Decoder[GroupType] = Decoder.enumDecoder(GroupType)
-
-  implicit val groupTypeUnmarshaller: Unmarshaller[String, GroupType] = Unmarshaller.strict(GroupType.withName)
-}
 
 object Group {
 

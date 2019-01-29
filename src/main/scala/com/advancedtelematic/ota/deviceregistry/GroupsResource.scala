@@ -11,18 +11,18 @@ package com.advancedtelematic.ota.deviceregistry
 import akka.http.scaladsl.marshalling.Marshaller._
 import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.server._
-import akka.http.scaladsl.unmarshalling.{FromStringUnmarshaller, Unmarshaller}
-import cats.syntax.either._
 import com.advancedtelematic.libats.auth.{AuthedNamespaceScope, Scopes}
 import com.advancedtelematic.libats.data.DataType.Namespace
 import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
+import com.advancedtelematic.ota.deviceregistry.MarshallingSupport._
+import com.advancedtelematic.ota.deviceregistry.data.Codecs.createGroupDecoder
+import com.advancedtelematic.ota.deviceregistry.data.DataType.CreateGroup
 import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
 import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
 import com.advancedtelematic.ota.deviceregistry.data.SortBy.SortBy
 import com.advancedtelematic.ota.deviceregistry.data._
 import com.advancedtelematic.ota.deviceregistry.db.GroupInfoRepository
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
-import io.circe.{Decoder, Encoder}
 import slick.jdbc.MySQLProfile.api._
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -33,17 +33,6 @@ class GroupsResource(namespaceExtractor: Directive1[AuthedNamespaceScope], devic
   private val GroupIdPath = {
     def groupAllowed(groupId: GroupId): Future[Namespace] = db.run(GroupInfoRepository.groupInfoNamespace(groupId))
     AllowUUIDPath(GroupId)(namespaceExtractor, groupAllowed)
-  }
-
-  implicit val groupTypeUnmarshaller: FromStringUnmarshaller[GroupType] = Unmarshaller.strict(GroupType.withName)
-  implicit val groupNameUnmarshaller: FromStringUnmarshaller[GroupName] = Unmarshaller.strict(GroupName.validatedGroupName.from(_).valueOr(throw _))
-
-  implicit val sortByUnmarshaller: FromStringUnmarshaller[SortBy] = Unmarshaller.strict {
-    _.toLowerCase match {
-      case "name"      => SortBy.Name
-      case "createdat" => SortBy.CreatedAt
-      case s           => throw new IllegalArgumentException(s"Invalid value for sorting parameter: '$s'.")
-    }
   }
 
   val groupMembership = new GroupMembership()
@@ -111,16 +100,4 @@ class GroupsResource(namespaceExtractor: Directive1[AuthedNamespaceScope], devic
         }
       }
     }
-}
-
-case class CreateGroup(name: GroupName, groupType: GroupType, expression: Option[GroupExpression])
-
-object CreateGroup {
-  import GroupType._
-  import com.advancedtelematic.circe.CirceInstances._
-  import com.advancedtelematic.libats.codecs.CirceRefined._
-  import io.circe.generic.semiauto._
-
-  implicit val createGroupEncoder: Encoder[CreateGroup] = deriveEncoder
-  implicit val createGroupDecoder: Decoder[CreateGroup] = deriveDecoder
 }

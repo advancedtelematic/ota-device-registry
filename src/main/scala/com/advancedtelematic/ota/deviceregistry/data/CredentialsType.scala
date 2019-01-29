@@ -8,10 +8,12 @@
 
 package com.advancedtelematic.ota.deviceregistry.data
 
-final object CredentialsType extends Enumeration {
+import io.circe.{Decoder, Encoder}
+
+object CredentialsType extends Enumeration {
   type CredentialsType = Value
   val PEM, OAuthClientCredentials = Value
 
-  implicit val EncoderInstance = io.circe.Encoder.enumEncoder(CredentialsType)
-  implicit val DecoderInstance = io.circe.Decoder.enumDecoder(CredentialsType)
+  implicit val credentialsTypeEncoder: Encoder[CredentialsType] = Encoder.enumEncoder(CredentialsType)
+  implicit val credentialsTypeDecoder: Decoder[CredentialsType] = Decoder.enumDecoder(CredentialsType)
 }

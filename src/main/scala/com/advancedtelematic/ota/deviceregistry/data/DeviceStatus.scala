@@ -12,9 +12,8 @@ import io.circe.{Decoder, Encoder}
 
 object DeviceStatus extends Enumeration {
   type DeviceStatus = Value
-
   val NotSeen, Error, UpToDate, Outdated = Value
 
-  implicit val JsonEncoder = Encoder.enumEncoder(DeviceStatus)
-  implicit val JsonDecoder = Decoder.enumDecoder(DeviceStatus)
+  implicit val deviceStatusEncoder: Encoder[DeviceStatus] = Encoder.enumEncoder(DeviceStatus)
+  implicit val deviceStatusDecoder: Decoder[DeviceStatus] = Decoder.enumDecoder(DeviceStatus)
 }

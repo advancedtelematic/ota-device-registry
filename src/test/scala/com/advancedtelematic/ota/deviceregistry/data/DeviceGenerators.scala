@@ -13,6 +13,7 @@ import java.time.Instant
 import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
 import com.advancedtelematic.ota.deviceregistry.data.DataType.DeviceT
 import com.advancedtelematic.ota.deviceregistry.data.DeviceName.validatedDeviceType
+import com.advancedtelematic.ota.deviceregistry.data.DeviceType.DeviceType
 import com.advancedtelematic.ota.deviceregistry.data.Namespaces.defaultNs
 import org.scalacheck.{Arbitrary, Gen}
 

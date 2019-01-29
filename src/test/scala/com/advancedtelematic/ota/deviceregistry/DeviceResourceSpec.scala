@@ -20,7 +20,8 @@ import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
 import com.advancedtelematic.libats.messaging_datatype.Messages.DeviceSeen
 import com.advancedtelematic.ota.deviceregistry.common.{Errors, PackageStat}
 import com.advancedtelematic.ota.deviceregistry.daemon.{DeleteDeviceHandler, DeviceSeenListener}
-import com.advancedtelematic.ota.deviceregistry.data.DataType.DeviceT
+import com.advancedtelematic.ota.deviceregistry.data.Codecs.activeDeviceCountDecoder
+import com.advancedtelematic.ota.deviceregistry.data.DataType.{ActiveDeviceCount, DeviceT}
 import com.advancedtelematic.ota.deviceregistry.data.DeviceName.validatedDeviceType
 import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
 import com.advancedtelematic.ota.deviceregistry.data.{Device, DeviceStatus, PackageId, _}
@@ -67,7 +68,7 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
     val staticGroup = createStaticGroupOk()
 
     deviceIds.take(4).foreach(addDeviceToGroupOk(staticGroup, _))
-    val expr = deviceTs.slice(4, 8).map(_.deviceId.underlying.take(6)).map(n => s"deviceid contains $n").reduce(_ + " or " + _)
+    val expr = deviceTs.slice(4, 8).map(_.deviceId.value.take(6)).map(n => s"deviceid contains $n").reduce(_ + " or " + _)
     createDynamicGroupOk(GroupExpression(expr).right.get)
 
     Map("all" -> deviceIds, "groupedStatic" -> deviceIds.take(4),

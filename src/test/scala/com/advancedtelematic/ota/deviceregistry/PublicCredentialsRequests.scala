@@ -11,13 +11,13 @@ package com.advancedtelematic.ota.deviceregistry
 import java.util.Base64
 
 import akka.http.scaladsl.model.{HttpRequest, StatusCodes}
-import com.advancedtelematic.libats.data.ValidationError
 import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
 import com.advancedtelematic.ota.deviceregistry.PublicCredentialsResource.FetchPublicCredentials
 import com.advancedtelematic.ota.deviceregistry.data.Codecs._
 import com.advancedtelematic.ota.deviceregistry.data.CredentialsType.CredentialsType
 import com.advancedtelematic.ota.deviceregistry.data.DataType.DeviceT
 import com.advancedtelematic.ota.deviceregistry.data.DeviceName.validatedDeviceType
+import com.advancedtelematic.ota.deviceregistry.data.{DeviceOemId, DeviceType}
 
 import scala.concurrent.ExecutionContext
 
@@ -49,7 +49,7 @@ trait PublicCredentialsRequests { self: ResourceSpec =>
 
   def updatePublicCredentials(device: DeviceOemId, creds: Array[Byte], cType: Option[CredentialsType])
                              (implicit ec: ExecutionContext): HttpRequest = {
-    val devT = validatedDeviceType.from(device.underlying)
+    val devT = validatedDeviceType.from(device.value)
       .map(DeviceT(None, _, device, DeviceType.Other, Some(base64Encoder.encodeToString(creds)), cType))
     createDeviceWithCredentials(devT.right.get)
   }

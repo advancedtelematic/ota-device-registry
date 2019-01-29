@@ -9,7 +9,6 @@
 package com.advancedtelematic.ota.deviceregistry.data
 
 import cats.syntax.show._
-import com.advancedtelematic.ota.deviceregistry.data.Device.DeviceOemId
 import org.scalacheck.{Arbitrary, Gen}
 
 /**
@@ -55,7 +54,7 @@ trait DeviceIdGenerators {
 
     Gen
       .oneOf(genTooLongVin, genTooShortVin, genNotAlphaNumVin)
-      .map(DeviceOemId)
+      .map(DeviceOemId.apply)
   }
 
   def getInvalidVin: DeviceOemId =

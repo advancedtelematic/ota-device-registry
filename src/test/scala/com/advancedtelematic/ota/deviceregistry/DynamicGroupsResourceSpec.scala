@@ -5,10 +5,9 @@ import cats.syntax.either._
 import cats.syntax.show._
 import com.advancedtelematic.libats.data.{ErrorCodes, ErrorRepresentation, PaginationResult}
 import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
-import com.advancedtelematic.ota.deviceregistry.data.Device.DeviceOemId
 import com.advancedtelematic.ota.deviceregistry.data.DeviceName.validatedDeviceType
 import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
-import com.advancedtelematic.ota.deviceregistry.data.{GroupExpression, GroupType}
+import com.advancedtelematic.ota.deviceregistry.data.{DeviceOemId, GroupExpression, GroupType}
 import com.advancedtelematic.ota.deviceregistry.db.DeviceRepository
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
 import eu.timepit.refined.api.Refined
@@ -20,7 +19,7 @@ class DynamicGroupsResourceSpec extends FunSuite with ResourceSpec with Eventual
 
   implicit class DeviceIdToExpression(value: DeviceOemId) {
     def toValidExp: GroupExpression =
-      GroupExpression(s"deviceid contains ${value.underlying}").valueOr(err => throw new IllegalArgumentException(err))
+      GroupExpression(s"deviceid contains ${value.value}").valueOr(err => throw new IllegalArgumentException(err))
   }
 
   test("dynamic group gets created.") {

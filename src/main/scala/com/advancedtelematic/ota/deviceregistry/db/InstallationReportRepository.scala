@@ -15,7 +15,7 @@ import com.advancedtelematic.libats.slick.db.SlickUUIDKey._
 import com.advancedtelematic.libats.slick.db.SlickUrnMapper.correlationIdMapper
 import com.advancedtelematic.libats.slick.db.SlickValidatedGeneric.validatedStringMapper
 import com.advancedtelematic.ota.deviceregistry.data.DataType.{DeviceInstallationResult, EcuInstallationResult, InstallationStat}
-import com.advancedtelematic.ota.deviceregistry.data.Device.DeviceOemId
+import com.advancedtelematic.ota.deviceregistry.data.DeviceOemId
 import com.advancedtelematic.ota.deviceregistry.db.DbOps.PaginationResultOps
 import io.circe.Json
 import slick.jdbc.MySQLProfile.api._

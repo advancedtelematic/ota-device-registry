@@ -11,10 +11,13 @@ package com.advancedtelematic.ota.deviceregistry.db
 import com.advancedtelematic.libats.data.DataType.Namespace
 import com.advancedtelematic.libats.slick.codecs.SlickEnumMapper
 import com.advancedtelematic.ota.deviceregistry.data.DataType.IndexedEventType
-import com.advancedtelematic.ota.deviceregistry.data.{CredentialsType, GroupType, PackageId}
+import com.advancedtelematic.ota.deviceregistry.data.{CredentialsType, DeviceType, GroupType, PackageId}
 import slick.jdbc.MySQLProfile.api._
 
 object SlickMappings {
+
+  implicit val deviceTypeMapper = SlickEnumMapper.enumMapper(DeviceType)
+
   implicit val groupTypeMapper = SlickEnumMapper.enumMapper(GroupType)
 
   implicit val credentialsTypeMapper = SlickEnumMapper.enumMapper(CredentialsType)

@@ -11,13 +11,11 @@ package com.advancedtelematic.ota.deviceregistry
 import java.time.{Instant, OffsetDateTime}
 
 import akka.actor.ActorSystem
-import akka.http.scaladsl.marshalling.{Marshaller, ToResponseMarshaller}
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.headers._
 import akka.http.scaladsl.server._
 import akka.http.scaladsl.unmarshalling.{FromStringUnmarshaller, Unmarshaller}
 import akka.stream.ActorMaterializer
-import cats.syntax.either._
 import cats.syntax.show._
 import com.advancedtelematic.libats.auth.{AuthedNamespaceScope, Scopes}
 import com.advancedtelematic.libats.data.DataType.{CorrelationId, Namespace}
@@ -28,14 +26,14 @@ import com.advancedtelematic.libats.messaging_datatype.DataType.{DeviceId, Event
 import com.advancedtelematic.libats.messaging_datatype.MessageCodecs._
 import com.advancedtelematic.libats.messaging_datatype.Messages.DeviceEventMessage
 import com.advancedtelematic.ota.deviceregistry.DevicesResource.EventPayload
+import com.advancedtelematic.ota.deviceregistry.MarshallingSupport._
 import com.advancedtelematic.ota.deviceregistry.common.Errors
 import com.advancedtelematic.ota.deviceregistry.data.Codecs._
 import com.advancedtelematic.ota.deviceregistry.data.DataType.InstallationStatsLevel.InstallationStatsLevel
-import com.advancedtelematic.ota.deviceregistry.data.DataType.{DeviceT, InstallationStatsLevel, SearchParams, UpdateDevice}
-import com.advancedtelematic.ota.deviceregistry.data.Device.{ActiveDeviceCount, DeviceOemId}
+import com.advancedtelematic.ota.deviceregistry.data.DataType.{ActiveDeviceCount, DeviceT, InstallationStatsLevel, SearchParams, UpdateDevice}
 import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
 import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
-import com.advancedtelematic.ota.deviceregistry.data.{CsvSerializer, GroupExpression, PackageId}
+import com.advancedtelematic.ota.deviceregistry.data.{DeviceOemId, GroupExpression, PackageId}
 import com.advancedtelematic.ota.deviceregistry.db._
 import com.advancedtelematic.ota.deviceregistry.messages.{DeleteDeviceRequest, DeviceCreated}
 import eu.timepit.refined.api.Refined
@@ -78,29 +76,6 @@ class DevicesResource(
     pathPrefix(Segment / Segment).as(PackageId.apply)
 
   val eventJournal = new EventJournal()
-
-  implicit val groupIdUnmarshaller: Unmarshaller[String, GroupId] = GroupId.unmarshaller
-
-  implicit val correlationIdUnmarshaller: FromStringUnmarshaller[CorrelationId] = Unmarshaller.strict {
-    CorrelationId.fromString(_).leftMap(new IllegalArgumentException(_)).valueOr(throw _)
-  }
-
-  implicit val installationStatsLevelUnmarshaller: FromStringUnmarshaller[InstallationStatsLevel] =
-    Unmarshaller.strict {
-      _.toLowerCase match {
-        case "device" => InstallationStatsLevel.Device
-        case "ecu"    => InstallationStatsLevel.Ecu
-        case s        => throw new IllegalArgumentException(s"Invalid value for installation stats level parameter: $s.")
-      }
-  }
-
-  implicit val installationFailureCsvMarshaller: ToResponseMarshaller[Seq[(DeviceOemId, String, String)]] =
-    Marshaller.withFixedContentType(ContentTypes.`text/csv(UTF-8)`) { t =>
-      val csv = CsvSerializer.asCsv(Seq("Device ID", "Failure Code", "Failure Description"), t)
-      val e = HttpEntity(ContentTypes.`text/csv(UTF-8)`, csv)
-      val h = `Content-Disposition`(ContentDispositionTypes.attachment, Map("filename" -> "device-failures.csv"))
-      HttpResponse(headers = h :: Nil, entity = e)
-    }
 
   def searchDevice(ns: Namespace): Route =
     parameters((

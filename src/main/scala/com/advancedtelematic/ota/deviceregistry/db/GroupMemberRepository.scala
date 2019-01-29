@@ -8,9 +8,9 @@
 
 package com.advancedtelematic.ota.deviceregistry.db
 
-import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
 import com.advancedtelematic.libats.data.DataType.Namespace
 import com.advancedtelematic.libats.data.PaginationResult
+import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
 import com.advancedtelematic.libats.slick.db.SlickAnyVal._
 import com.advancedtelematic.libats.slick.db.SlickExtensions._
 import com.advancedtelematic.libats.slick.db.SlickUUIDKey._
@@ -18,6 +18,7 @@ import com.advancedtelematic.ota.deviceregistry.common.Errors
 import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
 import com.advancedtelematic.ota.deviceregistry.data.{Device, GroupExpressionAST, GroupType}
 import com.advancedtelematic.ota.deviceregistry.db.DbOps.PaginationResultOps
+import com.advancedtelematic.ota.deviceregistry.db.SlickMappings.groupTypeMapper
 import slick.jdbc.MySQLProfile.api._
 import slick.lifted.Tag
 
