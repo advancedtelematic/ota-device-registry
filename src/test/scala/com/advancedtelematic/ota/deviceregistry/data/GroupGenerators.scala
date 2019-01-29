@@ -10,22 +10,21 @@ package com.advancedtelematic.ota.deviceregistry.data
 
 import com.advancedtelematic.libats.data.DataType.Namespace
 import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
-import eu.timepit.refined.api.Refined
 import org.scalacheck.{Arbitrary, Gen}
 
 trait GroupGenerators {
 
   private lazy val defaultNs: Namespace = Namespace("default")
 
-  def genGroupName(charGen: Gen[Char] = Arbitrary.arbChar.arbitrary): Gen[Group.Name] = for {
+  def genGroupName(charGen: Gen[Char] = Arbitrary.arbChar.arbitrary): Gen[GroupName] = for {
     strLen <- Gen.choose(2, 100)
     name   <- Gen.listOfN[Char](strLen, charGen)
-  } yield Refined.unsafeApply(name.mkString)
+  } yield GroupName(name.mkString).right.get
 
   def genStaticGroup: Gen[Group] =
     genGroupName().flatMap(Group(GroupId.generate(), _, defaultNs, GroupType.static, None))
 
-  implicit lazy val arbGroupName: Arbitrary[Group.Name] = Arbitrary(genGroupName())
+  implicit lazy val arbGroupName: Arbitrary[GroupName] = Arbitrary(genGroupName())
   implicit lazy val arbStaticGroup: Arbitrary[Group] = Arbitrary(genStaticGroup)
 }
 

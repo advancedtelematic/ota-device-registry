@@ -9,14 +9,13 @@
 package com.advancedtelematic.ota.deviceregistry
 
 import akka.http.scaladsl.model.Uri.Query
-import com.advancedtelematic.ota.deviceregistry.data.Group.{GroupId, ValidName}
-import com.advancedtelematic.ota.deviceregistry.data.{Group, SortBy}
+import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
+import com.advancedtelematic.ota.deviceregistry.data.{Group, GroupName, SortBy}
 import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
 import org.scalacheck.Arbitrary._
 import org.scalacheck.Gen
 import akka.http.scaladsl.model.StatusCodes._
 import com.advancedtelematic.libats.data.PaginationResult
-import eu.timepit.refined.api.Refined
 import org.scalatest.FunSuite
 
 class GroupsResourceSpec extends FunSuite with ResourceSpec {
@@ -24,13 +23,9 @@ class GroupsResourceSpec extends FunSuite with ResourceSpec {
 
   private val limit = 30
 
-  import com.advancedtelematic.libats.codecs.CirceCodecs._
-  import io.circe.generic.semiauto.deriveDecoder
-  private[this] implicit val GroupDecoder = deriveDecoder[Group]
-
   test("gets all existing groups") {
     //TODO: PRO-1182 turn this back into a property when we can delete groups
-    val groupNames = Gen.listOfN(10, arbitrary[Group.Name]).sample.get
+    val groupNames = Gen.listOfN(10, arbitrary[GroupName]).sample.get
     groupNames.foreach(createStaticGroupOk)
 
     listGroups() ~> route ~> check {
@@ -74,7 +69,7 @@ class GroupsResourceSpec extends FunSuite with ResourceSpec {
 
   test("gets all existing groups that contain a string") {
     val names = Seq("aabb", "baaxbc", "a123ba", "cba3b")
-    val groupNames = names.map(s => Refined.unsafeApply[String, ValidName](s))
+    val groupNames = names.map(GroupName(_).right.get)
     groupNames.foreach(n => createGroupOk(n))
 
     val tests = Map("" -> names, "a1" -> Seq("a123ba"), "aa" -> Seq("aabb", "baaxbc"), "3b" -> Seq("a123ba", "cba3b"), "3" -> Seq("a123ba", "cba3b"))

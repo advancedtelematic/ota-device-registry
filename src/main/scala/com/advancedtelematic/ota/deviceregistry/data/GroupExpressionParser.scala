@@ -7,7 +7,6 @@ import cats.syntax.either._
 import com.advancedtelematic.libats.http.Errors.RawError
 import com.advancedtelematic.libats.slick.db.SlickExtensions._
 import com.advancedtelematic.ota.deviceregistry.common.Errors
-import com.advancedtelematic.ota.deviceregistry.data.Group.GroupExpression
 import com.advancedtelematic.ota.deviceregistry.data.GroupExpressionAST._
 import com.advancedtelematic.ota.deviceregistry.db.DeviceRepository.DeviceTable
 import slick.jdbc.MySQLProfile.api._

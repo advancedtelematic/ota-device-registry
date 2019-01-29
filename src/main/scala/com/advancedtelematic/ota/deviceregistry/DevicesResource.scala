@@ -33,9 +33,9 @@ import com.advancedtelematic.ota.deviceregistry.data.Codecs._
 import com.advancedtelematic.ota.deviceregistry.data.DataType.InstallationStatsLevel.InstallationStatsLevel
 import com.advancedtelematic.ota.deviceregistry.data.DataType.{DeviceT, InstallationStatsLevel, SearchParams, UpdateDevice}
 import com.advancedtelematic.ota.deviceregistry.data.Device.{ActiveDeviceCount, DeviceOemId}
-import com.advancedtelematic.ota.deviceregistry.data.Group.{GroupExpression, GroupId}
+import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
 import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
-import com.advancedtelematic.ota.deviceregistry.data.{CsvSerializer, PackageId}
+import com.advancedtelematic.ota.deviceregistry.data.{CsvSerializer, GroupExpression, PackageId}
 import com.advancedtelematic.ota.deviceregistry.db._
 import com.advancedtelematic.ota.deviceregistry.messages.{DeleteDeviceRequest, DeviceCreated}
 import eu.timepit.refined.api.Refined

@@ -1,8 +1,7 @@
 package com.advancedtelematic.ota.deviceregistry.db
 
-import com.advancedtelematic.libats.slick.codecs.SlickRefined._
 import com.advancedtelematic.libats.slick.db.SlickExtensions._
-import com.advancedtelematic.ota.deviceregistry.data.Group._
+import com.advancedtelematic.libats.slick.db.SlickValidatedGeneric.validatedStringMapper
 import com.advancedtelematic.ota.deviceregistry.data.SortBy
 import com.advancedtelematic.ota.deviceregistry.data.SortBy.SortBy
 import com.advancedtelematic.ota.deviceregistry.db.GroupInfoRepository.GroupInfoTable

@@ -13,13 +13,13 @@ import akka.http.scaladsl.model.StatusCodes._
 import akka.http.scaladsl.model.Uri.Query
 import cats.syntax.show._
 import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
+import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
 import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId._
-import com.advancedtelematic.ota.deviceregistry.data.Group.{GroupExpression, GroupId, Name, ValidExpression}
 import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
 import com.advancedtelematic.ota.deviceregistry.data.SortBy.SortBy
+import com.advancedtelematic.ota.deviceregistry.data.{GroupExpression, GroupName, GroupType}
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
-import com.advancedtelematic.ota.deviceregistry.data.GroupType
-import eu.timepit.refined.api.Refined
+import io.circe.Json
 
 import scala.concurrent.ExecutionContext
 import scala.util.Random
@@ -27,7 +27,7 @@ import scala.util.Random
 trait GroupRequests {
   self: ResourceSpec =>
 
-  private val defaultExpression = Refined.unsafeApply[String, ValidExpression]("deviceid contains abcd")
+  private val defaultExpression = GroupExpression("deviceid contains abcd").right.get
   protected val groupsApi = "device_groups"
 
   def listDevicesInGroup(groupId: GroupId, offset: Option[Long] = None, limit: Option[Long] = None)
@@ -56,7 +56,10 @@ trait GroupRequests {
     Get(Resource.uri(groupsApi).withQuery(Query(m)))
   }
 
-  def createGroup(groupType: GroupType, expression: Option[GroupExpression], groupName: Option[Name] = None)
+  def createGroup(body: Json)(implicit ec: ExecutionContext): HttpRequest =
+    Post(Resource.uri(groupsApi), body)
+
+  def createGroup(groupType: GroupType, expression: Option[GroupExpression], groupName: Option[GroupName] = None)
                  (implicit ec: ExecutionContext): HttpRequest = {
     val name = groupName.getOrElse(genGroupName().sample.get)
     val expr = groupType match {
@@ -66,19 +69,19 @@ trait GroupRequests {
     Post(Resource.uri(groupsApi), CreateGroup(name, groupType, expr))
   }
 
-  def createStaticGroupOk(name: Name = genGroupName().sample.get): GroupId =
+  def createStaticGroupOk(name: GroupName = genGroupName().sample.get): GroupId =
     createGroup(GroupType.static, None, Some(name)) ~> route ~> check {
       status shouldBe Created
       responseAs[GroupId]
     }
 
-  def createDynamicGroupOk(expression: GroupExpression = defaultExpression, name: Name = genGroupName().sample.get): GroupId =
+  def createDynamicGroupOk(expression: GroupExpression = defaultExpression, name: GroupName = genGroupName().sample.get): GroupId =
     createGroup(GroupType.dynamic, Some(expression), Some(name)) ~> route ~> check {
       status shouldBe Created
       responseAs[GroupId]
     }
 
-  def createGroupOk(name: Name = genGroupName().sample.get): GroupId =
+  def createGroupOk(name: GroupName = genGroupName().sample.get): GroupId =
     if (Random.nextBoolean()) createStaticGroupOk(name) else createDynamicGroupOk(name = name)
 
   def addDeviceToGroup(groupId: GroupId, deviceUuid: DeviceId)(implicit ec: ExecutionContext): HttpRequest =
@@ -92,6 +95,6 @@ trait GroupRequests {
   def removeDeviceFromGroup(groupId: GroupId, deviceId: DeviceId)(implicit ec: ExecutionContext): HttpRequest =
     Delete(Resource.uri(groupsApi, groupId.show, "devices", deviceId.show))
 
-  def renameGroup(groupId: GroupId, newGroupName: Name)(implicit ec: ExecutionContext): HttpRequest =
+  def renameGroup(groupId: GroupId, newGroupName: GroupName)(implicit ec: ExecutionContext): HttpRequest =
     Put(Resource.uri(groupsApi, groupId.show, "rename").withQuery(Query("groupName" -> newGroupName.value)))
 }

@@ -4,9 +4,9 @@ import akka.http.scaladsl.util.FastFuture
 import com.advancedtelematic.libats.data.DataType.Namespace
 import com.advancedtelematic.libats.data.PaginationResult
 import com.advancedtelematic.ota.deviceregistry.common.Errors
-import com.advancedtelematic.ota.deviceregistry.data.Group.{GroupExpression, GroupId, Name}
+import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
 import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
-import com.advancedtelematic.ota.deviceregistry.data.{Group, GroupType}
+import com.advancedtelematic.ota.deviceregistry.data.{Group, GroupExpression, GroupName, GroupType}
 import com.advancedtelematic.ota.deviceregistry.db.{DeviceRepository, GroupInfoRepository, GroupMemberRepository}
 import slick.jdbc.MySQLProfile.api._
 
@@ -22,7 +22,7 @@ protected class DynamicMembership(implicit db: Database, ec: ExecutionContext) e
 
   def create(
       groupId: GroupId,
-      name: Name,
+      name: GroupName,
       namespace: Namespace,
       expression: GroupExpression
   ): Future[GroupId] = db.run {
@@ -52,7 +52,7 @@ protected class StaticMembership(implicit db: Database, ec: ExecutionContext) ex
   override def removeMember(group: Group, deviceId: DeviceId): Future[Unit] =
     db.run(GroupMemberRepository.removeGroupMember(group.id, deviceId))
 
-  def create(groupId: GroupId, name: Name, namespace: Namespace): Future[GroupId] = db.run {
+  def create(groupId: GroupId, name: GroupName, namespace: Namespace): Future[GroupId] = db.run {
     GroupInfoRepository.create(groupId, name, namespace, GroupType.static, expression = None)
   }
 }
@@ -65,7 +65,7 @@ class GroupMembership(implicit val db: Database, ec: ExecutionContext) {
       case g                                 => fn(g, new DynamicMembership())
     }
 
-  def create(name: Group.Name,
+  def create(name: GroupName,
              namespace: Namespace,
              groupType: GroupType,
              expression: Option[GroupExpression]): Future[GroupId] =

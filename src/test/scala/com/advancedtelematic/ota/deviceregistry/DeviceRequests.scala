@@ -21,9 +21,9 @@ import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
 import com.advancedtelematic.ota.deviceregistry.data.Codecs._
 import com.advancedtelematic.ota.deviceregistry.data.DataType.InstallationStatsLevel.InstallationStatsLevel
 import com.advancedtelematic.ota.deviceregistry.data.DataType.{DeviceT, UpdateDevice}
-import com.advancedtelematic.ota.deviceregistry.data.Group.{GroupExpression, GroupId}
+import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
 import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
-import com.advancedtelematic.ota.deviceregistry.data.{DeviceName, PackageId}
+import com.advancedtelematic.ota.deviceregistry.data.{DeviceName, GroupExpression, PackageId}
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.string.Regex
