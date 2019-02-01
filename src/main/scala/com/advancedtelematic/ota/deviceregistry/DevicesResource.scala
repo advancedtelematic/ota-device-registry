@@ -220,6 +220,9 @@ class DevicesResource(
     }
   }
 
+  def fetchEcuImagesForDevice(ns: Namespace, deviceId: DeviceId): Route =
+    complete(db.run(CurrentImageRepository.findEcuImages(ns, deviceId)))
+
   def api: Route = namespaceExtractor { ns =>
     val scope = Scopes.devices(ns)
     pathPrefix("devices") {
@@ -245,6 +248,9 @@ class DevicesResource(
         scope.get {
           path("ecus") {
             getEcusForDevice(ns.namespace, uuid)
+          } ~
+          path("images") {
+            fetchEcuImagesForDevice(ns.namespace, uuid)
           } ~
           path("groups") {
             getGroupsForDevice(ns.namespace, uuid)

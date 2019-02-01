@@ -66,5 +66,6 @@ object DataType {
 
   final case class SoftwareImage(filepath: TargetFilename, checksum: Checksum, size: Long)
   final case class CurrentSoftwareImage(deviceId: DeviceId, ecuId: EcuIdentifier, image: SoftwareImage)
+  final case class EcuImage(ecuId: EcuIdentifier, ecuType: HardwareIdentifier, primary: Boolean, image: SoftwareImage)
 
 }

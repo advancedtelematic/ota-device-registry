@@ -196,4 +196,7 @@ trait DeviceRequests { self: ResourceSpec =>
 
   def getReportBlob(deviceId: DeviceId): HttpRequest =
     Get(Resource.uri(api, deviceId.show, "installation_history"))
+
+  def getImages(deviceId: DeviceId): HttpRequest =
+    Get(Resource.uri(api, deviceId.show, "images"))
 }
