@@ -17,14 +17,11 @@ import com.advancedtelematic.libats.data.DataType.Namespace
 import com.advancedtelematic.libats.http.DefaultRejectionHandler.rejectionHandler
 import com.advancedtelematic.libats.http._
 import com.advancedtelematic.libats.http.monitoring.MetricsSupport
+import com.advancedtelematic.libats.http.tracing.Tracing
 import com.advancedtelematic.libats.messaging._
 import com.advancedtelematic.libats.messaging.daemon.MessageBusListenerActor.Subscribe
 import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
-import com.advancedtelematic.libats.messaging_datatype.Messages.{
-  DeviceEventMessage,
-  DeviceInstallationReport,
-  DeviceSeen
-}
+import com.advancedtelematic.libats.messaging_datatype.Messages.{DeviceEventMessage, DeviceInstallationReport, DeviceSeen}
 import com.advancedtelematic.libats.slick.db.{BootMigrations, DatabaseConfig}
 import com.advancedtelematic.libats.slick.monitoring.{DatabaseMetrics, DbHealthResource}
 import com.advancedtelematic.metrics.prometheus.PrometheusMetricsSupport
@@ -86,10 +83,14 @@ object Boot extends BootApp
 
   lazy val messageBus = MessageBus.publisher(system, config)
 
+  val tracing = Tracing.fromConfig(config, projectName)
+
   val routes: Route =
   (LogDirectives.logResponseMetrics("device-registry") & requestMetrics(metricRegistry) & versionHeaders(version)) {
     prometheusMetricsRoutes ~
-    new DeviceRegistryRoutes(authNamespace, namespaceAuthorizer, messageBus).route
+      tracing.traceRequests { _ =>
+        new DeviceRegistryRoutes(authNamespace, namespaceAuthorizer, messageBus).route
+      }
   } ~ DbHealthResource(versionMap, healthMetrics = Seq(new BusListenerMetrics(metricRegistry))).route
 
   val updateSpecListener =
