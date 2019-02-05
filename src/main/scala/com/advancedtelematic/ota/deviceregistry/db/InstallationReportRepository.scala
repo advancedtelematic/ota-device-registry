@@ -2,11 +2,11 @@ package com.advancedtelematic.ota.deviceregistry.db
 
 import java.time.Instant
 
-import akka.NotUsed
-import akka.stream.scaladsl.Source
 import com.advancedtelematic.libats.data.DataType.CorrelationId
 import com.advancedtelematic.libats.data.{EcuIdentifier, PaginationResult}
 import com.advancedtelematic.libats.messaging_datatype.DataType.{DeviceId, EcuInstallationReport}
+import com.advancedtelematic.libats.messaging_datatype.MessageCodecs.deviceInstallationReportDecoder
+import com.advancedtelematic.libats.messaging_datatype.Messages.DeviceInstallationReport
 import com.advancedtelematic.libats.slick.db.SlickAnyVal._
 import com.advancedtelematic.libats.slick.db.SlickCirceMapper._
 import com.advancedtelematic.libats.slick.db.SlickExtensions._
@@ -117,13 +117,19 @@ object InstallationReportRepository {
       .map(_.installationReport)
       .paginateResult(offset.orDefaultOffset, limit.orDefaultLimit)
 
-  def fetchDeviceFailures(correlationId: CorrelationId)(implicit ec: ExecutionContext): DBIO[Seq[(DeviceOemId, String)]] =
+  def fetchDeviceFailures(correlationId: CorrelationId)(implicit ec: ExecutionContext): DBIO[Seq[(DeviceOemId, String, String)]] =
       deviceInstallationResults
         .filter(_.correlationId === correlationId)
         .filter(_.success === false)
         .join(DeviceRepository.devices)
         .on(_.deviceUuid === _.uuid)
-        .map{ case (r, d) => (d.deviceId, r.resultCode) }
+        .map { case (r, d) => (d.deviceId, r.resultCode, r.installationReport) }
         .result
+        .map(_.map { case (deviceOemId, resultCode, report) => (
+          deviceOemId,
+          resultCode,
+          report.as[DeviceInstallationReport].fold(_ => "UNDEFINED", _.result.description))
+        })
+
 
 }

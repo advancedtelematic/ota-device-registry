@@ -94,11 +94,11 @@ class DevicesResource(
       }
   }
 
-  val installationFailureMarshaller = implicitly[ToResponseMarshaller[Seq[(DeviceOemId, String)]]]
+  val installationFailureMarshaller = implicitly[ToResponseMarshaller[Seq[(DeviceOemId, String, String)]]]
 
-  val installationFailureCsvMarshaller: ToResponseMarshaller[Seq[(DeviceOemId, String)]] =
+  val installationFailureCsvMarshaller: ToResponseMarshaller[Seq[(DeviceOemId, String, String)]] =
     Marshaller.withFixedContentType(ContentTypes.`text/csv(UTF-8)`) { t =>
-      val csv = CsvSerializer.asCsv(Seq("Device ID", "Failure Code"), t)
+      val csv = CsvSerializer.asCsv(Seq("Device ID", "Failure Code", "Failure Description"), t)
       val e = HttpEntity(ContentTypes.`text/csv(UTF-8)`, csv)
       val h = `Content-Disposition`(ContentDispositionTypes.attachment, Map("filename" -> "device-failures.csv"))
       HttpResponse(headers = h :: Nil, entity = e)
@@ -207,7 +207,7 @@ class DevicesResource(
   }
 
   def fetchFailureStats(correlationId: CorrelationId): Route = {
-    implicit val exportMarshaller: Marshaller[Seq[(DeviceOemId, String)], HttpResponse] =
+    implicit val exportMarshaller: Marshaller[Seq[(DeviceOemId, String, String)], HttpResponse] =
       Marshaller.oneOf(installationFailureMarshaller, installationFailureCsvMarshaller)
     complete(db.run(InstallationReportRepository.fetchDeviceFailures(correlationId)))
   }

@@ -74,10 +74,16 @@ class InstallationReportSpec extends ResourcePropSpec with ScalaFutures with Eve
   property("should get the device failures as a CSV") {
     val correlationId = genCorrelationId.sample.get
     val resultCodes = Seq("0", "1", "2", "2", "3", "3", "3")
+    val resultDescriptions = Map("0" -> "Description-0", "1" -> "Description-1", "2" -> "Description-2", "3" -> "Description-3")
+
     val createDevices = genConflictFreeDeviceTs(resultCodes.length).sample.get
     val deviceUuids = createDevices.map(createDeviceOk)
-    val rows = deviceUuids.zip(createDevices).zip(resultCodes).map { case ((uuid, cd), rc) => (uuid, cd.deviceId, rc) }
-    val deviceReports = rows.map { case (uuid, _, rc) => genDeviceInstallationReport(correlationId, rc, uuid) }.map(_.sample.get)
+    val rows = deviceUuids.zip(createDevices).zip(resultCodes).map {
+      case ((uuid, cd), rc) => (uuid, cd.deviceId, rc, resultDescriptions(rc))
+    }
+    val deviceReports = rows.map {
+      case (uuid, _, rc, rd) => genDeviceInstallationReport(correlationId, rc, uuid, Some(rd))
+    }.map(_.sample.get)
 
     deviceReports.foreach(listener.apply)
 
@@ -85,7 +91,7 @@ class InstallationReportSpec extends ResourcePropSpec with ScalaFutures with Eve
       getFailedExport(correlationId) ~> route ~> check {
         status shouldBe OK
         contentType shouldBe ContentTypes.`text/csv(UTF-8)`
-        val expected = rows.filter(_._3 != "0").map { case (_, cd, rc) => cd.show + ";" + rc }
+        val expected = rows.filter(_._3 != "0").map { case (_, cd, rc, rd) => cd.show + ";" + rc + ";" + rd }
         val result = entityAs[ByteString].utf8String.split("\n")
         result.tail should contain allElementsOf expected
       }

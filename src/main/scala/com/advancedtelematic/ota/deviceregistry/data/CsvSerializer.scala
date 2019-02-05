@@ -14,10 +14,10 @@ object CsvSerializer {
 
   implicit val showString: Show[String] = identity _
 
-  implicit def tuple2Serializer[A: Show, B: Show]: CsvSerializer[(A, B)] =
-    (t: (A, B)) => t._1.show +: t._2.show +: Nil
+  implicit def tuple3Serializer[A: Show, B: Show, C: Show]: CsvSerializer[(A, B, C)] =
+    (t: (A, B, C)) => t._1.show +: t._2.show +: t._3.show +: Nil
 
-  implicit val deviceIdFailureSerializer = implicitly[CsvSerializer[(DeviceOemId, String)]]
+  implicit val deviceIdFailureSerializer = implicitly[CsvSerializer[(DeviceOemId, String, String)]]
 
   def asCsv[T](header: Seq[String], rows: Seq[T])(implicit serializer: CsvSerializer[T]): String = {
     val head = header.mkString(fieldSeparator)

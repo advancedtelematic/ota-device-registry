@@ -1,4 +1,5 @@
 package com.advancedtelematic.ota.deviceregistry.data
+
 import java.time.Instant
 
 import com.advancedtelematic.libats.data.DataType.{CampaignId, CorrelationId, MultiTargetUpdateId, Namespace}
@@ -15,11 +16,11 @@ trait InstallationReportGenerators extends DeviceGenerators {
   val genCorrelationId: Gen[CorrelationId] =
     Gen.uuid.flatMap(uuid => Gen.oneOf(CampaignId(uuid), MultiTargetUpdateId(uuid)))
 
-  private def genInstallationResult(resultCode: String): Gen[InstallationResult] =
-    Try(resultCode.toInt == 0)
-      .orElse(Success(false))
-      .map(b => Gen.alphaStr.flatMap(InstallationResult(b, resultCode, _)))
-      .get
+  private def genInstallationResult(resultCode: String, resultDescription: Option[String] = None): Gen[InstallationResult] = {
+    val success = Try(resultCode.toInt == 0).orElse(Success(false))
+    val description = resultDescription.getOrElse(Gen.alphaStr.sample.get)
+    InstallationResult(success.get, resultCode, description)
+  }
 
   private def genEcuReports(correlationId: CorrelationId,
                             resultCode: String,
@@ -39,9 +40,9 @@ trait InstallationReportGenerators extends DeviceGenerators {
       target <- Gen.listOfN(1, Gen.alphaStr)
     } yield EcuInstallationReport(result, target, None)
 
-  def genDeviceInstallationReport(correlationId: CorrelationId, resultCode: String, deviceId: DeviceId = genDeviceUUID.sample.get): Gen[DeviceInstallationReport] =
+  def genDeviceInstallationReport(correlationId: CorrelationId, resultCode: String, deviceId: DeviceId = genDeviceUUID.sample.get, resultDescription: Option[String] = None): Gen[DeviceInstallationReport] =
     for {
-      result     <- genInstallationResult(resultCode)
+      result     <- genInstallationResult(resultCode, resultDescription)
       ecuReports <- genEcuReports(correlationId, resultCode)
       receivedAt = Instant.ofEpochMilli(0)
       namespace = Namespace("default")
