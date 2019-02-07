@@ -117,10 +117,12 @@ object InstallationReportRepository {
       .map(_.installationReport)
       .paginateResult(offset.orDefaultOffset, limit.orDefaultLimit)
 
-  def fetchDeviceFailures(correlationId: CorrelationId)(implicit ec: ExecutionContext): DBIO[Seq[(DeviceOemId, String, String)]] =
+  def fetchDeviceFailures(correlationId: CorrelationId, failureCode: Option[String])
+                         (implicit ec: ExecutionContext): DBIO[Seq[(DeviceOemId, String, String)]] =
       deviceInstallationResults
         .filter(_.correlationId === correlationId)
         .filter(_.success === false)
+        .maybeFilter(_.resultCode === failureCode)
         .join(DeviceRepository.devices)
         .on(_.deviceUuid === _.uuid)
         .map { case (r, d) => (d.deviceId, r.resultCode, r.installationReport) }
@@ -128,7 +130,7 @@ object InstallationReportRepository {
         .map(_.map { case (deviceOemId, resultCode, report) => (
           deviceOemId,
           resultCode,
-          report.as[DeviceInstallationReport].fold(_ => "UNDEFINED", _.result.description))
+          report.as[DeviceInstallationReport].fold(_ => "", _.result.description))
         })
 
 

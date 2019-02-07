@@ -206,10 +206,10 @@ class DevicesResource(
     complete(db.run(action))
   }
 
-  def fetchFailureStats(correlationId: CorrelationId): Route = {
+  def fetchFailureStats(correlationId: CorrelationId, failureCode: Option[String]): Route = {
     implicit val exportMarshaller: Marshaller[Seq[(DeviceOemId, String, String)], HttpResponse] =
       Marshaller.oneOf(installationFailureMarshaller, installationFailureCsvMarshaller)
-    complete(db.run(InstallationReportRepository.fetchDeviceFailures(correlationId)))
+    complete(db.run(InstallationReportRepository.fetchDeviceFailures(correlationId, failureCode)))
   }
 
   def api: Route = namespaceExtractor { ns =>
@@ -223,8 +223,8 @@ class DevicesResource(
           case None      => complete(Errors.InvalidGroupExpression(""))
           case Some(exp) => countDynamicGroupCandidates(ns.namespace, exp)
         } ~
-        (path("failed-installations") & parameter('correlationId.as[CorrelationId])) {
-          cid => fetchFailureStats(cid)
+        (path("failed-installations") & parameters('correlationId.as[CorrelationId], 'failureCode.as[String].?)) {
+          (cid, fc) => fetchFailureStats(cid, fc)
         } ~
         (path("stats") & parameters('correlationId.as[CorrelationId], 'reportLevel.as[InstallationStatsLevel].?)) {
           (cid, reportLevel) => fetchInstallationStats(cid, reportLevel)
