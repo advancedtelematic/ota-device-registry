@@ -185,7 +185,7 @@ trait DeviceRequests { self: ResourceSpec =>
   def getFailedExport(correlationId: CorrelationId, failureCode: Option[String]): HttpRequest = {
     val m = Map("correlationId" -> correlationId.toString)
     val params = failureCode.fold(m)(fc => m + ("failureCode" -> fc))
-    Get(Resource.uri(api, "failed-installations").withQuery(Query(params))).withHeaders(Accept(MediaTypes.`text/csv`))
+    Get(Resource.uri(api, "failed-installations.csv").withQuery(Query(params)))
   }
 
   def getReportBlob(deviceId: DeviceId): HttpRequest =

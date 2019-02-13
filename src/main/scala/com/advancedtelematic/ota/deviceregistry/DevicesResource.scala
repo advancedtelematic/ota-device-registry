@@ -94,9 +94,7 @@ class DevicesResource(
       }
   }
 
-  val installationFailureMarshaller = implicitly[ToResponseMarshaller[Seq[(DeviceOemId, String, String)]]]
-
-  val installationFailureCsvMarshaller: ToResponseMarshaller[Seq[(DeviceOemId, String, String)]] =
+  implicit val installationFailureCsvMarshaller: ToResponseMarshaller[Seq[(DeviceOemId, String, String)]] =
     Marshaller.withFixedContentType(ContentTypes.`text/csv(UTF-8)`) { t =>
       val csv = CsvSerializer.asCsv(Seq("Device ID", "Failure Code", "Failure Description"), t)
       val e = HttpEntity(ContentTypes.`text/csv(UTF-8)`, csv)
@@ -207,9 +205,12 @@ class DevicesResource(
   }
 
   def fetchFailureStats(correlationId: CorrelationId, failureCode: Option[String]): Route = {
-    implicit val exportMarshaller: Marshaller[Seq[(DeviceOemId, String, String)], HttpResponse] =
-      Marshaller.oneOf(installationFailureMarshaller, installationFailureCsvMarshaller)
-    complete(db.run(InstallationReportRepository.fetchDeviceFailures(correlationId, failureCode)))
+    val f = db.run(InstallationReportRepository.fetchDeviceFailures(correlationId, failureCode))
+    onSuccess(f) { s =>
+      respondWithHeader(`Content-Type`(ContentTypes.`text/csv(UTF-8)`)) {
+        complete(s)
+      }
+    }
   }
 
   def api: Route = namespaceExtractor { ns =>
@@ -223,7 +224,7 @@ class DevicesResource(
           case None      => complete(Errors.InvalidGroupExpression(""))
           case Some(exp) => countDynamicGroupCandidates(ns.namespace, exp)
         } ~
-        (path("failed-installations") & parameters('correlationId.as[CorrelationId], 'failureCode.as[String].?)) {
+        (path("failed-installations.csv") & parameters('correlationId.as[CorrelationId], 'failureCode.as[String].?)) {
           (cid, fc) => fetchFailureStats(cid, fc)
         } ~
         (path("stats") & parameters('correlationId.as[CorrelationId], 'reportLevel.as[InstallationStatsLevel].?)) {
