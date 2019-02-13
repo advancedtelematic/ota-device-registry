@@ -182,9 +182,11 @@ trait DeviceRequests { self: ResourceSpec =>
   def getStats(correlationId: CorrelationId, level: InstallationStatsLevel): HttpRequest =
     Get(Resource.uri(api, "stats").withQuery(Query("correlationId" -> correlationId.toString, "level" -> level.toString)))
 
-  def getFailedExport(correlationId: CorrelationId): HttpRequest =
-    Get(Resource.uri(api, "failed-installations").withQuery(Query("correlationId" -> correlationId.toString)))
-      .withHeaders(Accept(MediaTypes.`text/csv`))
+  def getFailedExport(correlationId: CorrelationId, failureCode: Option[String]): HttpRequest = {
+    val m = Map("correlationId" -> correlationId.toString)
+    val params = failureCode.fold(m)(fc => m + ("failureCode" -> fc))
+    Get(Resource.uri(api, "failed-installations.csv").withQuery(Query(params)))
+  }
 
   def getReportBlob(deviceId: DeviceId): HttpRequest =
     Get(Resource.uri(api, deviceId.show, "installation_history"))
