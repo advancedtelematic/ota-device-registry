@@ -6,7 +6,7 @@ import com.advancedtelematic.libats.data.DataType.{CampaignId, CorrelationId, Mu
 import com.advancedtelematic.libats.data.EcuIdentifier
 import com.advancedtelematic.libats.data.EcuIdentifier.validatedEcuIdentifier
 import com.advancedtelematic.libats.messaging_datatype.DataType.{DeviceId, EcuInstallationReport, InstallationResult}
-import com.advancedtelematic.libats.messaging_datatype.Messages.DeviceInstallationReport
+import com.advancedtelematic.libats.messaging_datatype.Messages.DeviceUpdateCompleted
 import org.scalacheck.Gen
 
 import scala.util.{Success, Try}
@@ -40,12 +40,12 @@ trait InstallationReportGenerators extends DeviceGenerators {
       target <- Gen.listOfN(1, Gen.alphaStr)
     } yield EcuInstallationReport(result, target, None)
 
-  def genDeviceInstallationReport(correlationId: CorrelationId, resultCode: String, deviceId: DeviceId = genDeviceUUID.sample.get, resultDescription: Option[String] = None): Gen[DeviceInstallationReport] =
+  def genDeviceInstallationReport(correlationId: CorrelationId, resultCode: String, deviceId: DeviceId = genDeviceUUID.sample.get, resultDescription: Option[String] = None): Gen[DeviceUpdateCompleted] =
     for {
       result     <- genInstallationResult(resultCode, resultDescription)
       ecuReports <- genEcuReports(correlationId, resultCode)
       receivedAt = Instant.ofEpochMilli(0)
       namespace = Namespace("default")
-    } yield DeviceInstallationReport(namespace, deviceId, correlationId, result, ecuReports, report = None, receivedAt)
+    } yield DeviceUpdateCompleted(namespace, receivedAt, correlationId, deviceId, result, ecuReports, rawReport = None)
 
 }

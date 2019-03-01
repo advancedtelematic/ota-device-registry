@@ -21,14 +21,14 @@ import com.advancedtelematic.libats.http.tracing.Tracing
 import com.advancedtelematic.libats.messaging._
 import com.advancedtelematic.libats.messaging.daemon.MessageBusListenerActor.Subscribe
 import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
-import com.advancedtelematic.libats.messaging_datatype.Messages.{DeviceEventMessage, DeviceInstallationReport, DeviceSeen}
+import com.advancedtelematic.libats.messaging_datatype.Messages.{DeviceEventMessage, DeviceUpdateEvent, DeviceSeen}
 import com.advancedtelematic.libats.slick.db.{BootMigrations, DatabaseConfig}
 import com.advancedtelematic.libats.slick.monitoring.{DatabaseMetrics, DbHealthResource}
 import com.advancedtelematic.metrics.prometheus.PrometheusMetricsSupport
 import com.advancedtelematic.metrics.{AkkaHttpRequestMetrics, InfluxdbMetricsReporterSupport}
 import com.advancedtelematic.ota.deviceregistry.daemon._
 import com.advancedtelematic.ota.deviceregistry.db.DeviceRepository
-import com.advancedtelematic.ota.deviceregistry.messages.{DeleteDeviceRequest, UpdateSpec}
+import com.advancedtelematic.ota.deviceregistry.messages.DeleteDeviceRequest
 import slick.jdbc.MySQLProfile.api._
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -93,13 +93,6 @@ object Boot extends BootApp
       }
   } ~ DbHealthResource(versionMap, healthMetrics = Seq(new BusListenerMetrics(metricRegistry))).route
 
-  val updateSpecListener =
-    system.actorOf(
-      MessageListener
-        .props[UpdateSpec](system.settings.config, DeviceUpdateStatusListener.action(messageBus), metricRegistry)
-    )
-  updateSpecListener ! Subscribe
-
   val deviceSeenListener =
     system.actorOf(
       MessageListener
@@ -109,7 +102,7 @@ object Boot extends BootApp
 
   startListener[DeviceEventMessage](new DeviceEventListener())
   startListener[DeleteDeviceRequest](new DeleteDeviceHandler())
-  startListener[DeviceInstallationReport](new DeviceInstallationReportListener())
+  startListener[DeviceUpdateEvent](new DeviceUpdateEventListener(messageBus))
 
   val host = config.getString("server.host")
   val port = config.getInt("server.port")

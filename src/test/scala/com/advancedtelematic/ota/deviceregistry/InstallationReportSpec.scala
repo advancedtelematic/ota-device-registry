@@ -5,9 +5,10 @@ import akka.http.scaladsl.model.StatusCodes._
 import akka.util.ByteString
 import cats.syntax.show._
 import com.advancedtelematic.libats.data.PaginationResult
-import com.advancedtelematic.libats.messaging_datatype.MessageCodecs.deviceInstallationReportDecoder
-import com.advancedtelematic.libats.messaging_datatype.Messages.DeviceInstallationReport
-import com.advancedtelematic.ota.deviceregistry.daemon.DeviceInstallationReportListener
+import com.advancedtelematic.libats.messaging.MessageBusPublisher
+import com.advancedtelematic.libats.messaging_datatype.MessageCodecs.deviceUpdateCompletedDecoder
+import com.advancedtelematic.libats.messaging_datatype.Messages.DeviceUpdateCompleted
+import com.advancedtelematic.ota.deviceregistry.daemon.DeviceUpdateEventListener
 import com.advancedtelematic.ota.deviceregistry.data.Codecs.installationStatDecoder
 import com.advancedtelematic.ota.deviceregistry.data.DataType.{InstallationStat, InstallationStatsLevel}
 import com.advancedtelematic.ota.deviceregistry.data.GeneratorOps._
@@ -22,7 +23,9 @@ class InstallationReportSpec extends ResourcePropSpec with ScalaFutures with Eve
 
   implicit override val patienceConfig: PatienceConfig = PatienceConfig(Span(5, Seconds), Span(50, Millis))
 
-  val listener = new DeviceInstallationReportListener()
+  implicit val msgPub = MessageBusPublisher.ignore
+
+  val listener = new DeviceUpdateEventListener(msgPub)
 
   property("should save device reports and retrieve failed stats per devices") {
     val correlationId = genCorrelationId.generate
@@ -68,7 +71,7 @@ class InstallationReportSpec extends ResourcePropSpec with ScalaFutures with Eve
     eventually {
       getReportBlob(deviceId) ~> route ~> check {
         status shouldBe OK
-        responseAs[PaginationResult[DeviceInstallationReport]].values should contain allElementsOf deviceReports
+        responseAs[PaginationResult[DeviceUpdateCompleted]].values should contain allElementsOf deviceReports
       }
     }
   }
