@@ -5,10 +5,11 @@ import java.time.Instant
 import com.advancedtelematic.libats.data.DataType.CorrelationId
 import com.advancedtelematic.libats.data.{EcuIdentifier, PaginationResult}
 import com.advancedtelematic.libats.messaging_datatype.DataType.{DeviceId, EcuInstallationReport}
-import com.advancedtelematic.libats.messaging_datatype.MessageCodecs.deviceInstallationReportDecoder
-import com.advancedtelematic.libats.messaging_datatype.Messages.DeviceInstallationReport
+import com.advancedtelematic.libats.messaging_datatype.MessageCodecs.deviceUpdateCompletedDecoder
+import com.advancedtelematic.libats.messaging_datatype.Messages.DeviceUpdateCompleted
 import com.advancedtelematic.libats.slick.db.SlickAnyVal._
 import com.advancedtelematic.libats.slick.db.SlickCirceMapper._
+import com.advancedtelematic.ota.deviceregistry.common.Errors
 import com.advancedtelematic.libats.slick.db.SlickExtensions._
 import com.advancedtelematic.libats.slick.db.SlickUUIDKey._
 import com.advancedtelematic.libats.slick.db.SlickUrnMapper.correlationIdMapper
@@ -47,7 +48,15 @@ object InstallationReportRepository {
     def pk = primaryKey("pk_device_report", (correlationId, deviceUuid))
   }
 
-  private val deviceInstallationResults = TableQuery[DeviceInstallationResultTable]
+  val deviceInstallationResults = TableQuery[DeviceInstallationResultTable]
+
+  def updateInstallationResultReport(correlationId: CorrelationId, deviceUuid: DeviceId, report: Json)
+    (implicit ec: ExecutionContext): DBIO[Unit] =
+    deviceInstallationResults
+      .filter(r => r.correlationId === correlationId && r.deviceUuid === deviceUuid)
+      .map(r => r.installationReport)
+      .update(report)
+      .handleSingleUpdateError(Errors.MissingDevice)
 
   class EcuInstallationResultTable(tag: Tag)
     extends Table[EcuInstallationResult](tag, "EcuInstallationResult") with InstallationResultTable {
@@ -130,7 +139,7 @@ object InstallationReportRepository {
         .map(_.map { case (deviceOemId, resultCode, report) => (
           deviceOemId,
           resultCode,
-          report.as[DeviceInstallationReport].fold(_ => "", _.result.description))
+          report.as[DeviceUpdateCompleted].fold(_ => "", _.result.description))
         })
 
 
