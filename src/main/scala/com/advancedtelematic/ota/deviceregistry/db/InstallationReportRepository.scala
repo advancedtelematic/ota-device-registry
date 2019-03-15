@@ -53,8 +53,9 @@ object InstallationReportRepository {
   def updateInstallationResultReport(correlationId: CorrelationId, deviceUuid: DeviceId, report: Json)
     (implicit ec: ExecutionContext): DBIO[Unit] =
     deviceInstallationResults
-      .filter(r => r.correlationId === correlationId && r.deviceUuid === deviceUuid)
-      .map(r => r.installationReport)
+      .filter(_.correlationId === correlationId)
+      .filter(_.deviceUuid === deviceUuid)
+      .map(_.installationReport)
       .update(report)
       .handleSingleUpdateError(Errors.MissingDevice)
 
@@ -123,6 +124,7 @@ object InstallationReportRepository {
                               (implicit ec: ExecutionContext): DBIO[PaginationResult[Json]] =
     deviceInstallationResults
       .filter(_.deviceUuid === deviceId)
+      .sortBy(_.receivedAt.asc)
       .map(_.installationReport)
       .paginateResult(offset.orDefaultOffset, limit.orDefaultLimit)
 
