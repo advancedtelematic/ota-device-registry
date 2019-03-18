@@ -99,8 +99,8 @@ lazy val dockerSettings = Seq(
   dockerRepository := Some("advancedtelematic"),
   packageName := packageName.value,
   dockerUpdateLatest := true,
+  dockerBaseImage := "advancedtelematic/alpine-jre:8",
   dockerCommands ++= Seq(
-    Cmd("FROM", "advancedtelematic/alpine-jre:8u191-jre-alpine3.9"),
     Cmd("USER", "root"),
     Cmd("USER", (daemonUser in Docker).value)
   )
