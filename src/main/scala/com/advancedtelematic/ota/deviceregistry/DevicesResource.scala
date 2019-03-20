@@ -204,8 +204,8 @@ class DevicesResource(
     complete(db.run(action))
   }
 
-  def fetchFailureStats(correlationId: CorrelationId, failureCode: Option[String]): Route = {
-    val f = db.run(InstallationReportRepository.fetchDeviceFailures(correlationId, failureCode))
+  def fetchFailureStats(correlationIds: Iterable[CorrelationId], failureCode: Option[String]): Route = {
+    val f = db.run(InstallationReportRepository.fetchDeviceFailures(correlationIds.toSet, failureCode))
     onSuccess(f) { s =>
       respondWithHeader(`Content-Type`(ContentTypes.`text/csv(UTF-8)`)) {
         complete(s)
@@ -224,7 +224,7 @@ class DevicesResource(
           case None      => complete(Errors.InvalidGroupExpression(""))
           case Some(exp) => countDynamicGroupCandidates(ns.namespace, exp)
         } ~
-        (path("failed-installations.csv") & parameters('correlationId.as[CorrelationId], 'failureCode.as[String].?)) {
+        (path("failed-installations.csv") & parameters('correlationId.as[CorrelationId].*, 'failureCode.as[String].?)) {
           (cid, fc) => fetchFailureStats(cid, fc)
         } ~
         (path("stats") & parameters('correlationId.as[CorrelationId], 'reportLevel.as[InstallationStatsLevel].?)) {

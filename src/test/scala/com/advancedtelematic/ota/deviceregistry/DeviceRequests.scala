@@ -182,8 +182,8 @@ trait DeviceRequests { self: ResourceSpec =>
   def getStats(correlationId: CorrelationId, level: InstallationStatsLevel): HttpRequest =
     Get(Resource.uri(api, "stats").withQuery(Query("correlationId" -> correlationId.toString, "level" -> level.toString)))
 
-  def getFailedExport(correlationId: CorrelationId, failureCode: Option[String]): HttpRequest = {
-    val m = Map("correlationId" -> correlationId.toString)
+  def getFailedExport(failureCode: Option[String], correlationIds: CorrelationId*): HttpRequest = {
+    val m = correlationIds.map("correlationId" -> _.toString).toMap
     val params = failureCode.fold(m)(fc => m + ("failureCode" -> fc))
     Get(Resource.uri(api, "failed-installations.csv").withQuery(Query(params)))
   }

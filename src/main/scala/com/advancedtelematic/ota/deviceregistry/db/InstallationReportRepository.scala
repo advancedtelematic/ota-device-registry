@@ -128,10 +128,10 @@ object InstallationReportRepository {
       .map(_.installationReport)
       .paginateResult(offset.orDefaultOffset, limit.orDefaultLimit)
 
-  def fetchDeviceFailures(correlationId: CorrelationId, failureCode: Option[String])
+  def fetchDeviceFailures(correlationIds: Set[CorrelationId], failureCode: Option[String])
                          (implicit ec: ExecutionContext): DBIO[Seq[(DeviceOemId, String, String)]] =
       deviceInstallationResults
-        .filter(_.correlationId === correlationId)
+        .filter(_.correlationId inSet correlationIds)
         .filter(_.success === false)
         .maybeFilter(_.resultCode === failureCode)
         .join(DeviceRepository.devices)

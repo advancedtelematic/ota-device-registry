@@ -101,7 +101,30 @@ class InstallationReportSpec extends ResourcePropSpec with ScalaFutures with Eve
 
     eventually {
       val expected = rows.filter(_._3 != "0").map { case (_, cd, rc, rd) => cd.show + ";" + rc + ";" + rd }
-      getFailedExport(correlationId, None) ~> route ~> check {
+      getFailedExport(None, correlationId) ~> route ~> check {
+        assertCsvResponse(expected)
+      }
+    }
+  }
+
+  property("should get the device failures as a CSV for more than one correlationId") {
+    val correlationIds = Gen.listOfN(2, genCorrelationId).generate
+    val failureCode = "FAILURE-1"
+    val failureDescription = "Description-1"
+
+    val createDevice = genDeviceT.generate
+    val deviceId = createDevice.deviceId
+    val deviceUuid = createDeviceOk(createDevice)
+    val deviceReports = correlationIds
+      .map(genDeviceInstallationReport(_, failureCode, deviceUuid, Some(failureDescription)))
+      .map(_.generate)
+
+    deviceReports.foreach(listener.apply)
+
+    eventually {
+      val row = s"${deviceId.show};$failureCode;$failureDescription"
+      val expected = row :: row :: Nil
+      getFailedExport(Some(failureCode), correlationIds: _*) ~> route ~> check {
         assertCsvResponse(expected)
       }
     }
@@ -125,7 +148,7 @@ class InstallationReportSpec extends ResourcePropSpec with ScalaFutures with Eve
 
     eventually {
       val expected = rows.filter(_._3 == "2").map { case (_, cd, rc, rd) => cd.show + ";" + rc + ";" + rd }
-      getFailedExport(correlationId, Some("2")) ~> route ~> check {
+      getFailedExport(Some("2"), correlationId) ~> route ~> check {
         assertCsvResponse(expected)
       }
     }
