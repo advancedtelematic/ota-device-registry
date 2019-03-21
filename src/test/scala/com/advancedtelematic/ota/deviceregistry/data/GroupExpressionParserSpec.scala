@@ -2,11 +2,10 @@ package com.advancedtelematic.ota.deviceregistry.data
 
 import cats.data.NonEmptyList
 import cats.implicits._
-import com.advancedtelematic.libats.data.DataType.Namespace
+import com.advancedtelematic.libats.data.DataType.{DeviceOemId, Namespace}
 import com.advancedtelematic.libats.http.Errors
 import com.advancedtelematic.libats.slick.db.SlickAnyVal._
 import com.advancedtelematic.libats.test.DatabaseSpec
-import com.advancedtelematic.ota.deviceregistry.data.Device.DeviceOemId
 import com.advancedtelematic.ota.deviceregistry.data.GroupExpressionAST.{And, DeviceIdCharAt, DeviceIdContains, Or}
 import com.advancedtelematic.ota.deviceregistry.db.DeviceRepository
 import com.advancedtelematic.ota.deviceregistry.db.DeviceRepository.DeviceTable

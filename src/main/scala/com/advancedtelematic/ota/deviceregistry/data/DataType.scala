@@ -3,12 +3,12 @@ package com.advancedtelematic.ota.deviceregistry.data
 import java.time.Instant
 
 import cats.Show
-import com.advancedtelematic.libats.data.DataType.CorrelationId
+import com.advancedtelematic.libats.data.DataType.{CorrelationId, DeviceOemId}
 import com.advancedtelematic.libats.data.EcuIdentifier
 import com.advancedtelematic.libats.messaging_datatype.DataType.{DeviceId, Event}
 import com.advancedtelematic.ota.deviceregistry.data.CredentialsType.CredentialsType
 import com.advancedtelematic.ota.deviceregistry.data.DataType.IndexedEventType.IndexedEventType
-import com.advancedtelematic.ota.deviceregistry.data.Device.{DeviceName, DeviceOemId, DeviceType}
+import com.advancedtelematic.ota.deviceregistry.data.Device.{DeviceName, DeviceType}
 import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
 import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
 import eu.timepit.refined.api.Refined

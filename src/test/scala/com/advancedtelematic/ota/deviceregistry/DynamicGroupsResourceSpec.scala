@@ -3,10 +3,11 @@ package com.advancedtelematic.ota.deviceregistry
 import akka.http.scaladsl.model.StatusCodes._
 import cats.syntax.either._
 import cats.syntax.show._
+import com.advancedtelematic.libats.data.DataType.DeviceOemId
 import com.advancedtelematic.libats.data.{ErrorCodes, ErrorRepresentation, PaginationResult}
 import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
-import com.advancedtelematic.ota.deviceregistry.data.Device.DeviceOemId
 import com.advancedtelematic.ota.deviceregistry.data.Group.{GroupExpression, ValidExpression, _}
+import com.advancedtelematic.ota.deviceregistry.data.Device.showDeviceOemId
 import com.advancedtelematic.ota.deviceregistry.data.{Group, GroupType}
 import com.advancedtelematic.ota.deviceregistry.db.DeviceRepository
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
@@ -26,7 +27,7 @@ class DynamicGroupsResourceSpec extends FunSuite with ResourceSpec with Eventual
 
   implicit class DeviceIdToExpression(value: DeviceOemId) {
     def toValidExp: GroupExpression =
-      refineV[ValidExpression](s"deviceid contains ${value.underlying}").valueOr(err => throw new IllegalArgumentException(err))
+      refineV[ValidExpression](s"deviceid contains ${value.value}").valueOr(err => throw new IllegalArgumentException(err))
   }
 
   test("dynamic group gets created.") {

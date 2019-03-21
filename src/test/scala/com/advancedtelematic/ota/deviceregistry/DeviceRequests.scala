@@ -15,7 +15,7 @@ import akka.http.scaladsl.model.headers.Accept
 import akka.http.scaladsl.model.{HttpRequest, MediaTypes, StatusCodes, Uri}
 import akka.http.scaladsl.server.Route
 import cats.syntax.show._
-import com.advancedtelematic.libats.data.DataType.{CorrelationId, Namespace}
+import com.advancedtelematic.libats.data.DataType.{CorrelationId, DeviceOemId, Namespace}
 import com.advancedtelematic.libats.http.HttpOps.HttpRequestOps
 import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
 import com.advancedtelematic.ota.deviceregistry.data.Codecs._

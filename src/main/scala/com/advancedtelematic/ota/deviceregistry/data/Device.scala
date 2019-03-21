@@ -14,8 +14,8 @@ import java.util.UUID
 import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
 import cats.Show
 import cats.syntax.show._
-import com.advancedtelematic.libats.data.DataType.Namespace
-import com.advancedtelematic.ota.deviceregistry.data.Device.{DeviceName, DeviceOemId, DeviceType}
+import com.advancedtelematic.libats.data.DataType.{DeviceOemId, Namespace}
+import com.advancedtelematic.ota.deviceregistry.data.Device.{DeviceName, DeviceType}
 import com.advancedtelematic.ota.deviceregistry.data.DeviceStatus._
 import eu.timepit.refined.api.{Refined, Validate}
 import io.circe.{Decoder, Encoder}
@@ -32,8 +32,7 @@ final case class Device(namespace: Namespace,
 
 object Device {
 
-  final case class DeviceOemId(underlying: String) extends AnyVal
-  implicit val showDeviceOemId: Show[DeviceOemId] = deviceId => deviceId.underlying
+  implicit val showDeviceOemId: Show[DeviceOemId] = _.value
 
   case class ValidDeviceName()
   type DeviceName = Refined[String, ValidDeviceName]
@@ -80,7 +79,7 @@ object Device {
     io.circe.generic.semiauto.deriveDecoder[Device]
   }
 
-  implicit val DeviceIdOrdering: Ordering[DeviceOemId] = (id1, id2) => id1.underlying compare id2.underlying
+  implicit val DeviceIdOrdering: Ordering[DeviceOemId] = _.value compare _.value
 
   implicit def DeviceOrdering(implicit ord: Ordering[UUID]): Ordering[Device] =
     (d1, d2) => ord.compare(d1.uuid.uuid, d2.uuid.uuid)

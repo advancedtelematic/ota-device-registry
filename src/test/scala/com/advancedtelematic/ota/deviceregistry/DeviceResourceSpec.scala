@@ -13,7 +13,7 @@ import java.time.{Instant, OffsetDateTime}
 
 import akka.http.scaladsl.model.StatusCodes._
 import cats.syntax.option._
-import com.advancedtelematic.libats.data.DataType.Namespace
+import com.advancedtelematic.libats.data.DataType.{DeviceOemId, Namespace}
 import com.advancedtelematic.libats.data.{ErrorRepresentation, PaginationResult}
 import com.advancedtelematic.libats.messaging.MessageBusPublisher
 import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
@@ -66,7 +66,7 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
     val staticGroup = createStaticGroupOk()
 
     deviceIds.take(4).foreach(addDeviceToGroupOk(staticGroup, _))
-    val expr = deviceTs.slice(4, 8).map(_.deviceId.underlying.take(6)).map(n => s"deviceid contains $n").reduce(_ + " or " + _)
+    val expr = deviceTs.slice(4, 8).map(_.deviceId.value.take(6)).map(n => s"deviceid contains $n").reduce(_ + " or " + _)
     createDynamicGroupOk(Refined.unsafeApply(expr))
 
     Map("all" -> deviceIds, "groupedStatic" -> deviceIds.take(4),

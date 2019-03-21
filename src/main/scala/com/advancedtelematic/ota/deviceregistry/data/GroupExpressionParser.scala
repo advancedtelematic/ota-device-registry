@@ -32,10 +32,10 @@ object GroupExpressionAST {
 
   private def evalToScala(exp: Expression): Device => Boolean = exp match {
     case DeviceIdContains(word) =>
-      (d: Device) => d.deviceId.underlying.toLowerCase.contains(word.toLowerCase)
+      (d: Device) => d.deviceId.value.toLowerCase.contains(word.toLowerCase)
 
     case DeviceIdCharAt(c, p) =>
-      (d: Device) =>  p < d.deviceId.underlying.length && d.deviceId.underlying.charAt(p).toLower == c.toLower
+      (d: Device) =>  p < d.deviceId.value.length && d.deviceId.value.charAt(p).toLower == c.toLower
 
     case Or(cond) =>
       val evaledConds = cond.map(evalToScala)

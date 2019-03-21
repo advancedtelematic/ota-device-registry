@@ -11,6 +11,7 @@ package com.advancedtelematic.ota.deviceregistry
 import java.util.Base64
 
 import akka.http.scaladsl.model.{HttpRequest, StatusCodes}
+import com.advancedtelematic.libats.data.DataType.DeviceOemId
 import com.advancedtelematic.ota.deviceregistry.data.CredentialsType.CredentialsType
 import com.advancedtelematic.ota.deviceregistry.PublicCredentialsResource.FetchPublicCredentials
 import eu.timepit.refined.api.Refined
@@ -50,7 +51,7 @@ trait PublicCredentialsRequests { self: ResourceSpec =>
                              (implicit ec: ExecutionContext): HttpRequest = {
     val devT = DeviceT(
       None,
-      Refined.unsafeApply(device.underlying),
+      Refined.unsafeApply(device.value),
       device,
       credentials = Some(base64Encoder.encodeToString(creds)),
       credentialsType = cType)

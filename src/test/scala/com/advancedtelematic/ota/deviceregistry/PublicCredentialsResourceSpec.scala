@@ -9,6 +9,7 @@
 package com.advancedtelematic.ota.deviceregistry
 
 import akka.http.scaladsl.model.StatusCodes._
+import com.advancedtelematic.libats.data.DataType.DeviceOemId
 import com.advancedtelematic.ota.deviceregistry.data.{CredentialsType, Device}
 import com.advancedtelematic.ota.deviceregistry.PublicCredentialsResource.FetchPublicCredentials
 import io.circe.generic.auto._

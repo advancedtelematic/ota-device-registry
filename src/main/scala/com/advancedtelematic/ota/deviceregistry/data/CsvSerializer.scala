@@ -2,7 +2,8 @@ package com.advancedtelematic.ota.deviceregistry.data
 
 import cats.Show
 import cats.syntax.show._
-import com.advancedtelematic.ota.deviceregistry.data.Device.DeviceOemId
+import com.advancedtelematic.libats.data.DataType.DeviceOemId
+import com.advancedtelematic.ota.deviceregistry.data.Device.showDeviceOemId
 
 trait CsvSerializer[T] {
   def toCsvRow(value: T): Seq[String]

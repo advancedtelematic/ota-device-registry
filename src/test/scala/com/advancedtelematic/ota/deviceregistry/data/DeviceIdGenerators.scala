@@ -9,7 +9,7 @@
 package com.advancedtelematic.ota.deviceregistry.data
 
 import cats.syntax.show._
-import com.advancedtelematic.ota.deviceregistry.data.Device.DeviceOemId
+import com.advancedtelematic.libats.data.DataType.DeviceOemId
 import org.scalacheck.{Arbitrary, Gen}
 
 /**

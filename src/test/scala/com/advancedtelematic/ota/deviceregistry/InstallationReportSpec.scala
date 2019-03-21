@@ -11,6 +11,7 @@ import com.advancedtelematic.libats.messaging_datatype.Messages.DeviceUpdateComp
 import com.advancedtelematic.ota.deviceregistry.daemon.DeviceUpdateEventListener
 import com.advancedtelematic.ota.deviceregistry.data.Codecs.installationStatDecoder
 import com.advancedtelematic.ota.deviceregistry.data.DataType.{InstallationStat, InstallationStatsLevel}
+import com.advancedtelematic.ota.deviceregistry.data.Device.showDeviceOemId
 import com.advancedtelematic.ota.deviceregistry.data.GeneratorOps._
 import com.advancedtelematic.ota.deviceregistry.data.InstallationReportGenerators
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
