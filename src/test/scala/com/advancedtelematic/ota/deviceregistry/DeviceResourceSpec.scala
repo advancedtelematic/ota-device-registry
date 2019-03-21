@@ -21,6 +21,7 @@ import com.advancedtelematic.libats.messaging_datatype.Messages.DeviceSeen
 import com.advancedtelematic.ota.deviceregistry.common.{Errors, PackageStat}
 import com.advancedtelematic.ota.deviceregistry.daemon.{DeleteDeviceHandler, DeviceSeenListener}
 import com.advancedtelematic.ota.deviceregistry.data.DataType.DeviceT
+import com.advancedtelematic.ota.deviceregistry.data.Codecs.deviceIdDecoder
 import com.advancedtelematic.ota.deviceregistry.data.Group.{GroupExpression, GroupId, ValidExpression}
 import com.advancedtelematic.ota.deviceregistry.data.{Device, DeviceStatus, PackageId, _}
 import com.advancedtelematic.ota.deviceregistry.db.InstalledPackages
@@ -792,6 +793,17 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
       status shouldBe OK
       val result = responseAs[PaginationResult[Device]].values.map(_.uuid).filter(_ == deviceUuid)
       result.length shouldBe 1
+    }
+  }
+
+  property("finds the oemIds for a list of deviceIds") {
+    forAll { deviceTs: Seq[DeviceT] =>
+      val idsAndOemIds = deviceTs.map(deviceT => createDeviceOk(deviceT) -> deviceT.deviceId)
+
+      getOemIds(idsAndOemIds.map(_._1)) ~> route ~> check {
+        status shouldBe OK
+        responseAs[Map[DeviceId, DeviceOemId]].toSeq should contain allElementsOf idsAndOemIds
+      }
     }
   }
 

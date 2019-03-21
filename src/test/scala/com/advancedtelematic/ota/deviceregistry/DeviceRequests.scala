@@ -190,4 +190,9 @@ trait DeviceRequests { self: ResourceSpec =>
 
   def getReportBlob(deviceId: DeviceId): HttpRequest =
     Get(Resource.uri(api, deviceId.show, "installation_history"))
+
+  def getOemIds(deviceIds: Seq[DeviceId]): HttpRequest = {
+    val query = Query(deviceIds.map("deviceId" -> _.show): _*)
+    Get(Resource.uri(api, "oem-ids").withQuery(query))
+  }
 }

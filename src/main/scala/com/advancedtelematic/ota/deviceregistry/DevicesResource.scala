@@ -80,6 +80,7 @@ class DevicesResource(
   val eventJournal = new EventJournal()
 
   implicit val groupIdUnmarshaller: Unmarshaller[String, GroupId] = GroupId.unmarshaller
+  implicit val deviceIdUnmarshaller: Unmarshaller[String, DeviceId] = DeviceId.unmarshaller
 
   implicit val correlationIdUnmarshaller: FromStringUnmarshaller[CorrelationId] = Unmarshaller.strict {
     CorrelationId.fromString(_).leftMap(new IllegalArgumentException(_)).valueOr(throw _)
@@ -213,6 +214,16 @@ class DevicesResource(
     }
   }
 
+  def fetchDeviceOemIds(deviceIds: Iterable[DeviceId]): Route = {
+    val f = db.run {
+      DeviceRepository
+        .findByUuids(deviceIds.toSet)
+        .map(_.map(d => d.uuid -> d.deviceId))
+        .map(_.toMap)
+    }
+    complete(f)
+  }
+
   def api: Route = namespaceExtractor { ns =>
     val scope = Scopes.devices(ns)
     pathPrefix("devices") {
@@ -229,6 +240,9 @@ class DevicesResource(
         } ~
         (path("stats") & parameters('correlationId.as[CorrelationId], 'reportLevel.as[InstallationStatsLevel].?)) {
           (cid, reportLevel) => fetchInstallationStats(cid, reportLevel)
+        } ~
+        (path("oem-ids") & parameter('deviceId.as[DeviceId].*)) { deviceIds =>
+          fetchDeviceOemIds(deviceIds)
         } ~
         pathEnd {
           searchDevice(ns.namespace)

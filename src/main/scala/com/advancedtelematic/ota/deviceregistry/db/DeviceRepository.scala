@@ -176,6 +176,9 @@ object DeviceRepository {
       .headOption
       .flatMap(_.fold[DBIO[Device]](DBIO.failed(Errors.MissingDevice))(DBIO.successful))
 
+  def findByUuids(deviceIds: Set[DeviceId])(implicit ec: ExecutionContext): DBIO[Seq[Device]] =
+    devices.filter(_.uuid inSet deviceIds).result
+
   def updateLastSeen(uuid: DeviceId, when: Instant)(implicit ec: ExecutionContext): DBIO[(Boolean, Namespace)] = {
     val sometime = Some(when)
 
