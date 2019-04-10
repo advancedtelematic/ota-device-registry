@@ -4,6 +4,8 @@ Management of device status and configuration information. This project is part 
 
 ## Building
 
+You will have to set the environment variable `AUDITOR_MIGRATE=false` before running this service as part of the Community Edition.
+
 `sbt docker:publishLocal` - to publish docker image locally.  
 
 ## Running tests
