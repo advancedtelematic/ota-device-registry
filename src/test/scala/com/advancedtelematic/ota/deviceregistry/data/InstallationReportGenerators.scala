@@ -2,7 +2,7 @@ package com.advancedtelematic.ota.deviceregistry.data
 
 import java.time.Instant
 
-import com.advancedtelematic.libats.data.DataType.{CampaignId, CorrelationId, MultiTargetUpdateId, Namespace}
+import com.advancedtelematic.libats.data.DataType.{CampaignId, CorrelationId, MultiTargetUpdateId, Namespace, ResultCode, ResultDescription}
 import com.advancedtelematic.libats.data.EcuIdentifier
 import com.advancedtelematic.libats.data.EcuIdentifier.validatedEcuIdentifier
 import com.advancedtelematic.libats.messaging_datatype.DataType.{DeviceId, EcuInstallationReport, InstallationResult}
@@ -16,31 +16,31 @@ trait InstallationReportGenerators extends DeviceGenerators {
   val genCorrelationId: Gen[CorrelationId] =
     Gen.uuid.flatMap(uuid => Gen.oneOf(CampaignId(uuid), MultiTargetUpdateId(uuid)))
 
-  private def genInstallationResult(resultCode: String, resultDescription: Option[String] = None): Gen[InstallationResult] = {
-    val success = Try(resultCode.toInt == 0).orElse(Success(false))
-    val description = resultDescription.getOrElse(Gen.alphaStr.sample.get)
+  private def genInstallationResult(resultCode: ResultCode, resultDescription: Option[ResultDescription] = None): Gen[InstallationResult] = {
+    val success = Try(resultCode.value.toInt == 0).orElse(Success(false))
+    val description = resultDescription.getOrElse(Gen.alphaStr.map(ResultDescription).sample.get)
     InstallationResult(success.get, resultCode, description)
   }
 
   private def genEcuReports(correlationId: CorrelationId,
-                            resultCode: String,
+                            resultCode: ResultCode,
                             n: Int = 1): Gen[Map[EcuIdentifier, EcuInstallationReport]] =
     Gen.listOfN(n, genEcuReportTuple(correlationId, resultCode)).map(_.toMap)
 
   private def genEcuReportTuple(correlationId: CorrelationId,
-                                resultCode: String): Gen[(EcuIdentifier, EcuInstallationReport)] =
+                                resultCode: ResultCode): Gen[(EcuIdentifier, EcuInstallationReport)] =
     for {
       ecuId  <- Gen.listOfN(64, Gen.alphaNumChar).map(_.mkString("")).map(validatedEcuIdentifier.from(_).right.get)
       report <- genEcuInstallationReport(resultCode)
     } yield ecuId -> report
 
-  private def genEcuInstallationReport(resultCode: String): Gen[EcuInstallationReport] =
+  private def genEcuInstallationReport(resultCode: ResultCode): Gen[EcuInstallationReport] =
     for {
       result <- genInstallationResult(resultCode)
       target <- Gen.listOfN(1, Gen.alphaStr)
     } yield EcuInstallationReport(result, target, None)
 
-  def genDeviceInstallationReport(correlationId: CorrelationId, resultCode: String, deviceId: DeviceId = genDeviceUUID.sample.get, resultDescription: Option[String] = None): Gen[DeviceUpdateCompleted] =
+  def genDeviceInstallationReport(correlationId: CorrelationId, resultCode: ResultCode, deviceId: DeviceId = genDeviceUUID.sample.get, resultDescription: Option[ResultDescription] = None): Gen[DeviceUpdateCompleted] =
     for {
       result     <- genInstallationResult(resultCode, resultDescription)
       ecuReports <- genEcuReports(correlationId, resultCode)

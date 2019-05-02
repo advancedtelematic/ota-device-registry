@@ -2,7 +2,7 @@ package com.advancedtelematic.ota.deviceregistry.db
 import akka.Done
 import akka.stream.Materializer
 import akka.stream.scaladsl.Source
-import com.advancedtelematic.libats.data.DataType.MultiTargetUpdateId
+import com.advancedtelematic.libats.data.DataType.{MultiTargetUpdateId, ResultCode, ResultDescription}
 import com.advancedtelematic.libats.messaging_datatype.DataType.{EcuInstallationReport, InstallationResult, OperationResult}
 import com.advancedtelematic.libats.messaging_datatype.MessageCodecs.deviceInstallationReportEncoder
 import com.advancedtelematic.libats.messaging_datatype.Messages.DeviceInstallationReport
@@ -29,13 +29,13 @@ class MigrateOldInstallationReports(auditor: AuditorClient)(implicit db: Databas
   def toNewSchema(oldReport: DeviceUpdateReport): DeviceInstallationReport = {
 
     def toResultObject(resultCode: Int): InstallationResult = resultCode match {
-      case 0 => InstallationResult(success = true, "0", "All targeted ECUs were successfully updated")
-      case _ => InstallationResult(success = false, "19", "One or more targeted ECUs failed to update")
+      case 0 => InstallationResult(success = true, ResultCode("0"), ResultDescription("All targeted ECUs were successfully updated"))
+      case _ => InstallationResult(success = false, ResultCode("19"), ResultDescription("One or more targeted ECUs failed to update"))
     }
 
     def toEcuInstallationReport(or: OperationResult): EcuInstallationReport =
       EcuInstallationReport(
-        InstallationResult(or.resultCode == 0 || or.resultCode == 1, or.resultCode.toString, or.resultText),
+        InstallationResult(or.resultCode == 0 || or.resultCode == 1, ResultCode(or.resultCode.toString), ResultDescription(or.resultText)),
         Seq(or.target.value),
         None)
 

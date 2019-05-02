@@ -7,7 +7,7 @@ import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import cats.syntax.either._
 import com.advancedtelematic.libats.data.DataType.HashMethod.HashMethod
-import com.advancedtelematic.libats.data.DataType.{HashMethod, MultiTargetUpdateId, Namespace, ValidChecksum}
+import com.advancedtelematic.libats.data.DataType.{HashMethod, MultiTargetUpdateId, Namespace, ResultCode, ResultDescription, ValidChecksum}
 import com.advancedtelematic.libats.data.EcuIdentifier
 import com.advancedtelematic.libats.data.EcuIdentifier.validatedEcuIdentifier
 import com.advancedtelematic.libats.messaging_datatype.DataType._
@@ -100,15 +100,15 @@ class MigrateOldInstallationReportsSpec
       Namespace("migration-test"),
       DeviceId(UUID.fromString("88888888-4444-4444-4444-CCCCCCCCCCCC")),
       MultiTargetUpdateId(UUID.fromString("99999999-5555-5555-5555-DDDDDDDDDDDD")),
-      InstallationResult(success = false, "19", "One or more targeted ECUs failed to update"),
+      InstallationResult(success = false, ResultCode("19"), ResultDescription("One or more targeted ECUs failed to update")),
       Map(
         validatedEcuIdentifier.from("1234abcd").right.get -> EcuInstallationReport(
-          InstallationResult(success = true, "0", "All good."),
+          InstallationResult(success = true, ResultCode("0"), ResultDescription("All good.")),
           Seq("the-target-file"),
           None
         ),
         validatedEcuIdentifier.from("3456cdef").right.get -> EcuInstallationReport(
-          InstallationResult(success = false, "2", "Something went wrong."),
+          InstallationResult(success = false, ResultCode("2"), ResultDescription("Something went wrong.")),
           Seq("the-other-target-file"),
           None
         )

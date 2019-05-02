@@ -4,6 +4,7 @@ import akka.http.scaladsl.model.ContentTypes
 import akka.http.scaladsl.model.StatusCodes._
 import akka.util.ByteString
 import cats.syntax.show._
+import com.advancedtelematic.libats.data.DataType.{ResultCode, ResultDescription}
 import com.advancedtelematic.libats.data.PaginationResult
 import com.advancedtelematic.libats.messaging.MessageBusPublisher
 import com.advancedtelematic.libats.messaging_datatype.MessageCodecs.deviceUpdateCompletedDecoder
@@ -29,7 +30,7 @@ class InstallationReportSpec extends ResourcePropSpec with ScalaFutures with Eve
 
   property("should save device reports and retrieve failed stats per devices") {
     val correlationId = genCorrelationId.generate
-    val resultCodes = Seq("0", "1", "2", "2", "3", "3", "3")
+    val resultCodes = Seq("0", "1", "2", "2", "3", "3", "3").map(ResultCode)
     val deviceReports = resultCodes.map(genDeviceInstallationReport(correlationId, _)).map(_.generate)
 
     deviceReports.foreach(listener.apply)
@@ -37,8 +38,12 @@ class InstallationReportSpec extends ResourcePropSpec with ScalaFutures with Eve
     eventually {
       getStats(correlationId, InstallationStatsLevel.Device) ~> route ~> check {
         status shouldBe OK
-        val expected =
-          Seq(InstallationStat("0", 1, true), InstallationStat("1", 1, false), InstallationStat("2", 2, false), InstallationStat("3", 3, false))
+        val expected = Seq(
+            InstallationStat(ResultCode("0"), 1, true),
+            InstallationStat(ResultCode("1"), 1, false),
+            InstallationStat(ResultCode("2"), 2, false),
+            InstallationStat(ResultCode("3"), 3, false)
+        )
         responseAs[Seq[InstallationStat]] shouldBe expected
       }
     }
@@ -46,7 +51,7 @@ class InstallationReportSpec extends ResourcePropSpec with ScalaFutures with Eve
 
   property("should save device reports and retrieve failed stats per ECUs") {
     val correlationId = genCorrelationId.generate
-    val resultCodes = Seq("0", "1", "2", "2", "3", "3", "3")
+    val resultCodes = Seq("0", "1", "2", "2", "3", "3", "3").map(ResultCode)
     val deviceReports = resultCodes.map(genDeviceInstallationReport(correlationId, _)).map(_.generate)
 
     deviceReports.foreach(listener.apply)
@@ -54,8 +59,12 @@ class InstallationReportSpec extends ResourcePropSpec with ScalaFutures with Eve
     eventually {
       getStats(correlationId, InstallationStatsLevel.Ecu) ~> route ~> check {
         status shouldBe OK
-        val expected =
-          Seq(InstallationStat("0", 1, true), InstallationStat("1", 1, false), InstallationStat("2", 2, false), InstallationStat("3", 3, false))
+        val expected = Seq(
+          InstallationStat(ResultCode("0"), 1, true),
+          InstallationStat(ResultCode("1"), 1, false),
+          InstallationStat(ResultCode("2"), 2, false),
+          InstallationStat(ResultCode("3"), 3, false)
+        )
         responseAs[Seq[InstallationStat]] shouldBe expected
       }
     }
@@ -64,7 +73,7 @@ class InstallationReportSpec extends ResourcePropSpec with ScalaFutures with Eve
   property("should save the whole message as a blob and get back the history for a device") {
     val deviceId       = createDeviceOk(genDeviceT.generate)
     val correlationIds = Gen.listOfN(50, genCorrelationId).generate
-    val deviceReports  = correlationIds.map(cid => genDeviceInstallationReport(cid, "0", deviceId)).map(_.generate)
+    val deviceReports  = correlationIds.map(cid => genDeviceInstallationReport(cid, ResultCode("0"), deviceId)).map(_.generate)
 
     deviceReports.foreach(listener.apply)
 
@@ -85,8 +94,10 @@ class InstallationReportSpec extends ResourcePropSpec with ScalaFutures with Eve
 
   property("should get the device failures as a CSV") {
     val correlationId = genCorrelationId.generate
-    val resultCodes = Seq("0", "1", "2", "2", "3", "3", "3")
-    val resultDescriptions = Map("0" -> "Description-0", "1" -> "Description-1", "2" -> "Description-2", "3" -> "Description-3")
+    val resultCodes = Seq("0", "1", "2", "2", "3", "3", "3").map(ResultCode)
+    val resultDescriptions =
+      Map("0" -> "Description-0", "1" -> "Description-1", "2" -> "Description-2", "3" -> "Description-3")
+        .map { case (rc, rd) => (ResultCode(rc), ResultDescription(rd)) }
 
     val createDevices = genConflictFreeDeviceTs(resultCodes.length).generate
     val deviceUuids = createDevices.map(createDeviceOk)
@@ -100,7 +111,7 @@ class InstallationReportSpec extends ResourcePropSpec with ScalaFutures with Eve
     deviceReports.foreach(listener.apply)
 
     eventually {
-      val expected = rows.filter(_._3 != "0").map { case (_, cd, rc, rd) => cd.show + ";" + rc + ";" + rd }
+      val expected = rows.filter(_._3.value != "0").map { case (_, cd, rc, rd) => cd.show + ";" + rc.value + ";" + rd.value }
       getFailedExport(correlationId, None) ~> route ~> check {
         assertCsvResponse(expected)
       }
@@ -109,8 +120,10 @@ class InstallationReportSpec extends ResourcePropSpec with ScalaFutures with Eve
 
   property("should get only the device failures for a given failure code as a CSV") {
     val correlationId = genCorrelationId.generate
-    val resultCodes = Seq("0", "1", "2", "2")
-    val resultDescriptions = Map("0" -> "Description-0", "1" -> "Description-1", "2" -> "Description-2")
+    val resultCodes = Seq("0", "1", "2", "2").map(ResultCode)
+    val resultDescriptions =
+      Map("0" -> "Description-0", "1" -> "Description-1", "2" -> "Description-2")
+        .map { case (rc, rd) => (ResultCode(rc), ResultDescription(rd)) }
 
     val createDevices = genConflictFreeDeviceTs(resultCodes.length).generate
     val deviceUuids = createDevices.map(createDeviceOk)
@@ -124,7 +137,7 @@ class InstallationReportSpec extends ResourcePropSpec with ScalaFutures with Eve
     deviceReports.foreach(listener.apply)
 
     eventually {
-      val expected = rows.filter(_._3 == "2").map { case (_, cd, rc, rd) => cd.show + ";" + rc + ";" + rd }
+      val expected = rows.filter(_._3.value == "2").map { case (_, cd, rc, rd) => cd.show + ";" + rc.value + ";" + rd.value }
       getFailedExport(correlationId, Some("2")) ~> route ~> check {
         assertCsvResponse(expected)
       }
