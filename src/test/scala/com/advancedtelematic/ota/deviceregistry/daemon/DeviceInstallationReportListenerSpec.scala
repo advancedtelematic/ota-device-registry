@@ -1,6 +1,7 @@
 package com.advancedtelematic.ota.deviceregistry.daemon
 
 import akka.http.scaladsl.testkit.ScalatestRouteTest
+import com.advancedtelematic.libats.data.DataType.ResultCode
 import com.advancedtelematic.libats.messaging.MessageBusPublisher
 import com.advancedtelematic.libats.messaging_datatype.MessageCodecs.deviceUpdateCompletedEncoder
 import com.advancedtelematic.libats.test.DatabaseSpec
@@ -12,7 +13,7 @@ import com.advancedtelematic.ota.deviceregistry.ResourcePropSpec
 import io.circe.syntax._
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.time.{Millis, Seconds, Span}
-import org.scalatest.{Matchers, PropSpec}
+import org.scalatest.Matchers
 
 class DeviceUpdateEventListenerSpec
     extends ResourcePropSpec
@@ -31,7 +32,7 @@ class DeviceUpdateEventListenerSpec
   property("should parse and save DeviceUpdateReport messages and is idempotent") {
     val deviceUuid = createDeviceOk(genDeviceT.generate)
     val correlationId = genCorrelationId.generate
-    val message = genDeviceInstallationReport(correlationId, "0", deviceUuid).generate
+    val message = genDeviceInstallationReport(correlationId, ResultCode("0"), deviceUuid).generate
 
     listener.apply(message).futureValue shouldBe (())
 

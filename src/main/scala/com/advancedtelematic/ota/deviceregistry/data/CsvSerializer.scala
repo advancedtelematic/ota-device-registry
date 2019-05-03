@@ -2,6 +2,7 @@ package com.advancedtelematic.ota.deviceregistry.data
 
 import cats.Show
 import cats.syntax.show._
+import com.advancedtelematic.libats.data.DataType.{ResultCode, ResultDescription}
 import com.advancedtelematic.ota.deviceregistry.data.Device.DeviceOemId
 
 trait CsvSerializer[T] {
@@ -13,11 +14,13 @@ object CsvSerializer {
   val recordSeparator = "\n"
 
   implicit val showString: Show[String] = identity _
+  implicit val showResultCode: Show[ResultCode] = _.value
+  implicit val showResultDescription: Show[ResultDescription] = _.value
 
   implicit def tuple3Serializer[A: Show, B: Show, C: Show]: CsvSerializer[(A, B, C)] =
     (t: (A, B, C)) => t._1.show +: t._2.show +: t._3.show +: Nil
 
-  implicit val deviceIdFailureSerializer = implicitly[CsvSerializer[(DeviceOemId, String, String)]]
+  implicit val deviceIdFailureSerializer = implicitly[CsvSerializer[(DeviceOemId, ResultCode, ResultDescription)]]
 
   def asCsv[T](header: Seq[String], rows: Seq[T])(implicit serializer: CsvSerializer[T]): String = {
     val head = header.mkString(fieldSeparator)

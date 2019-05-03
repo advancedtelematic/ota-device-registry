@@ -20,7 +20,7 @@ import akka.stream.ActorMaterializer
 import cats.syntax.either._
 import cats.syntax.show._
 import com.advancedtelematic.libats.auth.{AuthedNamespaceScope, Scopes}
-import com.advancedtelematic.libats.data.DataType.{CorrelationId, Namespace}
+import com.advancedtelematic.libats.data.DataType.{CorrelationId, Namespace, ResultCode, ResultDescription}
 import com.advancedtelematic.libats.http.UUIDKeyAkka._
 import com.advancedtelematic.libats.messaging.MessageBusPublisher
 import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId._
@@ -81,6 +81,8 @@ class DevicesResource(
 
   implicit val groupIdUnmarshaller: Unmarshaller[String, GroupId] = GroupId.unmarshaller
 
+  implicit val resultCodeUnmarshaller: FromStringUnmarshaller[ResultCode] = Unmarshaller.strict(ResultCode)
+
   implicit val correlationIdUnmarshaller: FromStringUnmarshaller[CorrelationId] = Unmarshaller.strict {
     CorrelationId.fromString(_).leftMap(new IllegalArgumentException(_)).valueOr(throw _)
   }
@@ -94,7 +96,7 @@ class DevicesResource(
       }
   }
 
-  implicit val installationFailureCsvMarshaller: ToResponseMarshaller[Seq[(DeviceOemId, String, String)]] =
+  implicit val installationFailureCsvMarshaller: ToResponseMarshaller[Seq[(DeviceOemId, ResultCode, ResultDescription)]] =
     Marshaller.withFixedContentType(ContentTypes.`text/csv(UTF-8)`) { t =>
       val csv = CsvSerializer.asCsv(Seq("Device ID", "Failure Code", "Failure Description"), t)
       val e = HttpEntity(ContentTypes.`text/csv(UTF-8)`, csv)
@@ -204,7 +206,7 @@ class DevicesResource(
     complete(db.run(action))
   }
 
-  def fetchFailureStats(correlationId: CorrelationId, failureCode: Option[String]): Route = {
+  def fetchFailureStats(correlationId: CorrelationId, failureCode: Option[ResultCode]): Route = {
     val f = db.run(InstallationReportRepository.fetchDeviceFailures(correlationId, failureCode))
     onSuccess(f) { s =>
       respondWithHeader(`Content-Type`(ContentTypes.`text/csv(UTF-8)`)) {
@@ -224,7 +226,7 @@ class DevicesResource(
           case None      => complete(Errors.InvalidGroupExpression(""))
           case Some(exp) => countDynamicGroupCandidates(ns.namespace, exp)
         } ~
-        (path("failed-installations.csv") & parameters('correlationId.as[CorrelationId], 'failureCode.as[String].?)) {
+        (path("failed-installations.csv") & parameters('correlationId.as[CorrelationId], 'failureCode.as[ResultCode].?)) {
           (cid, fc) => fetchFailureStats(cid, fc)
         } ~
         (path("stats") & parameters('correlationId.as[CorrelationId], 'reportLevel.as[InstallationStatsLevel].?)) {

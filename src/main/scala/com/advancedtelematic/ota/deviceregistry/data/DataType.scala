@@ -3,7 +3,7 @@ package com.advancedtelematic.ota.deviceregistry.data
 import java.time.Instant
 
 import cats.Show
-import com.advancedtelematic.libats.data.DataType.CorrelationId
+import com.advancedtelematic.libats.data.DataType.{CorrelationId, ResultCode}
 import com.advancedtelematic.libats.data.EcuIdentifier
 import com.advancedtelematic.libats.messaging_datatype.DataType.{DeviceId, Event}
 import com.advancedtelematic.ota.deviceregistry.data.CredentialsType.CredentialsType
@@ -18,7 +18,7 @@ import io.circe.Json
 object DataType {
   case class IndexedEvent(device: DeviceId, eventID: String, eventType: IndexedEventType, correlationId: Option[CorrelationId])
 
-  case class InstallationStat(resultCode: String, total: Int, success: Boolean)
+  case class InstallationStat(resultCode: ResultCode, total: Int, success: Boolean)
 
   object IndexedEventType extends Enumeration {
     type IndexedEventType = Value
@@ -45,8 +45,8 @@ object DataType {
     s"(device=${event.deviceUuid},eventId=${event.eventId},eventType=${event.eventType})"
   }
 
-  final case class DeviceInstallationResult(correlationId: CorrelationId, resultCode: String, deviceId: DeviceId, success: Boolean, receivedAt: Instant, installationReport: Json)
-  final case class EcuInstallationResult(correlationId: CorrelationId, resultCode: String, deviceId: DeviceId, ecuId: EcuIdentifier, success: Boolean)
+  final case class DeviceInstallationResult(correlationId: CorrelationId, resultCode: ResultCode, deviceId: DeviceId, success: Boolean, receivedAt: Instant, installationReport: Json)
+  final case class EcuInstallationResult(correlationId: CorrelationId, resultCode: ResultCode, deviceId: DeviceId, ecuId: EcuIdentifier, success: Boolean)
 
   final case class SearchParams(oemId: Option[DeviceOemId], grouped: Option[Boolean], groupType: Option[GroupType],
                           groupId: Option[GroupId], regex: Option[String Refined Regex], offset: Option[Long], limit: Option[Long]) {

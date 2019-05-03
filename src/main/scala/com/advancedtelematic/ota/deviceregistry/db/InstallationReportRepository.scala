@@ -2,7 +2,7 @@ package com.advancedtelematic.ota.deviceregistry.db
 
 import java.time.Instant
 
-import com.advancedtelematic.libats.data.DataType.CorrelationId
+import com.advancedtelematic.libats.data.DataType.{CorrelationId, ResultCode, ResultDescription}
 import com.advancedtelematic.libats.data.{EcuIdentifier, PaginationResult}
 import com.advancedtelematic.libats.messaging_datatype.DataType.{DeviceId, EcuInstallationReport}
 import com.advancedtelematic.libats.messaging_datatype.MessageCodecs.deviceUpdateCompletedDecoder
@@ -15,6 +15,7 @@ import com.advancedtelematic.libats.slick.db.SlickUUIDKey._
 import com.advancedtelematic.libats.slick.db.SlickUrnMapper.correlationIdMapper
 import com.advancedtelematic.libats.slick.db.SlickValidatedGeneric.validatedStringMapper
 import com.advancedtelematic.ota.deviceregistry.data.DataType.{DeviceInstallationResult, EcuInstallationResult, InstallationStat}
+import com.advancedtelematic.libats.slick.db.SlickAnyVal._
 import com.advancedtelematic.ota.deviceregistry.data.Device.DeviceOemId
 import com.advancedtelematic.ota.deviceregistry.db.DbOps.PaginationResultOps
 import io.circe.Json
@@ -27,7 +28,7 @@ object InstallationReportRepository {
 
   trait InstallationResultTable {
     def correlationId: Rep[CorrelationId]
-    def resultCode: Rep[String]
+    def resultCode: Rep[ResultCode]
     def success: Rep[Boolean]
   }
 
@@ -35,7 +36,7 @@ object InstallationReportRepository {
     extends Table[DeviceInstallationResult](tag, "DeviceInstallationResult") with InstallationResultTable {
 
     def correlationId = column[CorrelationId]("correlation_id")
-    def resultCode    = column[String]("result_code")
+    def resultCode    = column[ResultCode]("result_code")
     def deviceUuid    = column[DeviceId]("device_uuid")
     def success = column[Boolean]("success")
     def receivedAt = column[Instant]("received_at")
@@ -63,7 +64,7 @@ object InstallationReportRepository {
     extends Table[EcuInstallationResult](tag, "EcuInstallationResult") with InstallationResultTable {
 
     def correlationId = column[CorrelationId]("correlation_id")
-    def resultCode    = column[String]("result_code")
+    def resultCode    = column[ResultCode]("result_code")
     def deviceUuid    = column[DeviceId]("device_uuid")
     def ecuId     = column[EcuIdentifier]("ecu_id")
     def success = column[Boolean]("success")
@@ -79,7 +80,7 @@ object InstallationReportRepository {
 
   def saveInstallationResults(correlationId: CorrelationId,
                               deviceUuid: DeviceId,
-                              deviceResultCode: String,
+                              deviceResultCode: ResultCode,
                               success: Boolean,
                               ecuReports: Map[EcuIdentifier, EcuInstallationReport],
                               receivedAt: Instant,
@@ -128,8 +129,8 @@ object InstallationReportRepository {
       .map(_.installationReport)
       .paginateResult(offset.orDefaultOffset, limit.orDefaultLimit)
 
-  def fetchDeviceFailures(correlationId: CorrelationId, failureCode: Option[String])
-                         (implicit ec: ExecutionContext): DBIO[Seq[(DeviceOemId, String, String)]] =
+  def fetchDeviceFailures(correlationId: CorrelationId, failureCode: Option[ResultCode])
+                         (implicit ec: ExecutionContext): DBIO[Seq[(DeviceOemId, ResultCode, ResultDescription)]] =
       deviceInstallationResults
         .filter(_.correlationId === correlationId)
         .filter(_.success === false)
@@ -141,7 +142,7 @@ object InstallationReportRepository {
         .map(_.map { case (deviceOemId, resultCode, report) => (
           deviceOemId,
           resultCode,
-          report.as[DeviceUpdateCompleted].fold(_ => "", _.result.description))
+          report.as[DeviceUpdateCompleted].fold(_ => ResultDescription(""), _.result.description))
         })
 
 
