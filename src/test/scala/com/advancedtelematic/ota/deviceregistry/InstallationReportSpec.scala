@@ -1,10 +1,7 @@
 package com.advancedtelematic.ota.deviceregistry
 
-import akka.http.scaladsl.model.ContentTypes
 import akka.http.scaladsl.model.StatusCodes._
-import akka.util.ByteString
-import cats.syntax.show._
-import com.advancedtelematic.libats.data.DataType.{ResultCode, ResultDescription}
+import com.advancedtelematic.libats.data.DataType.ResultCode
 import com.advancedtelematic.libats.data.PaginationResult
 import com.advancedtelematic.libats.messaging.MessageBusPublisher
 import com.advancedtelematic.libats.messaging_datatype.MessageCodecs.deviceUpdateCompletedDecoder
@@ -16,7 +13,6 @@ import com.advancedtelematic.ota.deviceregistry.data.GeneratorOps._
 import com.advancedtelematic.ota.deviceregistry.data.InstallationReportGenerators
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
 import org.scalacheck.Gen
-import org.scalatest.Assertion
 import org.scalatest.concurrent.{Eventually, ScalaFutures}
 import org.scalatest.time.{Millis, Seconds, Span}
 
@@ -81,65 +77,6 @@ class InstallationReportSpec extends ResourcePropSpec with ScalaFutures with Eve
       getReportBlob(deviceId) ~> route ~> check {
         status shouldBe OK
         responseAs[PaginationResult[DeviceUpdateCompleted]].values should contain allElementsOf deviceReports
-      }
-    }
-  }
-
-  def assertCsvResponse(expectedRows: Seq[String]): Assertion = {
-    status shouldBe OK
-    contentType shouldBe ContentTypes.`text/csv(UTF-8)`
-    val result = entityAs[ByteString].utf8String.split("\n")
-    result.tail should contain allElementsOf expectedRows
-  }
-
-  property("should get the device failures as a CSV") {
-    val correlationId = genCorrelationId.generate
-    val resultCodes = Seq("0", "1", "2", "2", "3", "3", "3").map(ResultCode)
-    val resultDescriptions =
-      Map("0" -> "Description-0", "1" -> "Description-1", "2" -> "Description-2", "3" -> "Description-3")
-        .map { case (rc, rd) => (ResultCode(rc), ResultDescription(rd)) }
-
-    val createDevices = genConflictFreeDeviceTs(resultCodes.length).generate
-    val deviceUuids = createDevices.map(createDeviceOk)
-    val rows = deviceUuids.zip(createDevices).zip(resultCodes).map {
-      case ((uuid, cd), rc) => (uuid, cd.deviceId, rc, resultDescriptions(rc))
-    }
-    val deviceReports = rows.map {
-      case (uuid, _, rc, rd) => genDeviceInstallationReport(correlationId, rc, uuid, Some(rd))
-    }.map(_.generate)
-
-    deviceReports.foreach(listener.apply)
-
-    eventually {
-      val expected = rows.filter(_._3.value != "0").map { case (_, cd, rc, rd) => cd.show + ";" + rc.value + ";" + rd.value }
-      getFailedExport(correlationId, None) ~> route ~> check {
-        assertCsvResponse(expected)
-      }
-    }
-  }
-
-  property("should get only the device failures for a given failure code as a CSV") {
-    val correlationId = genCorrelationId.generate
-    val resultCodes = Seq("0", "1", "2", "2").map(ResultCode)
-    val resultDescriptions =
-      Map("0" -> "Description-0", "1" -> "Description-1", "2" -> "Description-2")
-        .map { case (rc, rd) => (ResultCode(rc), ResultDescription(rd)) }
-
-    val createDevices = genConflictFreeDeviceTs(resultCodes.length).generate
-    val deviceUuids = createDevices.map(createDeviceOk)
-    val rows = deviceUuids.zip(createDevices).zip(resultCodes).map {
-      case ((uuid, cd), rc) => (uuid, cd.deviceId, rc, resultDescriptions(rc))
-    }
-    val deviceReports = rows.map {
-      case (uuid, _, rc, rd) => genDeviceInstallationReport(correlationId, rc, uuid, Some(rd))
-    }.map(_.generate)
-
-    deviceReports.foreach(listener.apply)
-
-    eventually {
-      val expected = rows.filter(_._3.value == "2").map { case (_, cd, rc, rd) => cd.show + ";" + rc.value + ";" + rd.value }
-      getFailedExport(correlationId, Some("2")) ~> route ~> check {
-        assertCsvResponse(expected)
       }
     }
   }
