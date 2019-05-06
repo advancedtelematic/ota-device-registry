@@ -448,6 +448,21 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
     beforeGrouping.total shouldBe afterGrouping.total + deviceNumber
   }
 
+  property("search by 'nameContains' is case-insensitive") {
+    val originalDeviceName = Gen.alphaStr.generate
+    val deviceUuids =
+      Seq(originalDeviceName, originalDeviceName.toLowerCase, originalDeviceName.toUpperCase)
+        .map(Refined.unsafeApply[String, ValidDeviceName])
+        .map(deviceName => genDeviceT.generate.copy(deviceName = deviceName))
+        .map(createDeviceOk)
+
+    getDevicesByGrouping(grouped = false, None, originalDeviceName.some) ~> route ~> check {
+      status shouldBe OK
+      val result = responseAs[PaginationResult[Device]].values.map(_.uuid)
+      result should contain allElementsOf deviceUuids
+    }
+  }
+
   property("can search static group devices") {
     val deviceT     = genDeviceT.generate
     val deviceUuid1 = createDeviceOk(deviceT)

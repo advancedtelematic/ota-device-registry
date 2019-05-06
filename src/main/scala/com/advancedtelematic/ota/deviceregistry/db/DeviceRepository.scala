@@ -122,7 +122,12 @@ object DeviceRepository {
 
     devices
       .filter(_.namespace === ns)
-      .maybeContains(_.deviceName, nameContains)
+      .filter { device =>
+        nameContains match {
+          case None => true.bind
+          case Some(s) => device.deviceName.mappedTo[String].toLowerCase.like(s"%${s.toLowerCase}%")
+        }
+      }
       .filter(_.uuid in devicesInGroup)
   }
 
