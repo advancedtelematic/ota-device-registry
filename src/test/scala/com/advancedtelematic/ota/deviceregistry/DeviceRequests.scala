@@ -65,8 +65,8 @@ trait DeviceRequests { self: ResourceSpec =>
         .withQuery(Query("regex" -> regex, "offset" -> offset.toString, "limit" -> limit.toString))
     )
 
-  def fetchByDeviceId(deviceId: DeviceOemId, regex: Option[String] = None, groupId: Option[GroupId] = None): HttpRequest = {
-    val m = regex.map("regex" -> _).toMap ++ groupId.map("groupId" -> _.show).toMap + ("deviceId" -> deviceId.show)
+  def fetchByDeviceId(deviceId: DeviceOemId, nameContains: Option[String] = None, groupId: Option[GroupId] = None): HttpRequest = {
+    val m = nameContains.map("nameContains" -> _).toMap ++ groupId.map("groupId" -> _.show).toMap + ("deviceId" -> deviceId.show)
     Get(Resource.uri(api).withQuery(Query(m)))
   }
 
@@ -173,9 +173,9 @@ trait DeviceRequests { self: ResourceSpec =>
   def getGroupsOfDevice(deviceUuid: DeviceId): HttpRequest = Get(Resource.uri(api, deviceUuid.show, "groups"))
 
   def getDevicesByGrouping(grouped: Boolean, groupType: Option[GroupType],
-                           regex: Option[String Refined Regex] = None, limit: Long = 1000): HttpRequest = {
+                           nameContains: Option[String] = None, limit: Long = 1000): HttpRequest = {
     val m = Map("grouped" -> grouped, "limit" -> limit) ++
-      List("groupType" -> groupType, "regex" -> regex).collect { case (k, Some(v)) => k -> v }.toMap
+      List("groupType" -> groupType, "nameContains" -> nameContains).collect { case (k, Some(v)) => k -> v }.toMap
     Get(Resource.uri(api).withQuery(Query(m.mapValues(_.toString))))
   }
 
