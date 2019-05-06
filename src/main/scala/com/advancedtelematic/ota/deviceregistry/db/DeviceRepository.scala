@@ -14,7 +14,6 @@ import com.advancedtelematic.libats.data.DataType.Namespace
 import com.advancedtelematic.libats.data.PaginationResult
 import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
 import com.advancedtelematic.libats.slick.codecs.SlickRefined._
-import com.advancedtelematic.libats.slick.db.Operators.regex
 import com.advancedtelematic.libats.slick.db.SlickAnyVal._
 import com.advancedtelematic.libats.slick.db.SlickExtensions._
 import com.advancedtelematic.libats.slick.db.SlickUUIDKey._
@@ -116,18 +115,21 @@ object DeviceRepository {
       .length
       .result
 
-  private def searchQuery(ns: Namespace, rx: Option[String Refined Regex], groupId: Option[GroupId]) = {
-    val byNamespace = devices.filter(_.namespace === ns)
-    val regexCondition = rx.map(rexp => (d: DeviceTable) => regex(d.deviceName, rexp))
-    val byOptionalRegex = byNamespace.filter(regexCondition.getOrElse((_: DeviceTable) => true.bind))
-    val groupIdCondition = groupId.map(gid => GroupMemberRepository.groupMembers.filter(_.groupId === gid).map(_.deviceUuid))
-    byOptionalRegex.filter(_.uuid.in(groupIdCondition.getOrElse(devices.map(_.uuid))))
+  private def searchQuery(ns: Namespace, nameContains: Option[String], groupId: Option[GroupId]) = {
+    val devicesInGroup = groupId.map { gid =>
+      GroupMemberRepository.groupMembers.filter(_.groupId === gid).map(_.deviceUuid)
+    }.getOrElse(devices.map(_.uuid))
+
+    devices
+      .filter(_.namespace === ns)
+      .maybeContains(_.deviceName, nameContains)
+      .filter(_.uuid in devicesInGroup)
   }
 
-  private def runQueryWithRegex(ns: Namespace, query: Query[DeviceTable, Device, Seq], rx: Option[String Refined Regex])
-                             (implicit ec: ExecutionContext) = {
-    val regexQuery = searchQuery(ns, rx, None).map(_.uuid)
-    query.filter(_.uuid.in(regexQuery))
+  private def runQueryFilteringByName(ns: Namespace, query: Query[DeviceTable, Device, Seq], nameContains: Option[String])
+                                     (implicit ec: ExecutionContext) = {
+    val deviceIdsByName = searchQuery(ns, nameContains, None).map(_.uuid)
+    query.filter(_.uuid in deviceIdsByName)
   }
 
   private val groupedDevicesQuery: Option[GroupType] => Query[DeviceTable, Device, Seq] = groupType =>
@@ -146,15 +148,15 @@ object DeviceRepository {
       case SearchParams(Some(oemId), _, _, None, None, _, _) =>
         findByDeviceIdQuery(ns, oemId)
 
-      case SearchParams(None, Some(true), gt, None, rx, _, _) =>
-        runQueryWithRegex(ns, groupedDevicesQuery(gt), rx)
+      case SearchParams(None, Some(true), gt, None, nameContains, _, _) =>
+        runQueryFilteringByName(ns, groupedDevicesQuery(gt), nameContains)
 
-      case SearchParams(None, Some(false), gt, None, rx, _, _) =>
+      case SearchParams(None, Some(false), gt, None, nameContains, _, _) =>
         val ungroupedDevicesQuery = devices.filterNot(_.uuid.in(groupedDevicesQuery(gt).map(_.uuid)))
-        runQueryWithRegex(ns, ungroupedDevicesQuery, rx)
+        runQueryFilteringByName(ns, ungroupedDevicesQuery, nameContains)
 
-      case SearchParams(None, _, _, gid, rx, _, _) =>
-        searchQuery(ns, rx, gid)
+      case SearchParams(None, _, _, gid, nameContains, _, _) =>
+        searchQuery(ns, nameContains, gid)
 
       case _ => throw new IllegalArgumentException("Invalid parameter combination.")
     }

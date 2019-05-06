@@ -375,13 +375,13 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
     }
   }
 
-  property("searching a device by 'regex' and 'deviceId' fails") {
+  property("searching a device by 'nameContains' and 'deviceId' fails") {
     val deviceT = genDeviceT.sample.get
     createDeviceOk(deviceT)
 
     fetchByDeviceId(deviceT.deviceId, Some(""), None) ~> route ~> check {
       status shouldBe BadRequest
-      responseAs[ErrorRepresentation].description should include ("regex must be empty when searching by deviceId")
+      responseAs[ErrorRepresentation].description should include ("nameContains must be empty when searching by deviceId")
     }
   }
 
@@ -456,8 +456,8 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
     addDeviceToGroupOk(group, deviceUuid1)
     addDeviceToGroupOk(group, deviceUuid2)
 
-    val regex = Refined.unsafeApply[String, Regex](deviceT.deviceName.value.substring(0, 10))
-    getDevicesByGrouping(grouped = true, GroupType.static.some, regex.some) ~> route ~> check {
+    val nameContains = deviceT.deviceName.value.substring(0, 10)
+    getDevicesByGrouping(grouped = true, GroupType.static.some, nameContains.some) ~> route ~> check {
       status shouldBe OK
       val result = responseAs[PaginationResult[Device]].values.map(_.uuid)
       result should contain(deviceUuid1)
@@ -472,8 +472,8 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
     val deviceUuid2 = createDeviceOk(deviceT2)
     createDynamicGroupOk(refineMV[ValidExpression]("deviceid contains xxyy"))
 
-    val regex = refineMV[Regex]("1234")
-    getDevicesByGrouping(grouped = true, GroupType.dynamic.some, regex.some) ~> route ~> check {
+    val nameContains = "1234"
+    getDevicesByGrouping(grouped = true, GroupType.dynamic.some, nameContains.some) ~> route ~> check {
       status shouldBe OK
       val result = responseAs[PaginationResult[Device]].values.map(_.uuid)
       result should contain(deviceUuid1)
@@ -489,7 +489,7 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
     val deviceTs             = genConflictFreeDeviceTs(limit * 2).generate
     val deviceIds = deviceTs.map(createDeviceOk)
 
-    // the database is case-insensitve so when we need to take that in to account when sorting in scala
+    // the database is case-insensitive so when we need to take that in to account when sorting in scala
     // furthermore PackageId is not lexicographically ordered so we just use pairs
     def canonPkg(pkg: PackageId) =
       (pkg.name.toLowerCase, pkg.version)

@@ -102,7 +102,7 @@ class DevicesResource(
       'grouped.as[Boolean].?,
       'groupType.as[GroupType].?,
       'groupId.as[GroupId].?,
-      'regex.as[String Refined Regex].?,
+      'nameContains.as[String].?,
       'offset.as[Long].?,
       'limit.as[Long].?)).as(SearchParams)
     { params => complete(db.run(DeviceRepository.search(ns, params))) }
