@@ -35,7 +35,7 @@ import com.advancedtelematic.ota.deviceregistry.data.DataType.{DeviceT, Installa
 import com.advancedtelematic.ota.deviceregistry.data.Device.{ActiveDeviceCount, DeviceOemId}
 import com.advancedtelematic.ota.deviceregistry.data.Group.{GroupExpression, GroupId}
 import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
-import com.advancedtelematic.ota.deviceregistry.data.{CsvSerializer, PackageId}
+import com.advancedtelematic.ota.deviceregistry.data.PackageId
 import com.advancedtelematic.ota.deviceregistry.db._
 import com.advancedtelematic.ota.deviceregistry.messages.{DeleteDeviceRequest, DeviceCreated}
 import eu.timepit.refined.api.Refined
@@ -95,14 +95,6 @@ class DevicesResource(
         case s        => throw new IllegalArgumentException(s"Invalid value for installation stats level parameter: $s.")
       }
   }
-
-  implicit val installationFailureCsvMarshaller: ToResponseMarshaller[Seq[(DeviceOemId, ResultCode, ResultDescription)]] =
-    Marshaller.withFixedContentType(ContentTypes.`text/csv(UTF-8)`) { t =>
-      val csv = CsvSerializer.asCsv(Seq("Device ID", "Failure Code", "Failure Description"), t)
-      val e = HttpEntity(ContentTypes.`text/csv(UTF-8)`, csv)
-      val h = `Content-Disposition`(ContentDispositionTypes.attachment, Map("filename" -> "device-failures.csv"))
-      HttpResponse(headers = h :: Nil, entity = e)
-    }
 
   def searchDevice(ns: Namespace): Route =
     parameters((
@@ -206,15 +198,6 @@ class DevicesResource(
     complete(db.run(action))
   }
 
-  def fetchFailureStats(correlationId: CorrelationId, failureCode: Option[ResultCode]): Route = {
-    val f = db.run(InstallationReportRepository.fetchDeviceFailures(correlationId, failureCode))
-    onSuccess(f) { s =>
-      respondWithHeader(`Content-Type`(ContentTypes.`text/csv(UTF-8)`)) {
-        complete(s)
-      }
-    }
-  }
-
   def api: Route = namespaceExtractor { ns =>
     val scope = Scopes.devices(ns)
     pathPrefix("devices") {
@@ -225,9 +208,6 @@ class DevicesResource(
         (path("count") & parameter('expression.as[GroupExpression].?)) {
           case None      => complete(Errors.InvalidGroupExpression(""))
           case Some(exp) => countDynamicGroupCandidates(ns.namespace, exp)
-        } ~
-        (path("failed-installations.csv") & parameters('correlationId.as[CorrelationId], 'failureCode.as[ResultCode].?)) {
-          (cid, fc) => fetchFailureStats(cid, fc)
         } ~
         (path("stats") & parameters('correlationId.as[CorrelationId], 'reportLevel.as[InstallationStatsLevel].?)) {
           (cid, reportLevel) => fetchInstallationStats(cid, reportLevel)
