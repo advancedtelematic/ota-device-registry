@@ -5,8 +5,6 @@ set -u
 mkdir entrypoint.d/ || true
 
 echo "
-CREATE DATABASE device_registry;
-CREATE DATABASE device_registry_test;
 GRANT ALL PRIVILEGES ON \`device\_registry%\`.* TO 'device_registry'@'%';
 FLUSH PRIVILEGES;
 " > entrypoint.d/db_user.sql
@@ -19,6 +17,7 @@ docker run -d \
   -e MYSQL_ROOT_PASSWORD=root \
   -e MYSQL_USER=device_registry \
   -e MYSQL_PASSWORD=device_registry \
+  -e MYSQL_DATABASE=device_registry \
   mariadb:10.2 \
   --character-set-server=utf8 --collation-server=utf8_unicode_ci \
   --max_connections=1000
