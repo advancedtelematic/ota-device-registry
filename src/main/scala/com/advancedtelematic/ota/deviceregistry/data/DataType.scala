@@ -3,7 +3,7 @@ package com.advancedtelematic.ota.deviceregistry.data
 import java.time.Instant
 
 import cats.Show
-import com.advancedtelematic.libats.data.DataType.{CorrelationId, ResultCode}
+import com.advancedtelematic.libats.data.DataType.{CorrelationId, ResultCode, Namespace}
 import com.advancedtelematic.libats.data.EcuIdentifier
 import com.advancedtelematic.libats.messaging_datatype.DataType.{DeviceId, Event}
 import com.advancedtelematic.ota.deviceregistry.data.CredentialsType.CredentialsType
@@ -38,6 +38,11 @@ object DataType {
                            credentialsType: Option[CredentialsType] = None)
 
   final case class UpdateDevice(deviceName: DeviceName)
+
+  final case class DeletedDevice(
+    namespace: Namespace,
+    uuid: DeviceId,
+    deviceId: DeviceOemId)
 
   implicit val eventShow: Show[Event] = Show { event =>
     s"(device=${event.deviceUuid},eventId=${event.eventId},eventType=${event.eventType})"

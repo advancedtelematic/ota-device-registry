@@ -11,12 +11,16 @@ package com.advancedtelematic.ota.deviceregistry.db
 import java.time.Instant
 
 import com.advancedtelematic.libats.test.DatabaseSpec
+import com.advancedtelematic.libats.slick.db.SlickUUIDKey._
 import com.advancedtelematic.ota.deviceregistry.data.DeviceGenerators.{genDeviceId, genDeviceT}
+import com.advancedtelematic.ota.deviceregistry.data.DataType.DeletedDevice
 import com.advancedtelematic.ota.deviceregistry.data.Namespaces
 import org.scalatest.concurrent.PatienceConfiguration.Timeout
 import org.scalatest.concurrent.ScalaFutures
+import org.scalatest.LoneElement._
 import org.scalatest.time.{Seconds, Span}
 import org.scalatest.{FunSuite, Matchers}
+import slick.jdbc.MySQLProfile.api._
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
@@ -51,5 +55,23 @@ class DeviceRepositorySpec extends FunSuite with DatabaseSpec with ScalaFutures 
     whenReady(db.run(createDevice), Timeout(Span(10, Seconds))) { count =>
       count shouldBe 1
     }
+  }
+
+  test("deleting a device should store information about it in a special table") {
+    val deviceT = genDeviceT.sample.get
+    val deviceUuid = db.run(DeviceRepository.create(Namespaces.defaultNs, deviceT)).futureValue
+
+    db.run(DeviceRepository.delete(Namespaces.defaultNs, deviceUuid)).futureValue
+
+    val deletedDevices = db.run(
+      DeviceRepository.deletedDevices
+        .filter(_.uuid === deviceUuid)
+        .result
+    ).futureValue
+
+    deletedDevices.loneElement shouldBe DeletedDevice(
+      Namespaces.defaultNs,
+      deviceUuid,
+      deviceT.deviceId)
   }
 }
