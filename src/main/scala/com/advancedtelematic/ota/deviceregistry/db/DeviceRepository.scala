@@ -18,7 +18,7 @@ import com.advancedtelematic.libats.slick.db.SlickAnyVal._
 import com.advancedtelematic.libats.slick.db.SlickExtensions._
 import com.advancedtelematic.libats.slick.db.SlickUUIDKey._
 import com.advancedtelematic.ota.deviceregistry.common.Errors
-import com.advancedtelematic.ota.deviceregistry.data.DataType.{DeviceT, SearchParams}
+import com.advancedtelematic.ota.deviceregistry.data.DataType.{DeviceT, DeletedDevice, SearchParams}
 import com.advancedtelematic.ota.deviceregistry.data.Device._
 import com.advancedtelematic.ota.deviceregistry.data.DeviceStatus.DeviceStatus
 import com.advancedtelematic.ota.deviceregistry.data.Group.{GroupExpression, GroupId}
@@ -59,6 +59,20 @@ object DeviceRepository {
 
   // scalastyle:on
   val devices = TableQuery[DeviceTable]
+
+  class DeletedDeviceTable(tag: Tag) extends Table[DeletedDevice](tag, "DeletedDevice") {
+    def namespace = column[Namespace]("namespace")
+    def uuid = column[DeviceId]("device_uuid")
+    def deviceId = column[DeviceOemId]("device_id")
+
+    def * =
+      (namespace, uuid, deviceId).shaped <>
+      ((DeletedDevice.apply _).tupled, DeletedDevice.unapply)
+
+    def pk = primaryKey("pk_deleted_device", (namespace, uuid, deviceId))
+  }
+
+  val deletedDevices = TableQuery[DeletedDeviceTable]
 
   def create(ns: Namespace, device: DeviceT)(implicit ec: ExecutionContext): DBIO[DeviceId] = {
     val uuid = device.uuid.getOrElse(DeviceId.generate)
@@ -200,13 +214,14 @@ object DeviceRepository {
 
   def delete(ns: Namespace, uuid: DeviceId)(implicit ec: ExecutionContext): DBIO[Unit] = {
     val dbIO = for {
-      _ <- exists(ns, uuid)
+      device <- exists(ns, uuid)
       _ <- EventJournal.archiveIndexedEvents(uuid)
       _ <- EventJournal.deleteEvents(uuid)
       _ <- GroupMemberRepository.removeGroupMemberAll(uuid)
       _ <- PublicCredentialsRepository.delete(uuid)
       _ <- SystemInfoRepository.delete(uuid)
       _ <- devices.filter(d => d.namespace === ns && d.uuid === uuid).delete
+      _ <- deletedDevices += DeletedDevice(ns, device.uuid, device.deviceId)
     } yield ()
 
     dbIO.transactionally
