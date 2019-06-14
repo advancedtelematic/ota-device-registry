@@ -8,11 +8,12 @@
 
 package com.advancedtelematic.ota.deviceregistry
 
-import akka.http.scaladsl.model.HttpRequest
+import akka.http.scaladsl.model.{ContentTypes, HttpEntity, HttpRequest, Multipart}
 import akka.http.scaladsl.model.StatusCodes._
 import akka.http.scaladsl.model.Uri.Query
 import cats.syntax.show._
 import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
+import com.advancedtelematic.ota.deviceregistry.data.Device.DeviceOemId
 import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
 import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId._
 import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
@@ -67,6 +68,15 @@ trait GroupRequests {
       case GroupType.dynamic => expression.orElse(Some(defaultExpression))
     }
     Post(Resource.uri(groupsApi), CreateGroup(name, groupType, expr))
+  }
+
+  def importGroup(groupName: GroupName, oemIds: Seq[DeviceOemId]): HttpRequest = {
+    val multipartForm = Multipart.FormData(
+      Multipart.FormData.BodyPart.Strict(
+        "deviceIds",
+        HttpEntity(ContentTypes.`text/csv(UTF-8)`, oemIds.map(_.underlying).mkString("", "\n", "\n")),
+        Map("filename" -> "vins.csv")))
+    Post(Resource.uri(groupsApi).withQuery(Query("groupName" -> groupName.value)), multipartForm)
   }
 
   def createStaticGroupOk(name: GroupName = genGroupName().sample.get): GroupId =

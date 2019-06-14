@@ -109,6 +109,13 @@ object DeviceRepository {
       .headOption
       .flatMap(_.fold[DBIO[Device]](DBIO.failed(Errors.MissingDevice))(DBIO.successful))
 
+  def filterExisting(ns: Namespace, deviceOemIds: Set[DeviceOemId]): DBIO[Seq[DeviceId]] =
+    devices
+    .filter(_.namespace === ns)
+    .filter(_.deviceId inSet deviceOemIds)
+    .map(_.uuid)
+    .result
+
   def findByDeviceIdQuery(ns: Namespace, deviceId: DeviceOemId)(implicit ec: ExecutionContext): Query[DeviceTable, Device, Seq] =
     devices.filter(d => d.namespace === ns && d.deviceId === deviceId)
 
