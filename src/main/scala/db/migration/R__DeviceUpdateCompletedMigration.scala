@@ -1,11 +1,10 @@
 package db.migration
+
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import com.advancedtelematic.libats.http.ServiceHttpClientSupport
 import com.advancedtelematic.libats.slick.db.AppMigration
-import com.advancedtelematic.ota.deviceregistry.client.AuditorHttpClient
 import com.advancedtelematic.ota.deviceregistry.db.MigrateDeviceUpdateCompleted
-import com.typesafe.config.ConfigFactory
 import slick.jdbc.MySQLProfile
 
 import scala.concurrent.Future
