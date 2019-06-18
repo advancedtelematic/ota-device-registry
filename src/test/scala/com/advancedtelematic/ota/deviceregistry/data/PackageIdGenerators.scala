@@ -10,7 +10,6 @@ package com.advancedtelematic.ota.deviceregistry.data
 
 import java.security.InvalidParameterException
 
-import eu.timepit.refined.api.Refined
 import org.scalacheck.{Arbitrary, Gen}
 
 trait PackageIdGenerators {

@@ -118,7 +118,6 @@ case class CreateGroup(name: GroupName, groupType: GroupType, expression: Option
 object CreateGroup {
   import GroupType._
   import com.advancedtelematic.circe.CirceInstances._
-  import com.advancedtelematic.libats.codecs.CirceRefined._
   import io.circe.generic.semiauto._
 
   implicit val createGroupEncoder: Encoder[CreateGroup] = deriveEncoder

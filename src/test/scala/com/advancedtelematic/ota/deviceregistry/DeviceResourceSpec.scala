@@ -27,9 +27,6 @@ import com.advancedtelematic.ota.deviceregistry.data.{Device, DeviceStatus, Pack
 import com.advancedtelematic.ota.deviceregistry.db.InstalledPackages
 import com.advancedtelematic.ota.deviceregistry.db.InstalledPackages.{DevicesCount, InstalledPackage}
 import com.advancedtelematic.ota.deviceregistry.messages.DeleteDeviceRequest
-import eu.timepit.refined.api.Refined
-import eu.timepit.refined.refineMV
-import eu.timepit.refined.string.Regex
 import io.circe.generic.auto._
 import org.scalacheck.Arbitrary._
 import org.scalacheck.{Gen, Shrink}

@@ -11,7 +11,6 @@ import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
 import com.advancedtelematic.ota.deviceregistry.data.{GroupExpression, GroupType}
 import com.advancedtelematic.ota.deviceregistry.db.DeviceRepository
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
-import eu.timepit.refined.api.Refined
 import org.scalatest.FunSuite
 import org.scalatest.concurrent.Eventually
 import org.scalatest.time.SpanSugar._
