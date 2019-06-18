@@ -131,12 +131,13 @@ trait DeviceRequests { self: ResourceSpec =>
       status shouldBe StatusCodes.NoContent
     }
 
-  def listPackages(device: DeviceId, regex: Option[String] = None)(implicit ec: ExecutionContext): HttpRequest =
-    regex match {
-      case Some(r) =>
-        Get(Resource.uri("devices", device.show, "packages").withQuery(Query("regex" -> r)))
-      case None => Get(Resource.uri("devices", device.show, "packages"))
+  def listPackages(device: DeviceId, nameContains: Option[String] = None)(implicit ec: ExecutionContext): HttpRequest = {
+    val uri = Resource.uri("devices", device.show, "packages")
+    nameContains match {
+      case None => Get(uri)
+      case Some(s) => Get(uri.withQuery(Query("nameContains" -> s)))
     }
+  }
 
   def getStatsForPackage(pkg: PackageId)(implicit ec: ExecutionContext): HttpRequest =
     Get(Resource.uri("device_count", pkg.name, pkg.version))

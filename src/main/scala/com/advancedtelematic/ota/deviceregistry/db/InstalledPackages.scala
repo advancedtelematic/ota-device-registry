@@ -13,8 +13,6 @@ import java.time.Instant
 import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
 import com.advancedtelematic.libats.data.PaginationResult
 import com.advancedtelematic.libats.data.DataType.Namespace
-import com.advancedtelematic.libats.slick.codecs.SlickRefined._
-import com.advancedtelematic.libats.slick.db.Operators.regex
 import com.advancedtelematic.libats.slick.db.SlickExtensions._
 import SlickMappings._
 import com.advancedtelematic.libats.slick.db.SlickUUIDKey._
@@ -23,8 +21,6 @@ import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
 import com.advancedtelematic.ota.deviceregistry.data.PackageId
 import com.advancedtelematic.ota.deviceregistry.data.PackageId.Name
 import com.advancedtelematic.ota.deviceregistry.db.DbOps.PaginationResultOps
-import eu.timepit.refined.api.Refined
-import eu.timepit.refined.string.Regex
 import slick.jdbc.MySQLProfile.api._
 
 import scala.concurrent.ExecutionContext
@@ -78,21 +74,14 @@ object InstalledPackages {
 
   def installedOn(
       device: DeviceId,
-      regexOpt: Option[String Refined Regex],
+      nameContains: Option[String],
       offset: Option[Long],
       limit: Option[Long]
   )(implicit ec: ExecutionContext): DBIO[PaginationResult[InstalledPackage]] =
-    regexOpt match {
-      case Some(re) =>
-        installedPackages
-          .filter(_.device === device)
-          .filter(row => regex(row.name.mappedTo[String] ++ "-" ++ row.version.mappedTo[String], re))
-          .paginateResult(offset.orDefaultOffset, limit.orDefaultLimit)
-      case None =>
-        installedPackages
-          .filter(_.device === device)
-          .paginateResult(offset.orDefaultOffset, limit.orDefaultLimit)
-    }
+    installedPackages
+      .filter(_.device === device)
+      .maybeContains(ip => ip.name.mappedTo[String] ++ "-" ++ ip.version.mappedTo[String], nameContains)
+      .paginateResult(offset.orDefaultOffset, limit.orDefaultLimit)
 
   def getDevicesCount(pkg: PackageId, ns: Namespace)(implicit ec: ExecutionContext): DBIO[DevicesCount] =
     for {
