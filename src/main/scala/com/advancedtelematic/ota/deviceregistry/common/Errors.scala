@@ -10,8 +10,7 @@ package com.advancedtelematic.ota.deviceregistry.common
 
 import com.advancedtelematic.libats.data.ErrorCode
 import com.advancedtelematic.libats.http.Errors.{EntityAlreadyExists, MissingEntity, RawError}
-import com.advancedtelematic.ota.deviceregistry.data.Group
-import com.advancedtelematic.ota.deviceregistry.data.Group.GroupExpression
+import com.advancedtelematic.ota.deviceregistry.data.{Group, GroupExpression}
 import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
 import com.advancedtelematic.ota.deviceregistry.db.GroupMemberRepository.GroupMember
 import com.advancedtelematic.ota.deviceregistry.db.PublicCredentialsRepository.DevicePublicCredentials

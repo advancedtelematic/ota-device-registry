@@ -10,8 +10,6 @@ package com.advancedtelematic.ota.deviceregistry.data
 
 import cats.Show
 import cats.syntax.show._
-import eu.timepit.refined.api.Refined
-import eu.timepit.refined.string.Regex
 import org.scalacheck.Gen
 
 // https://en.wikipedia.org/wiki/VIN
@@ -45,15 +43,6 @@ object SemanticVin {
       plantCode <- genPlantCode
       seqNum    <- Gen.choose(100000, 999999)
     } yield SemanticVin(wmi, vehAttr, checkDig, modelYr, plantCode, seqNum)
-
-  def genVinRegex: Gen[Refined[String, Regex]] =
-    for {
-      part <- Gen.frequency(
-        (1, genVehicleAttributes.map(_.show)),
-        (1, genPlantCode.map(_.show)),
-        (1, genModelYear.map(_.show))
-      )
-    } yield Refined.unsafeApply("^.*" + part + ".*$")
 
   // World manufacturer identifier (3 characters).
   sealed trait WMI

@@ -11,8 +11,7 @@ package com.advancedtelematic.ota.deviceregistry
 import java.time.OffsetDateTime
 
 import akka.http.scaladsl.model.Uri.{Path, Query}
-import akka.http.scaladsl.model.headers.Accept
-import akka.http.scaladsl.model.{HttpRequest, MediaTypes, StatusCodes, Uri}
+import akka.http.scaladsl.model.{HttpRequest, StatusCodes, Uri}
 import akka.http.scaladsl.server.Route
 import cats.syntax.show._
 import com.advancedtelematic.libats.data.DataType.{CorrelationId, Namespace}
@@ -21,12 +20,10 @@ import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
 import com.advancedtelematic.ota.deviceregistry.data.Codecs._
 import com.advancedtelematic.ota.deviceregistry.data.DataType.InstallationStatsLevel.InstallationStatsLevel
 import com.advancedtelematic.ota.deviceregistry.data.DataType.{DeviceT, UpdateDevice}
-import com.advancedtelematic.ota.deviceregistry.data.Group.{GroupExpression, GroupId}
+import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
 import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
-import com.advancedtelematic.ota.deviceregistry.data.PackageId
+import com.advancedtelematic.ota.deviceregistry.data.{DeviceName, GroupExpression, PackageId}
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
-import eu.timepit.refined.api.Refined
-import eu.timepit.refined.string.Regex
 import io.circe.Json
 
 import scala.concurrent.ExecutionContext
@@ -134,12 +131,13 @@ trait DeviceRequests { self: ResourceSpec =>
       status shouldBe StatusCodes.NoContent
     }
 
-  def listPackages(device: DeviceId, regex: Option[String] = None)(implicit ec: ExecutionContext): HttpRequest =
-    regex match {
-      case Some(r) =>
-        Get(Resource.uri("devices", device.show, "packages").withQuery(Query("regex" -> r)))
-      case None => Get(Resource.uri("devices", device.show, "packages"))
+  def listPackages(device: DeviceId, nameContains: Option[String] = None)(implicit ec: ExecutionContext): HttpRequest = {
+    val uri = Resource.uri("devices", device.show, "packages")
+    nameContains match {
+      case None => Get(uri)
+      case Some(s) => Get(uri.withQuery(Query("nameContains" -> s)))
     }
+  }
 
   def getStatsForPackage(pkg: PackageId)(implicit ec: ExecutionContext): HttpRequest =
     Get(Resource.uri("device_count", pkg.name, pkg.version))

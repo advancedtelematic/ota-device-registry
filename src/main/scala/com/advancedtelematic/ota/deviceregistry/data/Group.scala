@@ -11,16 +11,17 @@ package com.advancedtelematic.ota.deviceregistry.data
 import java.util.UUID
 
 import akka.http.scaladsl.unmarshalling.Unmarshaller
+import com.advancedtelematic.libats.codecs.CirceCodecs._
 import com.advancedtelematic.libats.data.DataType.Namespace
 import com.advancedtelematic.libats.data.UUIDKey.{UUIDKey, UUIDKeyObj}
-import com.advancedtelematic.ota.deviceregistry.data.Group.{GroupId, _}
+import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
 import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
-import eu.timepit.refined.api.{Refined, Validate}
+import io.circe.generic.semiauto.{deriveDecoder, deriveEncoder}
 import io.circe.{Decoder, Encoder}
 import slick.jdbc.MySQLProfile.api._
 
 case class Group(id: GroupId,
-                 groupName: Name,
+                 groupName: GroupName,
                  namespace: Namespace,
                  groupType: GroupType,
                  expression: Option[GroupExpression] = None)
@@ -30,10 +31,10 @@ object GroupType extends Enumeration {
 
   val static, dynamic = Value
 
-  implicit val GroupTypeMapper = MappedColumnType.base[GroupType, String](gt => gt.toString, s => GroupType.withName(s))
+  implicit val groupTypeMapper = MappedColumnType.base[GroupType, String](_.toString, GroupType.withName)
 
-  implicit val JsonEncoder = Encoder.enumEncoder(GroupType)
-  implicit val JsonDecoder = Decoder.enumDecoder(GroupType)
+  implicit val groupTypeEncoder: Encoder[GroupType] = Encoder.enumEncoder(GroupType)
+  implicit val groupTypeDecoder: Decoder[GroupType] = Decoder.enumDecoder(GroupType)
 
   implicit val groupTypeUnmarshaller: Unmarshaller[String, GroupType] = Unmarshaller.strict(GroupType.withName)
 }
@@ -43,38 +44,8 @@ object Group {
   final case class GroupId(uuid: UUID) extends UUIDKey
   object GroupId                       extends UUIDKeyObj[GroupId]
 
-  case class ValidName()
-  type Name = Refined[String, ValidName]
-
-  implicit val validGroupName: Validate.Plain[String, ValidName] =
-    Validate.fromPredicate(
-      name => name.length > 1 && name.length <= 100,
-      name => s"($name should be between two and a hundred alphanumeric characters long.)",
-      ValidName()
-    )
-
-  case class ValidExpression()
-  type GroupExpression = Refined[String, ValidExpression]
-
-  implicit val validGroupExpression: Validate.Plain[String, ValidExpression] =
-    Validate.fromPartial(
-      expression => {
-        if (expression.length < 1 || expression.length > 200)
-          throw new IllegalArgumentException("The expression is too small or too big.")
-
-        GroupExpressionParser.parse(expression) match {
-          case Left(err) => throw err
-          case Right(_)  => expression
-        }
-      },
-       "group expression",
-      ValidExpression()
-    )
-
-  implicit val EncoderInstance = {
-    import com.advancedtelematic.libats.codecs.CirceCodecs._
-    io.circe.generic.semiauto.deriveEncoder[Group]
-  }
+  implicit val groupEncoder: Encoder[Group] = deriveEncoder[Group]
+  implicit val groupDecoder: Decoder[Group] = deriveDecoder[Group]
 }
 
 object SortBy {

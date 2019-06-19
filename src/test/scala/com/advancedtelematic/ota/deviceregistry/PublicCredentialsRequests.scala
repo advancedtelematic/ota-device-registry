@@ -11,14 +11,15 @@ package com.advancedtelematic.ota.deviceregistry
 import java.util.Base64
 
 import akka.http.scaladsl.model.{HttpRequest, StatusCodes}
-import com.advancedtelematic.ota.deviceregistry.data.CredentialsType.CredentialsType
+import com.advancedtelematic.libats.data.ValidationError
+import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
 import com.advancedtelematic.ota.deviceregistry.PublicCredentialsResource.FetchPublicCredentials
-import eu.timepit.refined.api.Refined
+import com.advancedtelematic.ota.deviceregistry.data.Codecs._
+import com.advancedtelematic.ota.deviceregistry.data.CredentialsType.CredentialsType
+import com.advancedtelematic.ota.deviceregistry.data.DataType.DeviceT
+import com.advancedtelematic.ota.deviceregistry.data.DeviceName.validatedDeviceType
 
 import scala.concurrent.ExecutionContext
-import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
-import com.advancedtelematic.ota.deviceregistry.data.Codecs._
-import com.advancedtelematic.ota.deviceregistry.data.DataType.DeviceT
 
 trait PublicCredentialsRequests { self: ResourceSpec =>
   import StatusCodes._
@@ -27,8 +28,8 @@ trait PublicCredentialsRequests { self: ResourceSpec =>
 
   private val credentialsApi = "devices"
 
-  private lazy val base64Decoder = Base64.getDecoder()
-  private lazy val base64Encoder = Base64.getEncoder()
+  private lazy val base64Decoder = Base64.getDecoder
+  private lazy val base64Encoder = Base64.getEncoder
 
   def fetchPublicCredentials(device: DeviceId): HttpRequest = {
     import cats.syntax.show._
@@ -48,13 +49,9 @@ trait PublicCredentialsRequests { self: ResourceSpec =>
 
   def updatePublicCredentials(device: DeviceOemId, creds: Array[Byte], cType: Option[CredentialsType])
                              (implicit ec: ExecutionContext): HttpRequest = {
-    val devT = DeviceT(
-      None,
-      Refined.unsafeApply(device.underlying),
-      device,
-      credentials = Some(base64Encoder.encodeToString(creds)),
-      credentialsType = cType)
-    createDeviceWithCredentials(devT)
+    val devT = validatedDeviceType.from(device.underlying)
+      .map(DeviceT(None, _, device, DeviceType.Other, Some(base64Encoder.encodeToString(creds)), cType))
+    createDeviceWithCredentials(devT.right.get)
   }
 
   def updatePublicCredentialsOk(device: DeviceOemId, creds: Array[Byte], cType: Option[CredentialsType] = None)

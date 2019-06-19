@@ -2,7 +2,6 @@ package com.advancedtelematic.ota.deviceregistry.data
 
 import io.circe.{Decoder, Encoder}
 import com.advancedtelematic.libats.codecs.CirceAnyVal.{anyValStringEncoder, anyValStringDecoder}
-import com.advancedtelematic.libats.codecs.CirceCodecs.{refinedDecoder, refinedEncoder}
 import com.advancedtelematic.ota.deviceregistry.data.DataType.{DeviceT, InstallationStat, UpdateDevice}
 
 object Codecs {

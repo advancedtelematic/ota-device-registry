@@ -11,7 +11,6 @@ package com.advancedtelematic.ota.deviceregistry
 import java.time.{Instant, OffsetDateTime}
 
 import akka.actor.ActorSystem
-import akka.http.scaladsl.marshalling.{Marshaller, ToResponseMarshaller}
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.headers._
 import akka.http.scaladsl.server._
@@ -20,8 +19,9 @@ import akka.stream.ActorMaterializer
 import cats.syntax.either._
 import cats.syntax.show._
 import com.advancedtelematic.libats.auth.{AuthedNamespaceScope, Scopes}
-import com.advancedtelematic.libats.data.DataType.{CorrelationId, Namespace, ResultCode, ResultDescription}
+import com.advancedtelematic.libats.data.DataType.{CorrelationId, Namespace, ResultCode}
 import com.advancedtelematic.libats.http.UUIDKeyAkka._
+import com.advancedtelematic.libats.http.ValidatedGenericMarshalling.validatedStringUnmarshaller
 import com.advancedtelematic.libats.messaging.MessageBusPublisher
 import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId._
 import com.advancedtelematic.libats.messaging_datatype.DataType.{DeviceId, Event, EventType}
@@ -33,13 +33,11 @@ import com.advancedtelematic.ota.deviceregistry.data.Codecs._
 import com.advancedtelematic.ota.deviceregistry.data.DataType.InstallationStatsLevel.InstallationStatsLevel
 import com.advancedtelematic.ota.deviceregistry.data.DataType.{DeviceT, InstallationStatsLevel, SearchParams, UpdateDevice}
 import com.advancedtelematic.ota.deviceregistry.data.Device.{ActiveDeviceCount, DeviceOemId}
-import com.advancedtelematic.ota.deviceregistry.data.Group.{GroupExpression, GroupId}
+import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
 import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
-import com.advancedtelematic.ota.deviceregistry.data.PackageId
+import com.advancedtelematic.ota.deviceregistry.data.{GroupExpression, PackageId}
 import com.advancedtelematic.ota.deviceregistry.db._
 import com.advancedtelematic.ota.deviceregistry.messages.{DeleteDeviceRequest, DeviceCreated}
-import eu.timepit.refined.api.Refined
-import eu.timepit.refined.string.Regex
 import io.circe.Json
 import slick.jdbc.MySQLProfile.api._
 
@@ -71,7 +69,6 @@ class DevicesResource(
   import Directives._
   import StatusCodes._
   import com.advancedtelematic.libats.http.AnyvalMarshallingSupport._
-  import com.advancedtelematic.libats.http.RefinedMarshallingSupport._
   import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
 
   val extractPackageId: Directive1[PackageId] =
@@ -153,8 +150,8 @@ class DevicesResource(
     complete(db.run(InstalledPackages.getDevicesCount(pkg, ns)))
 
   def listPackagesOnDevice(device: DeviceId): Route =
-    parameters(('regex.as[String Refined Regex].?, 'offset.as[Long].?, 'limit.as[Long].?)) { (regex, offset, limit) =>
-      complete(db.run(InstalledPackages.installedOn(device, regex, offset, limit)))
+    parameters(('nameContains.as[String].?, 'offset.as[Long].?, 'limit.as[Long].?)) { (nameContains, offset, limit) =>
+      complete(db.run(InstalledPackages.installedOn(device, nameContains, offset, limit)))
     }
 
   implicit def offsetDateTimeUnmarshaller: FromStringUnmarshaller[OffsetDateTime] =

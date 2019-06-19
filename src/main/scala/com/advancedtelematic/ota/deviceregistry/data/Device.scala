@@ -15,9 +15,8 @@ import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
 import cats.Show
 import cats.syntax.show._
 import com.advancedtelematic.libats.data.DataType.Namespace
-import com.advancedtelematic.ota.deviceregistry.data.Device.{DeviceName, DeviceOemId, DeviceType}
+import com.advancedtelematic.ota.deviceregistry.data.Device.{DeviceOemId, DeviceType}
 import com.advancedtelematic.ota.deviceregistry.data.DeviceStatus._
-import eu.timepit.refined.api.{Refined, Validate}
 import io.circe.{Decoder, Encoder}
 
 final case class Device(namespace: Namespace,
@@ -34,15 +33,6 @@ object Device {
 
   final case class DeviceOemId(underlying: String) extends AnyVal
   implicit val showDeviceOemId: Show[DeviceOemId] = deviceId => deviceId.underlying
-
-  case class ValidDeviceName()
-  type DeviceName = Refined[String, ValidDeviceName]
-  implicit val validDeviceName: Validate.Plain[String, ValidDeviceName] =
-    Validate.fromPredicate(
-      name => name.length < 200,
-      name => s"$name is not a valid DeviceName since it is longer than 200 characters",
-      ValidDeviceName()
-    )
 
   type DeviceType = DeviceType.DeviceType
 

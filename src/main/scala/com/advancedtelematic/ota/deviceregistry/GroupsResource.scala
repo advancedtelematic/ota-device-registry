@@ -11,33 +11,34 @@ package com.advancedtelematic.ota.deviceregistry
 import akka.http.scaladsl.marshalling.Marshaller._
 import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.server._
-import akka.http.scaladsl.unmarshalling.Unmarshaller
+import akka.http.scaladsl.unmarshalling.{FromStringUnmarshaller, Unmarshaller}
+import cats.syntax.either._
 import com.advancedtelematic.libats.auth.{AuthedNamespaceScope, Scopes}
 import com.advancedtelematic.libats.data.DataType.Namespace
-import com.advancedtelematic.ota.deviceregistry.data.Group.{GroupExpression, GroupId, Name}
+import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
+import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
 import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
 import com.advancedtelematic.ota.deviceregistry.data.SortBy.SortBy
 import com.advancedtelematic.ota.deviceregistry.data._
 import com.advancedtelematic.ota.deviceregistry.db.GroupInfoRepository
+import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
 import io.circe.{Decoder, Encoder}
 import slick.jdbc.MySQLProfile.api._
 
 import scala.concurrent.{ExecutionContext, Future}
-import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
 
 class GroupsResource(namespaceExtractor: Directive1[AuthedNamespaceScope], deviceNamespaceAuthorizer: Directive1[DeviceId])
                     (implicit ec: ExecutionContext, db: Database) extends Directives {
-
-  import com.advancedtelematic.libats.http.RefinedMarshallingSupport._
-  import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
 
   private val GroupIdPath = {
     def groupAllowed(groupId: GroupId): Future[Namespace] = db.run(GroupInfoRepository.groupInfoNamespace(groupId))
     AllowUUIDPath(GroupId)(namespaceExtractor, groupAllowed)
   }
 
-  implicit val groupTypeParamUnmarshaller: Unmarshaller[String, GroupType] = Unmarshaller.strict[String, GroupType](GroupType.withName)
-  implicit val sortByUnmarshaller: Unmarshaller[String, SortBy] = Unmarshaller.strict {
+  implicit val groupTypeUnmarshaller: FromStringUnmarshaller[GroupType] = Unmarshaller.strict(GroupType.withName)
+  implicit val groupNameUnmarshaller: FromStringUnmarshaller[GroupName] = Unmarshaller.strict(GroupName.validatedGroupName.from(_).valueOr(throw _))
+
+  implicit val sortByUnmarshaller: FromStringUnmarshaller[SortBy] = Unmarshaller.strict {
     _.toLowerCase match {
       case "name"      => SortBy.Name
       case "createdat" => SortBy.CreatedAt
@@ -58,13 +59,13 @@ class GroupsResource(namespaceExtractor: Directive1[AuthedNamespaceScope], devic
   def getGroup(groupId: GroupId): Route =
     complete(db.run(GroupInfoRepository.findByIdAction(groupId)))
 
-  def createGroup(groupName: Name,
+  def createGroup(groupName: GroupName,
                   namespace: Namespace,
                   groupType: GroupType,
                   expression: Option[GroupExpression]): Route =
     complete(StatusCodes.Created -> groupMembership.create(groupName, namespace, groupType, expression))
 
-  def renameGroup(groupId: GroupId, newGroupName: Name): Route =
+  def renameGroup(groupId: GroupId, newGroupName: GroupName): Route =
     complete(db.run(GroupInfoRepository.renameGroup(groupId, newGroupName)))
 
   def countDevices(groupId: GroupId): Route =
@@ -102,7 +103,7 @@ class GroupsResource(namespaceExtractor: Directive1[AuthedNamespaceScope], devic
             }
           }
         } ~
-        (scope.put & path("rename") & parameter('groupName.as[Name])) { groupName =>
+        (scope.put & path("rename") & parameter('groupName.as[GroupName])) { groupName =>
           renameGroup(groupId, groupName)
         } ~
         (scope.get & path("count") & pathEnd) {
@@ -112,12 +113,11 @@ class GroupsResource(namespaceExtractor: Directive1[AuthedNamespaceScope], devic
     }
 }
 
-case class CreateGroup(name: Group.Name, groupType: GroupType, expression: Option[GroupExpression])
+case class CreateGroup(name: GroupName, groupType: GroupType, expression: Option[GroupExpression])
 
 object CreateGroup {
   import GroupType._
   import com.advancedtelematic.circe.CirceInstances._
-  import com.advancedtelematic.libats.codecs.CirceRefined._
   import io.circe.generic.semiauto._
 
   implicit val createGroupEncoder: Encoder[CreateGroup] = deriveEncoder
