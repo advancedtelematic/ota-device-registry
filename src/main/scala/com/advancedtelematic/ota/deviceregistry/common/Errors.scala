@@ -31,6 +31,7 @@ object Errors {
     val CannotRemoveDeviceFromDynamicGroup = ErrorCode("cannot_remove_device_from_dynamic_group")
     val InvalidGroupExpressionForGroupType = ErrorCode("invalid_group_expression_for_group_type")
     val InvalidGroupExpression             = ErrorCode("invalid_group_expression")
+    val MalformedInput                     = ErrorCode("malformed_input")
   }
 
   def InvalidGroupExpression(err: String) = RawError(Codes.InvalidGroupExpression, StatusCodes.BadRequest, s"Invalid group expression: '$err'")
@@ -61,4 +62,6 @@ object Errors {
     RawError(Codes.CannotRemoveDeviceFromDynamicGroup,
              StatusCodes.BadRequest,
              "cannot remove device from dynamic group")
+
+  val MalformedInputFile = RawError(Codes.MalformedInput, StatusCodes.BadRequest, "The file cannot be read because it is malformed.")
 }

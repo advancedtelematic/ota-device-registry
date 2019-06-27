@@ -15,7 +15,8 @@ import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
 import org.scalacheck.Arbitrary._
 import org.scalacheck.Gen
 import akka.http.scaladsl.model.StatusCodes._
-import com.advancedtelematic.libats.data.PaginationResult
+import com.advancedtelematic.libats.data.{ErrorRepresentation, PaginationResult}
+import com.advancedtelematic.ota.deviceregistry.common.Errors.Codes.MalformedInput
 import org.scalatest.FunSuite
 import org.scalatest.concurrent.ScalaFutures
 
@@ -249,6 +250,16 @@ class GroupsResourceSpec extends FunSuite with ResourceSpec with ScalaFutures {
       val groupId = responseAs[GroupId]
       val uuidsInGroup = new GroupMembership().listDevices(groupId, Some(0L), Some(deviceTs.size.toLong)).futureValue.values
       uuidsInGroup shouldBe empty
+    }
+  }
+
+  test("creating a static group from a file fails with 400 if the file is not properly formatted") {
+    val groupName = genGroupName().sample.get
+    val deviceTs = Gen.listOf(genDeviceT).sample.get
+
+    importGroup(groupName, deviceTs.map(_.deviceId), malformed = true) ~> route ~> check {
+      status shouldEqual BadRequest
+      responseAs[ErrorRepresentation].code shouldBe MalformedInput
     }
   }
 

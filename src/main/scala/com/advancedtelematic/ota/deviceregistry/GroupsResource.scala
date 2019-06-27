@@ -12,13 +12,16 @@ import akka.http.scaladsl.marshalling.Marshaller._
 import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.server._
 import akka.http.scaladsl.unmarshalling.{FromStringUnmarshaller, Unmarshaller}
+import akka.http.scaladsl.util.FastFuture
 import akka.stream.ActorMaterializer
+import akka.stream.scaladsl.Framing.FramingException
 import akka.stream.scaladsl.{Framing, Sink, Source}
 import akka.util.ByteString
 import cats.syntax.either._
 import com.advancedtelematic.libats.auth.{AuthedNamespaceScope, Scopes}
 import com.advancedtelematic.libats.data.DataType.Namespace
 import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
+import com.advancedtelematic.ota.deviceregistry.common.Errors
 import com.advancedtelematic.ota.deviceregistry.data.Device.DeviceOemId
 import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
 import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
@@ -85,6 +88,10 @@ class GroupsResource(namespaceExtractor: Directive1[AuthedNamespaceScope], devic
       .runWith(Sink.seq)
       .flatMap(dbActions => db.run(DBIO.sequence(dbActions)))
       .map(_.flatten)
+      .recoverWith {
+        case _: FramingException =>
+          FastFuture.failed(Errors.MalformedInputFile)
+      }
 
     val createGroupAndAddDevices =
       for {
@@ -155,8 +162,6 @@ class GroupsResource(namespaceExtractor: Directive1[AuthedNamespaceScope], devic
 case class CreateGroup(name: GroupName, groupType: GroupType, expression: Option[GroupExpression])
 
 object CreateGroup {
-  import GroupType._
-  import com.advancedtelematic.circe.CirceInstances._
   import io.circe.generic.semiauto._
 
   implicit val createGroupEncoder: Encoder[CreateGroup] = deriveEncoder
