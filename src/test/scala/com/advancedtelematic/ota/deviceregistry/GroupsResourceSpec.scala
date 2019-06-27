@@ -17,8 +17,9 @@ import org.scalacheck.Gen
 import akka.http.scaladsl.model.StatusCodes._
 import com.advancedtelematic.libats.data.PaginationResult
 import org.scalatest.FunSuite
+import org.scalatest.concurrent.ScalaFutures
 
-class GroupsResourceSpec extends FunSuite with ResourceSpec {
+class GroupsResourceSpec extends FunSuite with ResourceSpec with ScalaFutures {
   import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
 
   private val limit = 30
@@ -210,6 +211,44 @@ class GroupsResourceSpec extends FunSuite with ResourceSpec {
       status shouldBe OK
       val devices = responseAs[PaginationResult[DeviceId]]
       devices.values.contains(deviceId) shouldBe false
+    }
+  }
+
+  test("creates a static group from a file") {
+    val groupName = genGroupName().sample.get
+    val deviceTs = Gen.listOf(genDeviceT).sample.get
+    val uuidsCreated = deviceTs.map(createDeviceOk)
+
+    importGroup(groupName, deviceTs.map(_.deviceId)) ~> route ~> check {
+      status shouldEqual Created
+      val groupId = responseAs[GroupId]
+      val uuidsInGroup = new GroupMembership().listDevices(groupId, Some(0L), Some(deviceTs.size.toLong)).futureValue.values
+      uuidsInGroup should contain allElementsOf uuidsCreated
+    }
+  }
+
+  test("creates a static group from a file even when containing more than FILTER_EXISTING_DEVICES_BATCH_SIZE deviceIds") {
+    val groupName = genGroupName().sample.get
+    val deviceTs = Gen.listOfN(500, genDeviceT).sample.get
+    val uuidsCreated = deviceTs.map(createDeviceOk)
+
+    importGroup(groupName, deviceTs.map(_.deviceId)) ~> route ~> check {
+      status shouldEqual Created
+      val groupId = responseAs[GroupId]
+      val uuidsInGroup = new GroupMembership().listDevices(groupId, Some(0L), Some(deviceTs.size.toLong)).futureValue.values
+      uuidsInGroup should contain allElementsOf uuidsCreated
+    }
+  }
+
+  test("creates a static group from a file but doesn't add devices if they're not provisioned") {
+    val groupName = genGroupName().sample.get
+    val deviceTs = Gen.listOf(genDeviceT).sample.get
+
+    importGroup(groupName, deviceTs.map(_.deviceId)) ~> route ~> check {
+      status shouldEqual Created
+      val groupId = responseAs[GroupId]
+      val uuidsInGroup = new GroupMembership().listDevices(groupId, Some(0L), Some(deviceTs.size.toLong)).futureValue.values
+      uuidsInGroup shouldBe empty
     }
   }
 
