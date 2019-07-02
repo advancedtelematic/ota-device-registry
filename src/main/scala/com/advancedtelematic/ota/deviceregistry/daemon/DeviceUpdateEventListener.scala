@@ -4,11 +4,11 @@ import akka.Done
 import com.advancedtelematic.ota.deviceregistry.data.DeviceStatus
 import com.advancedtelematic.ota.deviceregistry.data.DeviceStatus.DeviceStatus
 import com.advancedtelematic.ota.deviceregistry.db.DeviceRepository
-import com.advancedtelematic.libats.data.DataType.Namespace
+import com.advancedtelematic.libats.data.DataType.{CorrelationId, Namespace}
 import com.advancedtelematic.libats.messaging.MessageBusPublisher
 import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
 import com.advancedtelematic.libats.messaging_datatype.MessageCodecs.deviceUpdateCompletedEncoder
-import com.advancedtelematic.libats.messaging_datatype.Messages.{DeviceUpdateAssigned, DeviceUpdateCanceled, DeviceUpdateCompleted, DeviceUpdateEvent}
+import com.advancedtelematic.libats.messaging_datatype.Messages.{DeviceUpdateAssigned, DeviceUpdateAssignmentRejected, DeviceUpdateAssignmentRequested, DeviceUpdateCancelRequested, DeviceUpdateCanceled, DeviceUpdateCompleted, DeviceUpdateEvent}
 import com.advancedtelematic.libats.messaging_datatype.MessageLike
 import com.advancedtelematic.ota.deviceregistry.db.InstallationReportRepository
 import com.advancedtelematic.ota.deviceregistry.daemon.DeviceUpdateStatus._
@@ -38,6 +38,7 @@ import scala.concurrent.{ExecutionContext, Future}
 class DeviceUpdateEventListener(messageBus: MessageBusPublisher)(implicit val db: Database, ec: ExecutionContext) extends (DeviceUpdateEvent => Future[Unit]) {
 
   private val _log = LoggerFactory.getLogger(this.getClass)
+  case class Unhandleable(name: String, deviceUuid: DeviceId, correlationId: CorrelationId) extends Exception()
 
   override def apply(event: DeviceUpdateEvent): Future[Unit] = {
     handleEvent(event)
@@ -46,12 +47,15 @@ class DeviceUpdateEventListener(messageBus: MessageBusPublisher)(implicit val db
         case Errors.MissingDevice =>
           _log.warn(s"Device ${event.deviceUuid} does not exist ($event)")
           FastFuture.successful(())
+        case Unhandleable(name, deviceUuid, correlationId) =>
+          _log.error(s"Got message '$name' from device $deviceUuid, correlationId $correlationId and don't know how to handle it")
+          FastFuture.successful(())
       }
   }
 
   private def handleEvent(event: DeviceUpdateEvent): Future[DeviceStatus] = event match {
-    case msg: DeviceUpdateAssigned  => Future.successful(DeviceStatus.Outdated)
-    case msg: DeviceUpdateCanceled  => Future.successful(DeviceStatus.UpToDate)
+    case   _: DeviceUpdateAssigned  => Future.successful(DeviceStatus.Outdated)
+    case   _: DeviceUpdateCanceled  => Future.successful(DeviceStatus.UpToDate)
     case msg: DeviceUpdateCompleted => db.run {
       InstallationReportRepository
         .saveInstallationResults(
@@ -59,6 +63,8 @@ class DeviceUpdateEventListener(messageBus: MessageBusPublisher)(implicit val db
           msg.eventTime, msg.asJson)
         .map(_ => if (msg.result.success) DeviceStatus.UpToDate else DeviceStatus.Error)
     }
+    case msg: DeviceUpdateEvent =>
+      FastFuture.failed(Unhandleable(msg.getClass.getSimpleName, msg.deviceUuid, msg.correlationId))
   }
 
   def setDeviceStatus(deviceUuid: DeviceId, deviceStatus: DeviceStatus) = {
