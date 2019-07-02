@@ -24,7 +24,7 @@ lazy val `ota-device-registry` =
       libraryDependencies += "org.tpolecat" %% "atto-core" % "0.6.2"
     )
     .settings(libraryDependencies ++= library.libAts)
-    .settings(dependencyOverrides += "com.typesafe.akka" %% "akka-stream-kafka" % "1.0.4")
+    .settings(dependencyOverrides += "com.typesafe.akka" %% "akka-stream-kafka" % "0.19")
 
 // *****************************************************************************
 // Library dependencies
