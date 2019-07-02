@@ -17,12 +17,14 @@ lazy val `ota-device-registry` =
         library.scalaCheck % Test,
         library.scalaTest  % Test,
         library.akkaHttpTestKit % Test,
-        library.circeTesting % Test
+        library.circeTesting % Test,
+        library.akkaStreamTestKit % Test,
+        library.akkaSlf4J
       ),
       libraryDependencies += "org.tpolecat" %% "atto-core" % "0.6.2"
     )
     .settings(libraryDependencies ++= library.libAts)
-    .settings(dependencyOverrides += "com.typesafe.akka" %% "akka-stream-kafka" % "0.18")
+    .settings(dependencyOverrides += "com.typesafe.akka" %% "akka-stream-kafka" % "1.0.4")
 
 // *****************************************************************************
 // Library dependencies
@@ -33,10 +35,11 @@ lazy val library =
     object Version {
       val scalaCheck = "1.13.5"
       val scalaTest  = "3.0.4"
-      val libAts     = "0.3.0-8-gbef7cd7"
+      val libAts     = "0.3.0-16-gaa02547"
+      val akka = "2.5.23"
       val akkaHttp = "10.0.10"
       val mariaDb = "1.4.4"
-      val circe = "0.9.1"
+      val circe = "0.11.1"
     }
     val scalaCheck = "org.scalacheck" %% "scalacheck" % Version.scalaCheck
     val scalaTest  = "org.scalatest"  %% "scalatest"  % Version.scalaTest
@@ -53,8 +56,10 @@ lazy val library =
       "libats-logging"
     ).map("com.advancedtelematic" %% _ % Version.libAts)
     val akkaHttpTestKit = "com.typesafe.akka" %% "akka-http-testkit" % Version.akkaHttp
+    val akkaStreamTestKit = "com.typesafe.akka" %% "akka-stream-testkit" % Version.akka
     val mariaDb = "org.mariadb.jdbc" % "mariadb-java-client" % Version.mariaDb
     val circeTesting = "io.circe" %% "circe-testing" % Version.circe
+    val akkaSlf4J = "com.typesafe.akka" %% "akka-slf4j" % Version.akka
   }
 
 // *****************************************************************************
@@ -71,7 +76,7 @@ flywaySettings
 
 lazy val commonSettings =
   Seq(
-    scalaVersion := "2.12.4",
+    scalaVersion := "2.12.8",
     organization := "com.advancedtelematic",
     organizationName := "ATS Advanced Telematic Systems GmbH",
     name := "device-registry",
