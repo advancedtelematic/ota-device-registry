@@ -10,7 +10,7 @@ package com.advancedtelematic.ota.deviceregistry.db
 
 import java.time.Instant
 
-import com.advancedtelematic.libats.test.DatabaseSpec
+import com.advancedtelematic.libats.test.{DatabaseSpec, LongTest}
 import com.advancedtelematic.libats.slick.db.SlickUUIDKey._
 import com.advancedtelematic.ota.deviceregistry.data.DeviceGenerators.{genDeviceId, genDeviceT}
 import com.advancedtelematic.ota.deviceregistry.data.DataType.DeletedDevice
@@ -24,7 +24,7 @@ import slick.jdbc.MySQLProfile.api._
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
-class DeviceRepositorySpec extends FunSuite with DatabaseSpec with ScalaFutures with Matchers {
+class DeviceRepositorySpec extends FunSuite with DatabaseSpec with ScalaFutures with Matchers with LongTest {
 
   test("updateLastSeen sets activated_at the first time only") {
 
