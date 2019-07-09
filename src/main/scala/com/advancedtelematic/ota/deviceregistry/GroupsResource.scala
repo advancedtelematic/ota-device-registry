@@ -79,13 +79,17 @@ class GroupsResource(namespaceExtractor: Directive1[AuthedNamespaceScope], devic
                              namespace: Namespace,
                              byteSource: Source[ByteString, Any])
                             (implicit materializer: ActorMaterializer): Route = {
-    val deviceUuids = byteSource
+
+    val deviceIds = byteSource
       .via(Framing.delimiter(ByteString("\n"), DEVICE_OEM_ID_MAX_BYTES, allowTruncation = true))
-      .map(_.utf8String.toString)
+      .map(_.utf8String)
       .map(DeviceOemId)
-      .batch(FILTER_EXISTING_DEVICES_BATCH_SIZE, Set(_))(_ + _)
-      .map(DeviceRepository.filterExisting(namespace, _))
       .runWith(Sink.seq)
+
+    val deviceUuids = deviceIds
+      .map(_.grouped(FILTER_EXISTING_DEVICES_BATCH_SIZE).toSeq)
+      .map(_.map(_.toSet))
+      .map(_.map(DeviceRepository.filterExisting(namespace, _)))
       .flatMap(dbActions => db.run(DBIO.sequence(dbActions)))
       .map(_.flatten)
       .recoverWith {
