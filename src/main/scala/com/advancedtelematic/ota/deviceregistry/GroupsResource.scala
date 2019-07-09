@@ -80,7 +80,7 @@ class GroupsResource(namespaceExtractor: Directive1[AuthedNamespaceScope], devic
                              byteSource: Source[ByteString, Any])
                             (implicit materializer: ActorMaterializer): Route = {
     val deviceUuids = byteSource
-      .via(Framing.delimiter(ByteString("\n"), DEVICE_OEM_ID_MAX_BYTES))
+      .via(Framing.delimiter(ByteString("\n"), DEVICE_OEM_ID_MAX_BYTES, allowTruncation = true))
       .map(_.utf8String.toString)
       .map(DeviceOemId)
       .batch(FILTER_EXISTING_DEVICES_BATCH_SIZE, Set(_))(_ + _)

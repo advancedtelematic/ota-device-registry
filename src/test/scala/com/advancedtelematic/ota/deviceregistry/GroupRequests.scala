@@ -70,12 +70,11 @@ trait GroupRequests {
     Post(Resource.uri(groupsApi), CreateGroup(name, groupType, expr))
   }
 
-  def importGroup(groupName: GroupName, oemIds: Seq[DeviceOemId], malformed: Boolean = false): HttpRequest = {
-    val endString = if (malformed) "" else "\n"
+  def importGroup(groupName: GroupName, oemIds: Seq[DeviceOemId]): HttpRequest = {
     val multipartForm = Multipart.FormData(
       Multipart.FormData.BodyPart.Strict(
         "deviceIds",
-        HttpEntity(ContentTypes.`text/csv(UTF-8)`, oemIds.map(_.underlying).mkString("", "\n", endString)),
+        HttpEntity(ContentTypes.`text/csv(UTF-8)`, oemIds.map(_.underlying).mkString("\n")),
         Map("filename" -> "vins.csv")))
     Post(Resource.uri(groupsApi).withQuery(Query("groupName" -> groupName.value)), multipartForm)
   }
