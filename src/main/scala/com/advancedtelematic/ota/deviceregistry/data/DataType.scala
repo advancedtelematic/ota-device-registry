@@ -21,7 +21,18 @@ object DataType {
   object IndexedEventType extends Enumeration {
     type IndexedEventType = Value
 
-    val DownloadComplete, InstallationComplete = Value
+    val DownloadComplete,
+        EcuDownloadStarted,
+        EcuDownloadCompleted,
+        EcuInstallationStarted,
+        EcuInstallationApplied,
+        EcuInstallationCompleted,
+        DevicePaused,
+        DeviceResumed,
+        CampaignAccepted,
+        CampaignDeclined,
+        CampaignPostponed,
+        InstallationComplete = Value
   }
 
   object InstallationStatsLevel {
