@@ -125,7 +125,7 @@ object InstallationReportRepository {
                               (implicit ec: ExecutionContext): DBIO[PaginationResult[Json]] =
     deviceInstallationResults
       .filter(_.deviceUuid === deviceId)
-      .sortBy(_.receivedAt.asc)
+      .sortBy(_.receivedAt.desc)
       .map(_.installationReport)
       .paginateResult(offset.orDefaultOffset, limit.orDefaultLimit)
 
