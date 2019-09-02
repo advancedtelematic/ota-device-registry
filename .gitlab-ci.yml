@@ -30,7 +30,7 @@ test:
     - mysqladmin ping --protocol=TCP -h db -P 3306 -u device_registry -pdevice_registry
     - mysql -v -h db -u root -proot < db_user.sql
   script:
-    - ./sbt -no-colors -sbt-dir ./.sbt -ivy ./.ivy2 -J-Xmx1G -J-XX:ReservedCodeCacheSize=128m test
+    - ./sbt -sbt-dir ./.sbt -ivy ./.ivy2 -J-Xmx1G -J-XX:ReservedCodeCacheSize=128m test
   cache:
     paths:
       - .ivy2/
