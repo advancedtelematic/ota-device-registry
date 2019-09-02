@@ -21,8 +21,8 @@ import com.advancedtelematic.libats.http.tracing.Tracing
 import com.advancedtelematic.libats.messaging._
 import com.advancedtelematic.libats.messaging.daemon.MessageBusListenerActor.Subscribe
 import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
-import com.advancedtelematic.libats.messaging_datatype.Messages.{DeviceEventMessage, DeviceUpdateEvent, DeviceSeen}
-import com.advancedtelematic.libats.slick.db.{BootMigrations, DatabaseConfig}
+import com.advancedtelematic.libats.messaging_datatype.Messages.{DeviceEventMessage, DeviceSeen, DeviceUpdateEvent}
+import com.advancedtelematic.libats.slick.db.{BootMigrations, CheckMigrations, DatabaseConfig}
 import com.advancedtelematic.libats.slick.monitoring.{DatabaseMetrics, DbHealthResource}
 import com.advancedtelematic.metrics.prometheus.PrometheusMetricsSupport
 import com.advancedtelematic.metrics.{AkkaHttpRequestMetrics, InfluxdbMetricsReporterSupport}
@@ -61,6 +61,7 @@ class DeviceRegistryRoutes(
 object Boot extends BootApp
   with AkkaHttpRequestMetrics
   with BootMigrations
+  with CheckMigrations
   with DatabaseConfig
   with DatabaseMetrics
   with Directives

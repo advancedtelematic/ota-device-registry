@@ -35,7 +35,7 @@ lazy val library =
     object Version {
       val scalaCheck = "1.13.5"
       val scalaTest  = "3.0.4"
-      val libAts     = "0.3.0-20-gd75cceb"
+      val libAts     = "0.3.0-38-g6acedb6"
       val akka = "2.5.23"
       val akkaHttp = "10.1.8"
       val mariaDb = "1.4.4"
@@ -103,8 +103,9 @@ import com.typesafe.sbt.packager.docker.Cmd
 lazy val dockerSettings = Seq(
   dockerRepository := Some("advancedtelematic"),
   packageName := packageName.value,
-  dockerUpdateLatest := true,
   dockerBaseImage := "advancedtelematic/alpine-jre:adoptopenjdk-jdk8u222",
+  dockerUpdateLatest := false,
+  dockerAliases ++= Seq(dockerAlias.value.withTag(git.formattedShaVersion.value)),
   dockerCommands ++= Seq(
     Cmd("USER", "root"),
     Cmd("USER", (daemonUser in Docker).value)
