@@ -40,7 +40,6 @@ build docker image:
   stage: build image
   only:
     - master
-    - /^deploy\/.*/
   tags:
     - docker-sock
   variables:
