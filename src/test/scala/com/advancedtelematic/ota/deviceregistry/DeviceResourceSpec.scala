@@ -808,4 +808,20 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
     }
   }
 
+  property("finds all the devices sorted by name") {
+    listDevices(Some(SortBy.Name)) ~> route ~> check {
+      status shouldBe OK
+      val devices = responseAs[PaginationResult[Device]].values
+      devices shouldBe devices.sortBy(_.deviceName.value)
+    }
+  }
+
+  property("finds all the devices sorted by creation date") {
+    listDevices(Some(SortBy.CreatedAt)) ~> route ~> check {
+      status shouldBe OK
+      val devices = responseAs[PaginationResult[Device]].values
+      devices.map(_.createdAt) shouldBe devices.sortBy(_.createdAt).map(_.createdAt).reverse
+    }
+  }
+
 }

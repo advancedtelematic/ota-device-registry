@@ -3,7 +3,7 @@ package com.advancedtelematic.ota.deviceregistry.data
 import java.time.Instant
 
 import cats.Show
-import com.advancedtelematic.libats.data.DataType.{CorrelationId, ResultCode, Namespace}
+import com.advancedtelematic.libats.data.DataType.{CorrelationId, Namespace, ResultCode}
 import com.advancedtelematic.libats.data.EcuIdentifier
 import com.advancedtelematic.libats.messaging_datatype.DataType.{DeviceId, Event}
 import com.advancedtelematic.ota.deviceregistry.data.CredentialsType.CredentialsType
@@ -11,6 +11,7 @@ import com.advancedtelematic.ota.deviceregistry.data.DataType.IndexedEventType.I
 import com.advancedtelematic.ota.deviceregistry.data.Device.{DeviceOemId, DeviceType}
 import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
 import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
+import com.advancedtelematic.ota.deviceregistry.data.SortBy.SortBy
 import io.circe.Json
 
 object DataType {
@@ -62,8 +63,15 @@ object DataType {
   final case class DeviceInstallationResult(correlationId: CorrelationId, resultCode: ResultCode, deviceId: DeviceId, success: Boolean, receivedAt: Instant, installationReport: Json)
   final case class EcuInstallationResult(correlationId: CorrelationId, resultCode: ResultCode, deviceId: DeviceId, ecuId: EcuIdentifier, success: Boolean)
 
-  final case class SearchParams(oemId: Option[DeviceOemId], grouped: Option[Boolean], groupType: Option[GroupType],
-                          groupId: Option[GroupId], nameContains: Option[String], offset: Option[Long], limit: Option[Long]) {
+  final case class SearchParams(oemId: Option[DeviceOemId],
+                                grouped: Option[Boolean],
+                                groupType: Option[GroupType],
+                                groupId: Option[GroupId],
+                                nameContains: Option[String],
+                                sortBy: Option[SortBy],
+                                offset: Option[Long],
+                                limit: Option[Long],
+                               ) {
     if (oemId.isDefined) {
       require(groupId.isEmpty, "Invalid parameters: groupId must be empty when searching by deviceId.")
       require(nameContains.isEmpty, "Invalid parameters: nameContains must be empty when searching by deviceId.")
