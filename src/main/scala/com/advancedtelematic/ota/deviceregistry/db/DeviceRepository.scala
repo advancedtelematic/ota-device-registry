@@ -116,6 +116,13 @@ object DeviceRepository {
     .map(_.uuid)
     .result
 
+  def findNotSeen(ns: Namespace): DBIO[Seq[DeviceId]] =
+    devices
+      .filter(_.namespace === ns)
+      .filter(_.deviceStatus === DeviceStatus.NotSeen)
+      .map(_.uuid)
+      .result
+
   def findByDeviceIdQuery(ns: Namespace, deviceId: DeviceOemId)(implicit ec: ExecutionContext): Query[DeviceTable, Device, Seq] =
     devices.filter(d => d.namespace === ns && d.deviceId === deviceId)
 

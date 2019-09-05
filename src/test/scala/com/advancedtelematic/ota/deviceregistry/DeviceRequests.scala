@@ -88,6 +88,9 @@ trait DeviceRequests { self: ResourceSpec =>
         )
     )
 
+  def fetchNeverSeen: HttpRequest =
+    Get(Resource.uri(api, "never_seen"))
+
   def updateDevice(uuid: DeviceId, newName: DeviceName)(implicit ec: ExecutionContext): HttpRequest =
     Put(Resource.uri(api, uuid.show), UpdateDevice(newName))
 

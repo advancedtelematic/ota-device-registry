@@ -123,6 +123,21 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
     }
   }
 
+  property("GET devices never seen online") {
+    forAll { (seenDevices: Seq[DeviceT], notSeenDevices: Seq[DeviceT]) =>
+      val seenIds = seenDevices.map(createDeviceOk)
+      val notSeenIds = notSeenDevices.map(createDeviceOk)
+      seenIds.foreach(sendDeviceSeen(_))
+
+      fetchNeverSeen ~> route ~> check {
+        status shouldBe OK
+        val neverSeen = responseAs[Seq[DeviceId]]
+        neverSeen should contain allElementsOf notSeenIds
+        neverSeen should contain noElementsOf seenIds
+      }
+    }
+  }
+
   property("PUT request after POST succeeds with updated device.") {
     forAll(genConflictFreeDeviceTs(2)) {
       case Seq(d1, d2) =>

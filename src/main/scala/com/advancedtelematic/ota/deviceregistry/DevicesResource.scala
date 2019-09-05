@@ -219,6 +219,9 @@ class DevicesResource(
         (path("stats") & parameters('correlationId.as[CorrelationId], 'reportLevel.as[InstallationStatsLevel].?)) {
           (cid, reportLevel) => fetchInstallationStats(cid, reportLevel)
         } ~
+        path("never_seen") {
+          complete(db.run(DeviceRepository.findNotSeen(ns.namespace)))
+        } ~
         pathEnd {
           searchDevice(ns.namespace)
         }
