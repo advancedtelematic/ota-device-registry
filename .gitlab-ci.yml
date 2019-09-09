@@ -3,7 +3,9 @@ stages:
   - test
   - build image
   - trigger deploy
-  - publish
+  - veracode scan
+  - deps scan
+  - publish dependencies scan
 
 variables:
   MYSQL_ROOT_PASSWORD: "root"
@@ -81,9 +83,9 @@ trigger sit deploy:
     branch: master    
 
 
-trigger veracode scan:
+start veracode scan:
   # prepare and submit for static code analysis
-  stage: trigger deploy
+  stage: veracode scan
   only:
     variables:
       - $VERACODE_API_ID
@@ -101,9 +103,9 @@ trigger veracode scan:
     paths:
       - scan.jar
 
-trigger-deps-scan:
+start deps scan:
   # perform dependencies CVE analysis
-  stage: trigger deploy
+  stage: deps scan
   only:
     - schedules
   image: advancedtelematic/gitlab-jobs:0.1.0
@@ -114,12 +116,12 @@ trigger-deps-scan:
     paths:
       - depchk.html
 
-pages:
-  stage: publish
+generate pages:
+  stage: publish dependencies scan
   only:
     - schedules
   dependencies:
-    - trigger-deps-scan
+    - start deps scan
   script:
     - mkdir -p public
     - mv depchk.html public/index.html
