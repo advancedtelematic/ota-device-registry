@@ -8,6 +8,7 @@
 
 package com.advancedtelematic.ota.deviceregistry.data
 
+import java.time.Instant
 import java.util.UUID
 
 import akka.http.scaladsl.unmarshalling.Unmarshaller
@@ -23,6 +24,7 @@ import slick.jdbc.MySQLProfile.api._
 case class Group(id: GroupId,
                  groupName: GroupName,
                  namespace: Namespace,
+                 createdAt: Instant,
                  groupType: GroupType,
                  expression: Option[GroupExpression] = None)
 

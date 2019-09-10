@@ -38,7 +38,7 @@ object GroupInfoRepository {
     def createdAt = column[Instant]("created_at")
     def updatedAt = column[Instant]("updated_at")
 
-    def * = (id, groupName, namespace, groupType, expression) <> ((Group.apply _).tupled, Group.unapply)
+    def * = (id, groupName, namespace, createdAt, groupType, expression) <> ((Group.apply _).tupled, Group.unapply)
   }
   // scalastyle:on
 
@@ -61,7 +61,7 @@ object GroupInfoRepository {
 
   def create(id: GroupId, groupName: GroupName, namespace: Namespace, groupType: GroupType, expression: Option[GroupExpression])
             (implicit ec: ExecutionContext): DBIO[GroupId] =
-    (groupInfos += data.Group(id, groupName, namespace, groupType, expression))
+    (groupInfos += data.Group(id, groupName, namespace, Instant.now, groupType, expression))
       .handleIntegrityErrors(Errors.ConflictingGroup)
       .map(_ => id)
 
