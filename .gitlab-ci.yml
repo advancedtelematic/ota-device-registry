@@ -116,7 +116,7 @@ start deps scan:
     paths:
       - depchk.html
 
-generate pages:
+pages:
   stage: publish dependencies scan
   only:
     - schedules
