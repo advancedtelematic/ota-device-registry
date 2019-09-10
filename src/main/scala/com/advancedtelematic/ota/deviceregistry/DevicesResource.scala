@@ -35,7 +35,8 @@ import com.advancedtelematic.ota.deviceregistry.data.DataType.{DeviceT, Installa
 import com.advancedtelematic.ota.deviceregistry.data.Device.{ActiveDeviceCount, DeviceOemId}
 import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
 import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
-import com.advancedtelematic.ota.deviceregistry.data.{GroupExpression, PackageId}
+import com.advancedtelematic.ota.deviceregistry.data.SortBy.SortBy
+import com.advancedtelematic.ota.deviceregistry.data.{GroupExpression, PackageId, SortBy}
 import com.advancedtelematic.ota.deviceregistry.db._
 import com.advancedtelematic.ota.deviceregistry.messages.{DeleteDeviceRequest, DeviceCreated}
 import io.circe.Json
@@ -93,6 +94,14 @@ class DevicesResource(
       }
   }
 
+  implicit val sortByUnmarshaller: FromStringUnmarshaller[SortBy] = Unmarshaller.strict {
+    _.toLowerCase match {
+      case "name"      => SortBy.Name
+      case "createdat" => SortBy.CreatedAt
+      case s           => throw new IllegalArgumentException(s"Invalid value for sorting parameter: '$s'.")
+    }
+  }
+
   def searchDevice(ns: Namespace): Route =
     parameters((
       'deviceId.as[DeviceOemId].?,
@@ -100,6 +109,7 @@ class DevicesResource(
       'groupType.as[GroupType].?,
       'groupId.as[GroupId].?,
       'nameContains.as[String].?,
+      'sortBy.as[SortBy].?,
       'offset.as[Long].?,
       'limit.as[Long].?)).as(SearchParams)
     { params => complete(db.run(DeviceRepository.search(ns, params))) }

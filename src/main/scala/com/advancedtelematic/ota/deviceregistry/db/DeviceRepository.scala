@@ -24,7 +24,7 @@ import com.advancedtelematic.ota.deviceregistry.data.DeviceStatus.DeviceStatus
 import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
 import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
 import com.advancedtelematic.ota.deviceregistry.data._
-import com.advancedtelematic.ota.deviceregistry.db.DbOps.PaginationResultOps
+import com.advancedtelematic.ota.deviceregistry.db.DbOps.{PaginationResultOps, sortBySlickOrderedDeviceConversion}
 import com.advancedtelematic.ota.deviceregistry.db.GroupInfoRepository.groupInfos
 import com.advancedtelematic.ota.deviceregistry.db.GroupMemberRepository.groupMembers
 import com.advancedtelematic.ota.deviceregistry.db.SlickMappings._
@@ -169,22 +169,25 @@ object DeviceRepository {
   def search(ns: Namespace, params: SearchParams)(implicit ec: ExecutionContext): DBIO[PaginationResult[Device]] = {
     val query = params match {
 
-      case SearchParams(Some(oemId), _, _, None, None, _, _) =>
+      case SearchParams(Some(oemId), _, _, None, None, _, _, _) =>
         findByDeviceIdQuery(ns, oemId)
 
-      case SearchParams(None, Some(true), gt, None, nameContains, _, _) =>
+      case SearchParams(None, Some(true), gt, None, nameContains, _, _, _) =>
         runQueryFilteringByName(ns, groupedDevicesQuery(gt), nameContains)
 
-      case SearchParams(None, Some(false), gt, None, nameContains, _, _) =>
+      case SearchParams(None, Some(false), gt, None, nameContains, _, _, _) =>
         val ungroupedDevicesQuery = devices.filterNot(_.uuid.in(groupedDevicesQuery(gt).map(_.uuid)))
         runQueryFilteringByName(ns, ungroupedDevicesQuery, nameContains)
 
-      case SearchParams(None, _, _, gid, nameContains, _, _) =>
+      case SearchParams(None, _, _, gid, nameContains, _, _, _) =>
         searchQuery(ns, nameContains, gid)
 
       case _ => throw new IllegalArgumentException("Invalid parameter combination.")
     }
-    query.paginateAndSortResult(_.deviceName, params.offset.orDefaultOffset, params.limit.orDefaultLimit)
+
+    query
+      .sortBy(params.sortBy.getOrElse(SortBy.Name))
+      .paginateResult(params.offset.orDefaultOffset, params.limit.orDefaultLimit)
   }
 
   def updateDeviceName(ns: Namespace, uuid: DeviceId, deviceName: DeviceName)(implicit ec: ExecutionContext): DBIO[Unit] =

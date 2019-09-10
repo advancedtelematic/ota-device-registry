@@ -22,6 +22,7 @@ import com.advancedtelematic.ota.deviceregistry.data.DataType.InstallationStatsL
 import com.advancedtelematic.ota.deviceregistry.data.DataType.{DeviceT, UpdateDevice}
 import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
 import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
+import com.advancedtelematic.ota.deviceregistry.data.SortBy.SortBy
 import com.advancedtelematic.ota.deviceregistry.data.{DeviceName, GroupExpression, PackageId}
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
 import io.circe.Json
@@ -52,8 +53,10 @@ trait DeviceRequests { self: ResourceSpec =>
   def fetchDevice(uuid: DeviceId): HttpRequest =
     Get(Resource.uri(api, uuid.show))
 
-  def listDevices(): HttpRequest =
-    Get(Resource.uri(api))
+  def listDevices(sortBy: Option[SortBy] = None): HttpRequest = {
+    val m = sortBy.fold(Map.empty[String, String])(s => Map("sortBy" -> s.toString))
+    Get(Resource.uri(api).withQuery(Query(m)))
+  }
 
   def searchDevice(regex: String, offset: Long = 0, limit: Long = 50): HttpRequest =
     Get(
