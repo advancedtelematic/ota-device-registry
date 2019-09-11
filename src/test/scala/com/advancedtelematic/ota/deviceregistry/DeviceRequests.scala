@@ -65,9 +65,17 @@ trait DeviceRequests { self: ResourceSpec =>
         .withQuery(Query("regex" -> regex, "offset" -> offset.toString, "limit" -> limit.toString))
     )
 
-  def fetchByDeviceId(deviceId: DeviceOemId, nameContains: Option[String] = None, groupId: Option[GroupId] = None): HttpRequest = {
-    val m = nameContains.map("nameContains" -> _).toMap ++ groupId.map("groupId" -> _.show).toMap + ("deviceId" -> deviceId.show)
-    Get(Resource.uri(api).withQuery(Query(m)))
+  def fetchByDeviceId(deviceId: DeviceOemId,
+                      nameContains: Option[String] = None,
+                      groupId: Option[GroupId] = None,
+                      activated: Option[Boolean] = None,
+                     ): HttpRequest = {
+    val m = ("deviceId" -> deviceId.show) +: Seq(
+      nameContains.map("nameContains" -> _),
+      groupId.map("groupId" -> _.show),
+      activated.map("activated" -> _.toString),
+    ).collect { case Some(a) => a }
+    Get(Resource.uri(api).withQuery(Query(m.toMap)))
   }
 
   def fetchByGroupId(groupId: GroupId, offset: Long = 0, limit: Long = 50): HttpRequest =
@@ -88,8 +96,8 @@ trait DeviceRequests { self: ResourceSpec =>
         )
     )
 
-  def fetchNeverSeen: HttpRequest =
-    Get(Resource.uri(api, "never_seen"))
+  def fetchNotActivated: HttpRequest =
+    Get(Resource.uri(api).withQuery(Query("activated" -> "false", "limit" -> 500.toString)))
 
   def updateDevice(uuid: DeviceId, newName: DeviceName)(implicit ec: ExecutionContext): HttpRequest =
     Put(Resource.uri(api, uuid.show), UpdateDevice(newName))

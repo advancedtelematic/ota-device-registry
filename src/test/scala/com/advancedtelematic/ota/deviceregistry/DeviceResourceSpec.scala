@@ -12,6 +12,7 @@ import java.time.temporal.ChronoUnit
 import java.time.{Instant, OffsetDateTime}
 
 import akka.http.scaladsl.model.StatusCodes._
+import akka.http.scaladsl.model.Uri.Query
 import cats.syntax.option._
 import com.advancedtelematic.libats.data.DataType.Namespace
 import com.advancedtelematic.libats.data.{ErrorRepresentation, PaginationResult}
@@ -123,17 +124,17 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
     }
   }
 
-  property("GET devices never seen online") {
-    forAll { (seenDevices: Seq[DeviceT], notSeenDevices: Seq[DeviceT]) =>
-      val seenIds = seenDevices.map(createDeviceOk)
-      val notSeenIds = notSeenDevices.map(createDeviceOk)
-      seenIds.foreach(sendDeviceSeen(_))
+  property("GET devices not activated, i.e. devices never seen online") {
+    forAll { (activatedDevices: Seq[DeviceT], notActivatedDevices: Seq[DeviceT]) =>
+      val activatedIds = activatedDevices.map(createDeviceOk(_))
+      val notActivatedIds = notActivatedDevices.map(createDeviceOk(_))
+      activatedIds.foreach(sendDeviceSeen(_))
 
-      fetchNeverSeen ~> route ~> check {
+      fetchNotActivated ~> route ~> check {
         status shouldBe OK
-        val neverSeen = responseAs[Seq[DeviceId]]
-        neverSeen should contain allElementsOf notSeenIds
-        neverSeen should contain noElementsOf seenIds
+        val notActivated = responseAs[PaginationResult[Device]].values
+        notActivated.map(_.uuid) should contain allElementsOf notActivatedIds
+        notActivated.map(_.uuid) should contain noElementsOf activatedIds
       }
     }
   }
@@ -405,6 +406,16 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
     fetchByDeviceId(deviceT.deviceId, None, Some(genStaticGroup.sample.get.id)) ~> route ~> check {
       status shouldBe BadRequest
       responseAs[ErrorRepresentation].description should include ("groupId must be empty when searching by deviceId")
+    }
+  }
+
+  property("searching a device by 'activated' and 'deviceId' fails") {
+    val deviceT = genDeviceT.sample.get
+    createDeviceOk(deviceT)
+
+    fetchByDeviceId(deviceT.deviceId, None, None, Gen.some(Gen.oneOf(true, false)).generate) ~> route ~> check {
+      status shouldBe BadRequest
+      responseAs[ErrorRepresentation].description should include ("activated must be empty when searching by deviceId")
     }
   }
 
