@@ -68,6 +68,7 @@ object DataType {
                                 groupType: Option[GroupType],
                                 groupId: Option[GroupId],
                                 nameContains: Option[String],
+                                activated: Option[Boolean],
                                 sortBy: Option[SortBy],
                                 offset: Option[Long],
                                 limit: Option[Long],
@@ -75,6 +76,7 @@ object DataType {
     if (oemId.isDefined) {
       require(groupId.isEmpty, "Invalid parameters: groupId must be empty when searching by deviceId.")
       require(nameContains.isEmpty, "Invalid parameters: nameContains must be empty when searching by deviceId.")
+      require(activated.isEmpty, "Invalid parameters: activated must be empty when searching by deviceId.")
     }
   }
 }

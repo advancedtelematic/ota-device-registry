@@ -18,7 +18,7 @@ import com.advancedtelematic.libats.slick.db.SlickExtensions._
 import com.advancedtelematic.libats.slick.db.SlickUUIDKey._
 import com.advancedtelematic.libats.slick.db.SlickValidatedGeneric.validatedStringMapper
 import com.advancedtelematic.ota.deviceregistry.common.Errors
-import com.advancedtelematic.ota.deviceregistry.data.DataType.{DeviceT, DeletedDevice, SearchParams}
+import com.advancedtelematic.ota.deviceregistry.data.DataType.{DeletedDevice, DeviceT, SearchParams}
 import com.advancedtelematic.ota.deviceregistry.data.Device._
 import com.advancedtelematic.ota.deviceregistry.data.DeviceStatus.DeviceStatus
 import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
@@ -169,23 +169,30 @@ object DeviceRepository {
   def search(ns: Namespace, params: SearchParams)(implicit ec: ExecutionContext): DBIO[PaginationResult[Device]] = {
     val query = params match {
 
-      case SearchParams(Some(oemId), _, _, None, None, _, _, _) =>
+      case SearchParams(Some(oemId), _, _, None, None, None, _, _, _) =>
         findByDeviceIdQuery(ns, oemId)
 
-      case SearchParams(None, Some(true), gt, None, nameContains, _, _, _) =>
+      case SearchParams(None, Some(true), gt, None, nameContains, _, _, _, _) =>
         runQueryFilteringByName(ns, groupedDevicesQuery(gt), nameContains)
 
-      case SearchParams(None, Some(false), gt, None, nameContains, _, _, _) =>
+      case SearchParams(None, Some(false), gt, None, nameContains, _, _, _, _) =>
         val ungroupedDevicesQuery = devices.filterNot(_.uuid.in(groupedDevicesQuery(gt).map(_.uuid)))
         runQueryFilteringByName(ns, ungroupedDevicesQuery, nameContains)
 
-      case SearchParams(None, _, _, gid, nameContains, _, _, _) =>
+      case SearchParams(None, _, _, gid, nameContains, _, _, _, _) =>
         searchQuery(ns, nameContains, gid)
 
       case _ => throw new IllegalArgumentException("Invalid parameter combination.")
     }
 
     query
+      .filter { dt =>
+        params.activated match {
+          case None => true.bind
+          case Some(true) => dt.activatedAt.isDefined
+          case Some(false) => dt.activatedAt.isEmpty
+        }
+      }
       .sortBy(params.sortBy.getOrElse(SortBy.Name))
       .paginateResult(params.offset.orDefaultOffset, params.limit.orDefaultLimit)
   }
