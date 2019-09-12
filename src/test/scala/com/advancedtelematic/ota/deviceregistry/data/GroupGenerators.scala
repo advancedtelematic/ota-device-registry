@@ -8,6 +8,8 @@
 
 package com.advancedtelematic.ota.deviceregistry.data
 
+import java.time.Instant
+
 import com.advancedtelematic.libats.data.DataType.Namespace
 import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
 import org.scalacheck.{Arbitrary, Gen}
@@ -21,8 +23,10 @@ trait GroupGenerators {
     name   <- Gen.listOfN[Char](strLen, charGen)
   } yield GroupName(name.mkString).right.get
 
-  def genStaticGroup: Gen[Group] =
-    genGroupName().flatMap(Group(GroupId.generate(), _, defaultNs, GroupType.static, None))
+  def genStaticGroup: Gen[Group] = for {
+    groupName <- genGroupName()
+    createdAt <- Gen.resize(1000000000, Gen.posNum[Long]).map(Instant.ofEpochSecond)
+  } yield Group(GroupId.generate(), groupName, defaultNs, createdAt, GroupType.static, None)
 
   implicit lazy val arbGroupName: Arbitrary[GroupName] = Arbitrary(genGroupName())
   implicit lazy val arbStaticGroup: Arbitrary[Group] = Arbitrary(genStaticGroup)
