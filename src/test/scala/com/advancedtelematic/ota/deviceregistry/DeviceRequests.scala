@@ -185,7 +185,7 @@ trait DeviceRequests { self: ResourceSpec =>
   def getGroupsOfDevice(deviceUuid: DeviceId): HttpRequest = Get(Resource.uri(api, deviceUuid.show, "groups"))
 
   def getDevicesByGrouping(grouped: Boolean, groupType: Option[GroupType],
-                           nameContains: Option[String] = None, limit: Long = 1000): HttpRequest = {
+                           nameContains: Option[String] = None, limit: Long = 2000): HttpRequest = {
     val m = Map("grouped" -> grouped, "limit" -> limit) ++
       List("groupType" -> groupType, "nameContains" -> nameContains).collect { case (k, Some(v)) => k -> v }.toMap
     Get(Resource.uri(api).withQuery(Query(m.mapValues(_.toString))))
