@@ -23,7 +23,7 @@ trait DeviceGenerators {
 
   val genDeviceName: Gen[DeviceName] = for {
     //use a minimum length for DeviceName to reduce possibility of naming conflicts
-    size <- Gen.choose(10, 100)
+    size <- Gen.choose(50, 200)
     name <- Gen.containerOfN[Seq, Char](size, Gen.alphaNumChar)
   } yield validatedDeviceType.from(name.mkString).right.get
 
