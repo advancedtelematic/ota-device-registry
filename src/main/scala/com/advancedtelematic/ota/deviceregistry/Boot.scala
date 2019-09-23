@@ -19,16 +19,12 @@ import com.advancedtelematic.libats.http._
 import com.advancedtelematic.libats.http.monitoring.MetricsSupport
 import com.advancedtelematic.libats.http.tracing.Tracing
 import com.advancedtelematic.libats.messaging._
-import com.advancedtelematic.libats.messaging.daemon.MessageBusListenerActor.Subscribe
 import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
-import com.advancedtelematic.libats.messaging_datatype.Messages.{DeviceEventMessage, DeviceSeen, DeviceUpdateEvent}
-import com.advancedtelematic.libats.slick.db.{BootMigrations, CheckMigrations, DatabaseConfig}
+import com.advancedtelematic.libats.slick.db.{CheckMigrations, DatabaseConfig}
 import com.advancedtelematic.libats.slick.monitoring.{DatabaseMetrics, DbHealthResource}
 import com.advancedtelematic.metrics.prometheus.PrometheusMetricsSupport
-import com.advancedtelematic.metrics.{AkkaHttpRequestMetrics, InfluxdbMetricsReporterSupport}
-import com.advancedtelematic.ota.deviceregistry.daemon._
+import com.advancedtelematic.metrics.AkkaHttpRequestMetrics
 import com.advancedtelematic.ota.deviceregistry.db.DeviceRepository
-import com.advancedtelematic.ota.deviceregistry.messages.DeleteDeviceRequest
 import slick.jdbc.MySQLProfile.api._
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -36,7 +32,6 @@ import scala.util.Try
 
 /**
   * Base API routing class.
-  * @see {@linktourl http://advancedtelematic.github.io/rvi_sota_server/dev/api.html}
   */
 class DeviceRegistryRoutes(
     namespaceExtractor: Directive1[AuthedNamespaceScope],
@@ -60,13 +55,10 @@ class DeviceRegistryRoutes(
 
 object Boot extends BootApp
   with AkkaHttpRequestMetrics
-  with BootMigrations
   with CheckMigrations
   with DatabaseConfig
   with DatabaseMetrics
   with Directives
-  with InfluxdbMetricsReporterSupport
-  with MessageListenerSupport
   with MetricsSupport
   with PrometheusMetricsSupport
   with VersionInfo {
@@ -93,17 +85,6 @@ object Boot extends BootApp
         new DeviceRegistryRoutes(authNamespace, namespaceAuthorizer, messageBus).route
       }
   } ~ DbHealthResource(versionMap, healthMetrics = Seq(new BusListenerMetrics(metricRegistry))).route
-
-  val deviceSeenListener =
-    system.actorOf(
-      MessageListener
-        .props[DeviceSeen](system.settings.config, DeviceSeenListener.action(messageBus), metricRegistry)
-    )
-  deviceSeenListener ! Subscribe
-
-  startListener[DeviceEventMessage](new DeviceEventListener())
-  startListener[DeleteDeviceRequest](new DeleteDeviceHandler())
-  startListener[DeviceUpdateEvent](new DeviceUpdateEventListener(messageBus))
 
   val host = config.getString("server.host")
   val port = config.getInt("server.port")
