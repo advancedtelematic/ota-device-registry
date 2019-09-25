@@ -95,6 +95,8 @@ lazy val commonSettings =
     unmanagedSourceDirectories.in(Test) := Seq(scalaSource.in(Test).value)
   )
 
+mainClass in Compile := Some("com.advancedtelematic.ota.deviceregistry.Boot")
+
 lazy val gitSettings = Seq(
     git.useGitDescribe := true,
   )

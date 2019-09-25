@@ -44,7 +44,7 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
   import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
 
   private implicit val exec = system.dispatcher
-  private val publisher     = DeviceSeenListener.action(MessageBusPublisher.ignore)(_)
+  private val publisher     = new DeviceSeenListener(MessageBusPublisher.ignore)
 
   implicit override val patienceConfig =
     PatienceConfig(timeout = Span(5, Seconds), interval = Span(15, Millis))

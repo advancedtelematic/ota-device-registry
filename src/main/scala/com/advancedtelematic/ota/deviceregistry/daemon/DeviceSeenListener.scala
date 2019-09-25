@@ -20,12 +20,12 @@ import org.slf4j.LoggerFactory
 import scala.concurrent.{ExecutionContext, Future}
 import slick.jdbc.MySQLProfile.api._
 
-object DeviceSeenListener {
+class DeviceSeenListener(messageBus: MessageBusPublisher)(implicit db: Database, ec: ExecutionContext)
+                                                                                extends (DeviceSeen => Future[Done]) {
 
   val _logger = LoggerFactory.getLogger(this.getClass)
 
-  def action(messageBus: MessageBusPublisher)(msg: DeviceSeen)(implicit db: Database,
-                                                               ec: ExecutionContext): Future[Done] =
+  override def apply(msg: DeviceSeen): Future[Done] =
     db.run(DeviceRepository.updateLastSeen(msg.uuid, msg.lastSeen))
       .flatMap {
         case (activated, ns) =>
@@ -41,7 +41,7 @@ object DeviceSeenListener {
       }
       .recover {
         case Errors.MissingDevice =>
-          _logger.warn(s"Ignore event for missing or deleted device: $msg")
+          _logger.warn(s"Ignoring event for missing or deleted device: $msg")
         case ex =>
           _logger.warn(s"Could not process $msg", ex)
       }
