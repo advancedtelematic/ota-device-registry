@@ -41,8 +41,6 @@ test:
 
 build docker image:
   stage: build image
-  only:
-    - master
   tags:
     - docker-sock
   variables:
@@ -80,8 +78,7 @@ trigger sit deploy:
     CREATE_COMMIT: "true"
   trigger:
     project: OLP/EDGE/OTA/infra/deployment-descriptors
-    branch: master    
-
+    branch: master
 
 start veracode scan:
   # prepare and submit for static code analysis
