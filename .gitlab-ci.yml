@@ -43,6 +43,8 @@ test:
 
 build docker image:
   stage: build image
+  only:
+    - external_pull_requests
   tags:
     - docker-sock
   variables:
