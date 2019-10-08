@@ -21,10 +21,10 @@ lazy val `ota-device-registry` =
         library.akkaStreamTestKit % Test,
         library.akkaSlf4J
       ),
-      libraryDependencies += "org.tpolecat" %% "atto-core" % "0.6.2"
+      libraryDependencies += "org.tpolecat" %% "atto-core" % "0.7.1"
     )
     .settings(libraryDependencies ++= library.libAts)
-    .settings(dependencyOverrides += "com.typesafe.akka" %% "akka-stream-kafka" % "0.19")
+    .settings(dependencyOverrides += library.kafkaClient)
 
 // *****************************************************************************
 // Library dependencies
@@ -40,6 +40,7 @@ lazy val library =
       val akkaHttp = "10.1.10"
       val mariaDb = "2.4.4"
       val circe = "0.12.1"
+      val kafkaClient = "0.11.0.3"
     }
     val scalaCheck = "org.scalacheck" %% "scalacheck" % Version.scalaCheck
     val scalaTest  = "org.scalatest"  %% "scalatest"  % Version.scalaTest
@@ -60,6 +61,7 @@ lazy val library =
     val mariaDb = "org.mariadb.jdbc" % "mariadb-java-client" % Version.mariaDb
     val circeTesting = "io.circe" %% "circe-testing" % Version.circe
     val akkaSlf4J = "com.typesafe.akka" %% "akka-slf4j" % Version.akka
+    val kafkaClient = "org.apache.kafka" % "kafka-clients" % Version.kafkaClient
   }
 
 // *****************************************************************************
@@ -73,6 +75,7 @@ scalafmtSettings ++
 buildInfoSettings ++
 dockerSettings ++
 flywaySettings
+
 
 lazy val commonSettings =
   Seq(
@@ -92,7 +95,10 @@ lazy val commonSettings =
       "UTF-8"
     ),
     unmanagedSourceDirectories.in(Compile) := Seq(scalaSource.in(Compile).value),
-    unmanagedSourceDirectories.in(Test) := Seq(scalaSource.in(Test).value)
+    unmanagedSourceDirectories.in(Test) := Seq(scalaSource.in(Test).value),
+    // turn off the DotNet checker
+    dependencyCheckAssemblyAnalyzerEnabled := Some(false),
+    dependencyCheckSuppressionFiles := Seq(new File("dependency-check-suppressions.xml"))
   )
 
 mainClass in Compile := Some("com.advancedtelematic.ota.deviceregistry.Boot")

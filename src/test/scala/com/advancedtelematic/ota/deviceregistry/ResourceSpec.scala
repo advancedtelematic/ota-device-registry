@@ -19,6 +19,7 @@ import com.advancedtelematic.ota.deviceregistry.db.DeviceRepository
 import org.scalatest.{BeforeAndAfterAll, Matchers, PropSpec, Suite}
 import org.scalatest.prop.PropertyChecks
 import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
+import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
 import scala.concurrent.Future
 import scala.concurrent.duration._
@@ -57,4 +58,4 @@ trait ResourceSpec
     new DeviceRegistryRoutes(namespaceExtractor, namespaceAuthorizer, messageBus).route
 }
 
-trait ResourcePropSpec extends PropSpec with ResourceSpec with PropertyChecks
+trait ResourcePropSpec extends PropSpec with ResourceSpec with ScalaCheckPropertyChecks
