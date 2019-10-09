@@ -133,5 +133,5 @@ pages:
 
 include:
   - project: olp/edge/ota/testing/dynamic-hats
-    ref: 3523fd2554d366c356413a6e10afd54ffe27b50e # XXX
+    ref: 1653959314d04bad6b733805030a7bd76a7511ab # XXX
     file: /.gitlab-ci.yml
