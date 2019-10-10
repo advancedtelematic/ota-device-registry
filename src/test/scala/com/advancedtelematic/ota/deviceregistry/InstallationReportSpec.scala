@@ -4,7 +4,7 @@ import akka.http.scaladsl.model.StatusCodes._
 import com.advancedtelematic.libats.data.DataType.ResultCode
 import com.advancedtelematic.libats.data.PaginationResult
 import com.advancedtelematic.libats.messaging.MessageBusPublisher
-import com.advancedtelematic.libats.messaging_datatype.MessageCodecs.deviceUpdateCompletedDecoder
+import com.advancedtelematic.libats.messaging_datatype.MessageCodecs.deviceUpdateCompletedCodec
 import com.advancedtelematic.libats.messaging_datatype.Messages.DeviceUpdateCompleted
 import com.advancedtelematic.ota.deviceregistry.daemon.DeviceUpdateEventListener
 import com.advancedtelematic.ota.deviceregistry.data.Codecs.installationStatDecoder
