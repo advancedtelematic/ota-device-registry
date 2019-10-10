@@ -8,16 +8,16 @@
 
 package com.advancedtelematic.ota.deviceregistry
 
-import akka.http.scaladsl.model.Uri.Query
-import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
-import com.advancedtelematic.ota.deviceregistry.data.{Group, GroupName, SortBy}
-import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
-import org.scalacheck.Arbitrary._
-import org.scalacheck.Gen
 import akka.http.scaladsl.model.StatusCodes._
+import akka.http.scaladsl.model.Uri.Query
 import com.advancedtelematic.libats.data.{ErrorRepresentation, PaginationResult}
+import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
 import com.advancedtelematic.ota.deviceregistry.common.Errors.Codes.MalformedInput
+import com.advancedtelematic.ota.deviceregistry.data.Codecs.groupWithCountCodec
 import com.advancedtelematic.ota.deviceregistry.data.Device.DeviceOemId
+import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
+import com.advancedtelematic.ota.deviceregistry.data.{Group, GroupName, GroupWithCount, SortBy}
+import org.scalacheck.Gen
 import org.scalatest.FunSuite
 import org.scalatest.concurrent.ScalaFutures
 
@@ -27,17 +27,21 @@ class GroupsResourceSpec extends FunSuite with ResourceSpec with ScalaFutures {
   private val limit = 30
 
   test("gets all existing groups") {
-    //TODO: PRO-1182 turn this back into a property when we can delete groups
-    val groupNames = Gen.listOfN(10, arbitrary[GroupName]).sample.get
-    groupNames.foreach(createStaticGroupOk)
+    val groupsWithDevices = genGroupNameWithDeviceTsMap().sample.get
+    groupsWithDevices.foreach { case (groupName, deviceTs) =>
+      val gid = createStaticGroupOk(groupName)
+      val dids = deviceTs.map(createDeviceOk)
+      dids.foreach(did => addDeviceToGroupOk(gid, did))
+    }
 
     listGroups() ~> route ~> check {
       status shouldBe OK
-      val responseGroups = responseAs[PaginationResult[Group]]
-      responseGroups.total shouldBe groupNames.size
-      responseGroups.values.foreach { group =>
-        groupNames.count(name => name == group.groupName) shouldBe 1
+      val responseGroups = responseAs[PaginationResult[GroupWithCount]]
+      responseGroups.total shouldBe groupsWithDevices.size
+      responseGroups.values.map(_.groupName).foreach { groupName =>
+        groupsWithDevices.keys.count(_ == groupName) shouldBe 1
       }
+      responseGroups.values.map(gwc => gwc.groupName -> gwc.deviceCount).toMap should contain theSameElementsAs groupsWithDevices.mapValues(_.size)
     }
   }
 
@@ -153,10 +157,10 @@ class GroupsResourceSpec extends FunSuite with ResourceSpec with ScalaFutures {
       status shouldBe OK
     }
 
-    listGroups(limit = Some(100L)) ~> route ~> check {
+    listGroups(limit = Some(200L)) ~> route ~> check {
       status shouldBe OK
       val groups = responseAs[PaginationResult[Group]]
-      groups.values.count(e => e.id.equals(groupId) && e.groupName.equals(newGroupName)) shouldBe 1
+      groups.values.count(g => g.id == groupId && g.groupName == newGroupName) shouldBe 1
     }
   }
 

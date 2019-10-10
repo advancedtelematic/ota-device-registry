@@ -9,10 +9,10 @@ import com.advancedtelematic.ota.deviceregistry.db.GroupInfoRepository.GroupInfo
 import slick.jdbc.MySQLProfile.api._
 
 object DbOps {
-  implicit def sortBySlickOrderedConversion(sortBy: SortBy): GroupInfoTable => slick.lifted.Ordered =
+  implicit def sortBySlickOrderedGroupTuple2Conversion(sortBy: SortBy): ((GroupInfoTable, Any)) => slick.lifted.Ordered =
     sortBy match {
-      case SortBy.Name      => table => table.groupName.asc
-      case SortBy.CreatedAt => table => table.createdAt.desc
+      case SortBy.Name      => { case (table, _) => table.groupName.asc }
+      case SortBy.CreatedAt => { case (table, _) => table.createdAt.desc }
     }
 
   implicit def sortBySlickOrderedDeviceConversion(sortBy: SortBy): DeviceTable => slick.lifted.Ordered =

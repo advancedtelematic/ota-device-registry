@@ -22,6 +22,7 @@ import com.advancedtelematic.libats.auth.{AuthedNamespaceScope, Scopes}
 import com.advancedtelematic.libats.data.DataType.Namespace
 import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
 import com.advancedtelematic.ota.deviceregistry.common.Errors
+import com.advancedtelematic.ota.deviceregistry.data.Codecs.groupWithCountCodec
 import com.advancedtelematic.ota.deviceregistry.data.Device.DeviceOemId
 import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
 import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
@@ -63,8 +64,10 @@ class GroupsResource(namespaceExtractor: Directive1[AuthedNamespaceScope], devic
       complete(groupMembership.listDevices(groupId, offset, limit))
     }
 
-  def listGroups(ns: Namespace, offset: Option[Long], limit: Option[Long], sortBy: SortBy, nameContains: Option[String]): Route =
-    complete(db.run(GroupInfoRepository.list(ns, offset, limit, sortBy, nameContains)))
+  def listGroups(ns: Namespace, offset: Option[Long], limit: Option[Long], sortBy: SortBy, nameContains: Option[String]): Route = {
+    val f = GroupInfoRepository.list(ns, offset, limit, sortBy, nameContains)
+    complete(db.run(f))
+  }
 
   def getGroup(groupId: GroupId): Route =
     complete(db.run(GroupInfoRepository.findByIdAction(groupId)))

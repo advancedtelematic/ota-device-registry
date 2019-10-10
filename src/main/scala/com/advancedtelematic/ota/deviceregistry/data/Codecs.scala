@@ -16,4 +16,6 @@ object Codecs {
 
   implicit val installationStatEncoder = io.circe.generic.semiauto.deriveEncoder[InstallationStat]
   implicit val installationStatDecoder = io.circe.generic.semiauto.deriveDecoder[InstallationStat]
+
+  implicit val groupWithCountCodec = io.circe.generic.semiauto.deriveCodec[GroupWithCount]
 }

@@ -28,6 +28,14 @@ case class Group(id: GroupId,
                  groupType: GroupType,
                  expression: Option[GroupExpression] = None)
 
+case class GroupWithCount(id: GroupId,
+                          groupName: GroupName,
+                          namespace: Namespace,
+                          deviceCount: Int,
+                          createdAt: Instant,
+                          groupType: GroupType,
+                          expression: Option[GroupExpression] = None)
+
 object GroupType extends Enumeration {
   type GroupType = Value
 

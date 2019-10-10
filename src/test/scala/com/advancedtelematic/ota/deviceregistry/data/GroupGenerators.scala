@@ -11,6 +11,8 @@ package com.advancedtelematic.ota.deviceregistry.data
 import java.time.Instant
 
 import com.advancedtelematic.libats.data.DataType.Namespace
+import com.advancedtelematic.ota.deviceregistry.data.DataType.DeviceT
+import com.advancedtelematic.ota.deviceregistry.data.DeviceGenerators.genDeviceT
 import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
 import org.scalacheck.{Arbitrary, Gen}
 
@@ -27,6 +29,14 @@ trait GroupGenerators {
     groupName <- genGroupName()
     createdAt <- Gen.resize(1000000000, Gen.posNum[Long]).map(Instant.ofEpochSecond)
   } yield Group(GroupId.generate(), groupName, defaultNs, createdAt, GroupType.static, None)
+
+  val genGroupNameWithDeviceTs: Gen[(GroupName, List[DeviceT])] = for {
+    groupName <- genGroupName()
+    deviceTs <- Gen.resize(10, Gen.listOf(genDeviceT))
+  } yield groupName -> deviceTs
+
+  def genGroupNameWithDeviceTsMap(size: Int = 10): Gen[Map[GroupName, Seq[DeviceT]]] =
+    Gen.resize(size, Gen.listOf(genGroupNameWithDeviceTs)).map(_.toMap)
 
   implicit lazy val arbGroupName: Arbitrary[GroupName] = Arbitrary(genGroupName())
   implicit lazy val arbStaticGroup: Arbitrary[Group] = Arbitrary(genStaticGroup)

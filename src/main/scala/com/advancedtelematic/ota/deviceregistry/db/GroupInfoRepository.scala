@@ -20,8 +20,8 @@ import com.advancedtelematic.ota.deviceregistry.data
 import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
 import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
 import com.advancedtelematic.ota.deviceregistry.data.SortBy.SortBy
-import com.advancedtelematic.ota.deviceregistry.data.{Group, GroupExpression, GroupName}
-import com.advancedtelematic.ota.deviceregistry.db.DbOps.{PaginationResultOps, sortBySlickOrderedConversion}
+import com.advancedtelematic.ota.deviceregistry.data.{Group, GroupExpression, GroupName, GroupWithCount}
+import com.advancedtelematic.ota.deviceregistry.db.DbOps.{PaginationResultOps, sortBySlickOrderedGroupTuple2Conversion}
 import com.advancedtelematic.ota.deviceregistry.db.SlickMappings._
 import slick.jdbc.MySQLProfile.api._
 
@@ -44,11 +44,35 @@ object GroupInfoRepository {
 
   val groupInfos = TableQuery[GroupInfoTable]
 
-  def list(namespace: Namespace, offset: Option[Long], limit: Option[Long], sortBy: SortBy, nameContains: Option[String])(implicit ec: ExecutionContext): DBIO[PaginationResult[Group]] =
-    groupInfos
-      .filter(_.namespace === namespace)
-      .maybeContains(_.groupName, nameContains)
-      .paginateAndSortResult(sortBy, offset.orDefaultOffset, limit.orDefaultLimit)
+  def list(namespace: Namespace,
+           offset: Option[Long],
+           limit: Option[Long],
+           sortBy: SortBy,
+           nameContains: Option[String])
+          (implicit ec: ExecutionContext): DBIO[PaginationResult[GroupWithCount]] = {
+
+    val groups = groupInfos.filter(_.namespace === namespace).maybeContains(_.groupName, nameContains)
+
+    val groupsWithDevices = GroupMemberRepository.groupMembers
+      .join(groups)
+      .on(_.groupId === _.id)
+      .groupBy(_._2)
+      .map { case (g, q) => g -> q.length }
+
+    val groupsWithoutDevices = GroupMemberRepository.groupMembers
+      .joinRight(groups)
+      .on(_.groupId === _.id)
+      .filter(_._1.isEmpty)
+      .map { case (_, g) => g -> 0 }
+
+    groupsWithDevices
+      .union(groupsWithoutDevices)
+      .sortBy(sortBy)
+      .paginateResult(offset.orDefaultOffset, limit.orDefaultLimit)
+      .map(_.map { case (g, count) =>
+        GroupWithCount(g.id, g.groupName, g.namespace, count, g.createdAt, g.groupType, g.expression)
+      })
+  }
 
   def findById(id: GroupId)(implicit db: Database, ec: ExecutionContext): Future[Group] =
     db.run(findByIdAction(id))
