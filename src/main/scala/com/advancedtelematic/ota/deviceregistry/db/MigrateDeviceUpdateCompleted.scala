@@ -3,15 +3,12 @@ package com.advancedtelematic.ota.deviceregistry.db
 import akka.Done
 import akka.stream.Materializer
 import akka.stream.scaladsl.Source
-import com.advancedtelematic.libats.data.DataType.CorrelationId
+import com.advancedtelematic.libats.messaging_datatype.MessageCodecs.{deviceInstallationReportCodec, deviceUpdateCompletedCodec}
 import com.advancedtelematic.libats.messaging_datatype.Messages.{DeviceInstallationReport, DeviceUpdateCompleted}
-import com.advancedtelematic.libats.messaging_datatype.MessageCodecs.deviceInstallationReportDecoder
-import com.advancedtelematic.libats.messaging_datatype.MessageCodecs.deviceUpdateCompletedEncoder
 import com.advancedtelematic.libats.slick.db.SlickCirceMapper._
-import com.advancedtelematic.libats.slick.db.SlickUrnMapper.correlationIdMapper
 import com.advancedtelematic.libats.slick.db.SlickUUIDKey._
-import com.advancedtelematic.ota.deviceregistry.db.InstallationReportRepository.deviceInstallationResults
-import com.advancedtelematic.ota.deviceregistry.db.InstallationReportRepository.updateInstallationResultReport
+import com.advancedtelematic.libats.slick.db.SlickUrnMapper.correlationIdMapper
+import com.advancedtelematic.ota.deviceregistry.db.InstallationReportRepository.{deviceInstallationResults, updateInstallationResultReport}
 import io.circe.syntax._
 import org.slf4j.LoggerFactory
 import slick.jdbc.MySQLProfile.api._

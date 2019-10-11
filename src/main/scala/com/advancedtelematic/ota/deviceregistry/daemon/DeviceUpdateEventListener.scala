@@ -1,23 +1,20 @@
 package com.advancedtelematic.ota.deviceregistry.daemon
 
-import akka.Done
-import com.advancedtelematic.ota.deviceregistry.data.DeviceStatus
-import com.advancedtelematic.ota.deviceregistry.data.DeviceStatus.DeviceStatus
-import com.advancedtelematic.ota.deviceregistry.db.DeviceRepository
-import com.advancedtelematic.libats.data.DataType.{CorrelationId, Namespace}
-import com.advancedtelematic.libats.messaging.MessageBusPublisher
-import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
-import com.advancedtelematic.libats.messaging_datatype.MessageCodecs.deviceUpdateCompletedEncoder
-import com.advancedtelematic.libats.messaging_datatype.Messages.{DeviceUpdateAssigned, DeviceUpdateAssignmentRejected, DeviceUpdateAssignmentRequested, DeviceUpdateCancelRequested, DeviceUpdateCanceled, DeviceUpdateCompleted, DeviceUpdateEvent}
-import com.advancedtelematic.libats.messaging_datatype.MessageLike
-import com.advancedtelematic.ota.deviceregistry.db.InstallationReportRepository
-import com.advancedtelematic.ota.deviceregistry.daemon.DeviceUpdateStatus._
-import MessageLike._
-import io.circe.syntax._
 import java.time.Instant
 
 import akka.http.scaladsl.util.FastFuture
+import com.advancedtelematic.libats.data.DataType.{CorrelationId, Namespace}
+import com.advancedtelematic.libats.messaging.MessageBusPublisher
+import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
+import com.advancedtelematic.libats.messaging_datatype.MessageCodecs.deviceUpdateCompletedCodec
+import com.advancedtelematic.libats.messaging_datatype.MessageLike
+import com.advancedtelematic.libats.messaging_datatype.Messages.{DeviceUpdateAssigned, DeviceUpdateCanceled, DeviceUpdateCompleted, DeviceUpdateEvent}
 import com.advancedtelematic.ota.deviceregistry.common.Errors
+import com.advancedtelematic.ota.deviceregistry.daemon.DeviceUpdateStatus._
+import com.advancedtelematic.ota.deviceregistry.data.DeviceStatus
+import com.advancedtelematic.ota.deviceregistry.data.DeviceStatus.DeviceStatus
+import com.advancedtelematic.ota.deviceregistry.db.{DeviceRepository, InstallationReportRepository}
+import io.circe.syntax._
 import org.slf4j.LoggerFactory
 import slick.jdbc.MySQLProfile.api._
 
