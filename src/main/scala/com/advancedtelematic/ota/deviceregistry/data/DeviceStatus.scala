@@ -15,6 +15,6 @@ object DeviceStatus extends Enumeration {
 
   val NotSeen, Error, UpToDate, Outdated = Value
 
-  implicit val JsonEncoder = Encoder.enumEncoder(DeviceStatus)
-  implicit val JsonDecoder = Decoder.enumDecoder(DeviceStatus)
+  implicit val JsonEncoder = Encoder.encodeEnumeration(DeviceStatus)
+  implicit val JsonDecoder = Decoder.decodeEnumeration(DeviceStatus)
 }

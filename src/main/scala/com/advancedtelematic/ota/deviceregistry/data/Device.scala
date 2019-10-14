@@ -49,8 +49,8 @@ object Device {
     type DeviceType = Value
     val Other, Vehicle = Value
 
-    implicit val JsonEncoder = Encoder.enumEncoder(DeviceType)
-    implicit val JsonDecoder = Decoder.enumDecoder(DeviceType)
+    implicit val JsonEncoder = Encoder.encodeEnumeration(DeviceType)
+    implicit val JsonDecoder = Decoder.decodeEnumeration(DeviceType)
   }
 
   implicit val showDeviceType = Show.fromToString[DeviceType.Value]

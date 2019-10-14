@@ -35,8 +35,8 @@ object GroupType extends Enumeration {
 
   implicit val groupTypeMapper = MappedColumnType.base[GroupType, String](_.toString, GroupType.withName)
 
-  implicit val groupTypeEncoder: Encoder[GroupType] = Encoder.enumEncoder(GroupType)
-  implicit val groupTypeDecoder: Decoder[GroupType] = Decoder.enumDecoder(GroupType)
+  implicit val groupTypeEncoder: Encoder[GroupType] = Encoder.encodeEnumeration(GroupType)
+  implicit val groupTypeDecoder: Decoder[GroupType] = Decoder.decodeEnumeration(GroupType)
 
   implicit val groupTypeUnmarshaller: Unmarshaller[String, GroupType] = Unmarshaller.strict(GroupType.withName)
 }
