@@ -245,7 +245,7 @@ class DevicesResource(
             fetchDevice(uuid)
           }
         } ~
-        (scope.put & entity(as[UpdateDevice]) & pathEnd) { updateBody =>
+        (scope.put & pathEnd & entity(as[UpdateDevice])) { updateBody =>
           updateDevice(ns.namespace, uuid, updateBody)
         } ~
         (scope.delete & pathEnd) {

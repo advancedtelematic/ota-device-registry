@@ -25,6 +25,7 @@ import org.slf4j.LoggerFactory
 import slick.jdbc.MySQLProfile.api._
 import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
 import com.advancedtelematic.libats.http.UUIDKeyAkka._
+import cats.syntax.show._
 
 import scala.concurrent.ExecutionContext
 
@@ -126,8 +127,8 @@ class SystemInfoResource(
     }
 
   def mydeviceRoutes: Route = authNamespace { authedNs => // don't use this as a namespace
-    path("mydevice" / DeviceId.Path) { uuid =>
-      (put & path("system_info") & authedNs.oauthScope(s"ota-core.{uuid.show}.write")) {
+    pathPrefix("mydevice" / DeviceId.Path) { uuid =>
+      (put & path("system_info") & authedNs.oauthScope(s"ota-core.${uuid.show}.write")) {
         entity(as[Json]) { body =>
           updateSystemInfo(authedNs.namespace, uuid, body)
         }
