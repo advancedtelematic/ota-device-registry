@@ -8,15 +8,22 @@
 
 package com.advancedtelematic.ota.deviceregistry
 
+import com.advancedtelematic.libats.messaging.test.MockMessageBus
 import com.advancedtelematic.ota.deviceregistry.db.SystemInfoRepository.removeIdNrs
 import io.circe.Json
 import org.scalacheck.Shrink
 import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
+import com.advancedtelematic.libats.messaging_datatype.Messages.DeviceSystemInfoChanged
 import com.advancedtelematic.ota.deviceregistry.data.DataType.DeviceT
+import com.advancedtelematic.ota.deviceregistry.data.GeneratorOps._
+import org.scalatest.concurrent.Eventually._
+import org.scalatest.OptionValues._
 
 class SystemInfoResourceSpec extends ResourcePropSpec {
   import akka.http.scaladsl.model.StatusCodes._
   import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
+
+  override lazy val messageBus = new MockMessageBus()
 
   property("GET /system_info request fails on non-existent device") {
     forAll { (uuid: DeviceId, json: Json) =>
@@ -158,4 +165,49 @@ class SystemInfoResourceSpec extends ResourcePropSpec {
       }
     }
   }
+
+  property("DeviceSystemInfoChanged is published when client updates system_info") {
+    val device: DeviceT = genDeviceT.generate
+    val uuid  = createDeviceOk(device)
+
+    val json = io.circe.parser.parse(
+      """
+        |{
+        |    "product": "test-product"
+        |}
+        |""".stripMargin
+    ).right.get
+
+    createSystemInfo(uuid, json) ~> route ~> check {
+      status shouldBe Created
+    }
+
+    eventually {
+      val msg = messageBus.findReceived[DeviceSystemInfoChanged](uuid.toString)
+      msg.value.newSystemInfo.value.product should contain("test-product")
+    }
+  }
+
+  property("DeviceSystemInfoChanged is published with empty system info if server could not parse json") {
+    val device: DeviceT = genDeviceT.generate
+    val uuid  = createDeviceOk(device)
+
+    val json = io.circe.parser.parse(
+      """
+        |{
+        |    "not-product": "somethingelse"
+        |}
+        |""".stripMargin
+    ).right.get
+
+    createSystemInfo(uuid, json) ~> route ~> check {
+      status shouldBe Created
+    }
+
+    eventually {
+      val msg = messageBus.findReceived[DeviceSystemInfoChanged](uuid.toString)
+      msg.value.newSystemInfo.value.product shouldBe empty
+    }
+  }
+
 }
