@@ -19,15 +19,18 @@ import com.advancedtelematic.libats.messaging.MessageBusPublisher
 import com.advancedtelematic.ota.deviceregistry.common.Errors.MissingSystemInfo
 import com.advancedtelematic.ota.deviceregistry.db.SystemInfoRepository
 import com.advancedtelematic.ota.deviceregistry.db.SystemInfoRepository.NetworkInfo
-import com.advancedtelematic.ota.deviceregistry.messages.DeviceSystemInfoChanged
 import io.circe.{Decoder, Encoder, Json}
 import org.slf4j.LoggerFactory
 import slick.jdbc.MySQLProfile.api._
 import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
 import com.advancedtelematic.libats.http.UUIDKeyAkka._
 import cats.syntax.show._
+import cats.syntax.option._
+import com.advancedtelematic.libats.messaging_datatype.Messages
+import com.advancedtelematic.libats.messaging_datatype.Messages.{DeviceSystemInfoChanged, SystemInfo}
 
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{ExecutionContext, Future}
+
 
 class SystemInfoResource(
     messageBus: MessageBusPublisher,
@@ -36,7 +39,9 @@ class SystemInfoResource(
 )(implicit db: Database, actorSystem: ActorSystem, ec: ExecutionContext) {
   import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
 
-  val logger = LoggerFactory.getLogger(this.getClass)
+  private val logger = LoggerFactory.getLogger(this.getClass)
+
+  private val systemInfoUpdatePublisher = new SystemInfoUpdatePublisher(messageBus)
 
   implicit val NetworkInfoEncoder: Encoder[NetworkInfo] = Encoder.instance { x =>
     import io.circe.syntax._
@@ -67,7 +72,7 @@ class SystemInfoResource(
       .run(SystemInfoRepository.create(uuid, data))
       .andThen {
         case scala.util.Success(_) =>
-          messageBus.publish(DeviceSystemInfoChanged(ns, uuid))
+          systemInfoUpdatePublisher.publishSafe(ns, uuid, data.some)
       }
     complete(Created -> f)
   }
@@ -77,7 +82,7 @@ class SystemInfoResource(
       .run(SystemInfoRepository.update(uuid, data))
       .andThen {
         case scala.util.Success(_) =>
-          messageBus.publish(DeviceSystemInfoChanged(ns, uuid))
+          systemInfoUpdatePublisher.publishSafe(ns, uuid, data.some)
       }
     complete(OK -> f)
   }
@@ -117,7 +122,7 @@ class SystemInfoResource(
                 .run(SystemInfoRepository.setNetworkInfo(payload(uuid)))
                 .andThen {
                   case scala.util.Success(Done) =>
-                    messageBus.publish(DeviceSystemInfoChanged(ns.namespace, uuid))
+                    messageBus.publish(DeviceSystemInfoChanged(ns.namespace, uuid, None))
                 }
               complete(NoContent -> result)
             }
