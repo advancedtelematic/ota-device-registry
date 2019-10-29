@@ -44,11 +44,13 @@ test:
 build docker image:
   stage: build image
   except:
-    - schedules
+    refs:
+      - schedules
+      - deploy/sit
   only:
     refs:
       - master
-      - /^deploy\//.*
+      - /^deploy/.*$/
   tags:
     - docker-sock
   variables:
