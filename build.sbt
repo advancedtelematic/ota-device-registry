@@ -110,7 +110,7 @@ lazy val dockerSettings = Seq(
   dockerRepository := Some("advancedtelematic"),
   packageName := packageName.value,
   dockerBaseImage := "advancedtelematic/alpine-jre:adoptopenjdk-jdk8u222",
-  dockerUpdateLatest := false,
+  dockerUpdateLatest := true,
   dockerAliases ++= Seq(dockerAlias.value.withTag(git.formattedShaVersion.value)),
   dockerCommands ++= Seq(
     Cmd("USER", "root"),
