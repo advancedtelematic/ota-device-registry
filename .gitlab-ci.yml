@@ -3,6 +3,8 @@ stages:
   - test
   - build image
   - trigger deploy
+  - update deployment
+  - integration test
   - veracode scan
   - deps scan
   - publish dependencies scan
@@ -12,19 +14,19 @@ variables:
   MYSQL_DATABASE: "device_registry"
   MYSQL_USER: "device_registry"
   MYSQL_PASSWORD: "device_registry"
-
-services:
-  - name: mariadb:10.2
-    alias: db
-    command:
-      - --character-set-server=utf8
-      - --collation-server=utf8_unicode_ci
-      - --max_connections=1000
+  SERVICE_IMAGE: "advancedtelematic/device-registry"
 
 test:
   stage: test
   tags:
     - docker-sock
+  services:
+    - name: mariadb:10.2
+      alias: db
+      command:
+        - --character-set-server=utf8
+        - --collation-server=utf8_unicode_ci
+        - --max_connections=1000
   image: advancedtelematic/gitlab-jobs:0.2.3
   variables:
     DB_URL: "jdbc:mariadb://db:3306/device_registry"
@@ -42,9 +44,13 @@ test:
 build docker image:
   stage: build image
   except:
-    - schedules
+    refs:
+      - schedules
+      - deploy/sit
   only:
-    - master
+    refs:
+      - master
+      - /^deploy/.*$/
   tags:
     - docker-sock
   variables:
@@ -86,8 +92,7 @@ trigger sit deploy:
     CREATE_COMMIT: "true"
   trigger:
     project: OLP/EDGE/OTA/infra/deployment-descriptors
-    branch: master    
-
+    branch: master
 
 start veracode scan:
   # prepare and submit for static code analysis
@@ -130,3 +135,7 @@ pages:
     paths:
       - public
     expire_in: 64 days
+
+include:
+  - project: olp/edge/ota/testing/dynamic-hats
+    file: /.gitlab-ci.yml
