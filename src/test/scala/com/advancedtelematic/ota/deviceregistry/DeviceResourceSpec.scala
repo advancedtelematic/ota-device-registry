@@ -57,7 +57,7 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
   }
 
   private def sendDeviceSeen(uuid: DeviceId, lastSeen: Instant = Instant.now()): Unit =
-    publisher(DeviceSeen(defaultNs, uuid, Instant.now())).futureValue
+    publisher(DeviceSeen(defaultNs, uuid, lastSeen)).futureValue
 
   private def createGroupedAndUngroupedDevices(): Map[String, Seq[DeviceId]] = {
     val deviceTs = genConflictFreeDeviceTs(12).sample.get
@@ -120,6 +120,28 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
 
           devicePost1 shouldBe devicePost2
         }
+      }
+    }
+  }
+
+  property("GET devices not seen for the last hours") {
+    forAll(sizeRange(20)) { (neverSeen: Seq[DeviceT], notSeenLately: Seq[DeviceT], seenLately: Seq[DeviceT]) =>
+      val neverSeenIds = neverSeen.map(createDeviceOk(_))
+      val notSeenLatelyIds = notSeenLately.map(createDeviceOk(_))
+      val seenLatelyIds = seenLately.map(createDeviceOk(_))
+
+      seenLatelyIds.foreach(sendDeviceSeen(_))
+      val hours = Gen.chooseNum(1, 100000).sample.get
+      notSeenLatelyIds.foreach { did =>
+        val i = Instant.now.minus(hours, ChronoUnit.HOURS).minusSeconds(600)
+        sendDeviceSeen(did, i)
+      }
+
+      fetchNotSeenSince(hours) ~> route ~> check {
+        status shouldBe OK
+        val notSeenSinceHours = responseAs[PaginationResult[Device]].values
+        notSeenSinceHours.map(_.uuid) should contain allElementsOf neverSeenIds ++ notSeenLatelyIds
+        notSeenSinceHours.map(_.uuid) should contain noElementsOf seenLatelyIds
       }
     }
   }
@@ -391,6 +413,17 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
     fetchByDeviceId(deviceT.deviceId, None, Some(genStaticGroup.sample.get.id)) ~> route ~> check {
       status shouldBe BadRequest
       responseAs[ErrorRepresentation].description should include ("groupId must be empty when searching by deviceId")
+    }
+  }
+
+  property("searching a device by 'notSeenSinceHours' and 'deviceId' fails") {
+    val h = Gen.some(Gen.posNum[Int]).generate
+    val deviceT = genDeviceT.sample.get
+    createDeviceOk(deviceT)
+
+    fetchByDeviceId(deviceT.deviceId, notSeenSinceHours = h) ~> route ~> check {
+      status shouldBe BadRequest
+      responseAs[ErrorRepresentation].description should include ("notSeenSinceHours must be empty when searching by deviceId")
     }
   }
 

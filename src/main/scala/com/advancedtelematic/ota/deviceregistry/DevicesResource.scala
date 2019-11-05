@@ -109,6 +109,7 @@ class DevicesResource(
       'groupType.as[GroupType].?,
       'groupId.as[GroupId].?,
       'nameContains.as[String].?,
+      'notSeenSinceHours.as[Int].?,
       'sortBy.as[SortBy].?,
       'offset.as[Long].?,
       'limit.as[Long].?)).as(SearchParams)
