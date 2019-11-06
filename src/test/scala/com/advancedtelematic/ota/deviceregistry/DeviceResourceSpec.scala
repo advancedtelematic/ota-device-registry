@@ -124,21 +124,6 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
     }
   }
 
-  property("GET devices not activated, i.e. devices never seen online") {
-    forAll { (activatedDevices: Seq[DeviceT], notActivatedDevices: Seq[DeviceT]) =>
-      val activatedIds = activatedDevices.map(createDeviceOk(_))
-      val notActivatedIds = notActivatedDevices.map(createDeviceOk(_))
-      activatedIds.foreach(sendDeviceSeen(_))
-
-      fetchNotActivated ~> route ~> check {
-        status shouldBe OK
-        val notActivated = responseAs[PaginationResult[Device]].values
-        notActivated.map(_.uuid) should contain allElementsOf notActivatedIds
-        notActivated.map(_.uuid) should contain noElementsOf activatedIds
-      }
-    }
-  }
-
   property("PUT request after POST succeeds with updated device.") {
     forAll(genConflictFreeDeviceTs(2)) {
       case Seq(d1, d2) =>
@@ -406,16 +391,6 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
     fetchByDeviceId(deviceT.deviceId, None, Some(genStaticGroup.sample.get.id)) ~> route ~> check {
       status shouldBe BadRequest
       responseAs[ErrorRepresentation].description should include ("groupId must be empty when searching by deviceId")
-    }
-  }
-
-  property("searching a device by 'activated' and 'deviceId' fails") {
-    val deviceT = genDeviceT.sample.get
-    createDeviceOk(deviceT)
-
-    fetchByDeviceId(deviceT.deviceId, None, None, Gen.some(Gen.oneOf(true, false)).generate) ~> route ~> check {
-      status shouldBe BadRequest
-      responseAs[ErrorRepresentation].description should include ("activated must be empty when searching by deviceId")
     }
   }
 
