@@ -9,6 +9,7 @@
 package com.advancedtelematic.ota.deviceregistry.db
 
 import java.time.Instant
+import java.time.temporal.ChronoUnit
 
 import com.advancedtelematic.libats.data.DataType.Namespace
 import com.advancedtelematic.libats.data.PaginationResult
@@ -134,25 +135,40 @@ object DeviceRepository {
       .length
       .result
 
-  private def searchQuery(ns: Namespace, nameContains: Option[String], groupId: Option[GroupId]) = {
-    val devicesInGroup = groupId.map { gid =>
-      GroupMemberRepository.groupMembers.filter(_.groupId === gid).map(_.deviceUuid)
-    }.getOrElse(devices.map(_.uuid))
+  private def searchQuery(ns: Namespace,
+                          nameContains: Option[String],
+                          groupId: Option[GroupId],
+                          notSeenSinceHours: Option[Int],
+                         ) = {
+
+    def optionalFilter[T](o: Option[T])(fn: (DeviceTable, T) => Rep[Boolean]): DeviceTable => Rep[Boolean] =
+      dt => o match {
+        case None => true.bind
+        case Some(t) => fn(dt, t)
+      }
+
+    val groupFilter = optionalFilter(groupId) { (dt, gid) =>
+      dt.uuid in groupMembers.filter(_.groupId === gid).map(_.deviceUuid)
+    }
+
+    val nameContainsFilter = optionalFilter(nameContains) { (dt, s) =>
+      dt.deviceName.mappedTo[String].toLowerCase.like(s"%${s.toLowerCase}%")
+    }
+
+    val notSeenSinceFilter = optionalFilter(notSeenSinceHours) { (dt, h) =>
+      dt.lastSeen.map(i => i < Instant.now.minus(h, ChronoUnit.HOURS).bind).getOrElse(true.bind)
+    }
 
     devices
       .filter(_.namespace === ns)
-      .filter { device =>
-        nameContains match {
-          case None => true.bind
-          case Some(s) => device.deviceName.mappedTo[String].toLowerCase.like(s"%${s.toLowerCase}%")
-        }
-      }
-      .filter(_.uuid in devicesInGroup)
+      .filter(groupFilter)
+      .filter(nameContainsFilter)
+      .filter(notSeenSinceFilter)
   }
 
   private def runQueryFilteringByName(ns: Namespace, query: Query[DeviceTable, Device, Seq], nameContains: Option[String])
                                      (implicit ec: ExecutionContext) = {
-    val deviceIdsByName = searchQuery(ns, nameContains, None).map(_.uuid)
+    val deviceIdsByName = searchQuery(ns, nameContains, None, None).map(_.uuid)
     query.filter(_.uuid in deviceIdsByName)
   }
 
@@ -169,18 +185,18 @@ object DeviceRepository {
   def search(ns: Namespace, params: SearchParams)(implicit ec: ExecutionContext): DBIO[PaginationResult[Device]] = {
     val query = params match {
 
-      case SearchParams(Some(oemId), _, _, None, None, _, _, _) =>
+      case SearchParams(Some(oemId), _, _, None, None, None, _, _, _) =>
         findByDeviceIdQuery(ns, oemId)
 
-      case SearchParams(None, Some(true), gt, None, nameContains, _, _, _) =>
+      case SearchParams(None, Some(true), gt, None, nameContains, None, _, _, _) =>
         runQueryFilteringByName(ns, groupedDevicesQuery(gt), nameContains)
 
-      case SearchParams(None, Some(false), gt, None, nameContains, _, _, _) =>
+      case SearchParams(None, Some(false), gt, None, nameContains, None, _, _, _) =>
         val ungroupedDevicesQuery = devices.filterNot(_.uuid.in(groupedDevicesQuery(gt).map(_.uuid)))
         runQueryFilteringByName(ns, ungroupedDevicesQuery, nameContains)
 
-      case SearchParams(None, _, _, gid, nameContains, _, _, _) =>
-        searchQuery(ns, nameContains, gid)
+      case SearchParams(None, _, _, gid, nameContains, notSeenSinceHours, _, _, _) =>
+        searchQuery(ns, nameContains, gid, notSeenSinceHours)
 
       case _ => throw new IllegalArgumentException("Invalid parameter combination.")
     }

@@ -68,10 +68,12 @@ trait DeviceRequests { self: ResourceSpec =>
   def fetchByDeviceId(deviceId: DeviceOemId,
                       nameContains: Option[String] = None,
                       groupId: Option[GroupId] = None,
+                      notSeenSinceHours: Option[Int] = None,
                      ): HttpRequest = {
     val m = ("deviceId" -> deviceId.show) +: Seq(
       nameContains.map("nameContains" -> _),
       groupId.map("groupId" -> _.show),
+      notSeenSinceHours.map("notSeenSinceHours" -> _.toString),
     ).collect { case Some(a) => a }
     Get(Resource.uri(api).withQuery(Query(m.toMap)))
   }
@@ -93,6 +95,9 @@ trait DeviceRequests { self: ResourceSpec =>
           Query("grouped" -> "false", "offset" -> offset.toString, "limit" -> limit.toString)
         )
     )
+
+  def fetchNotSeenSince(hours: Int): HttpRequest =
+    Get(Resource.uri(api).withQuery(Query("notSeenSinceHours" -> hours.toString, "limit" -> 1000.toString)))
 
   def updateDevice(uuid: DeviceId, newName: DeviceName)(implicit ec: ExecutionContext): HttpRequest =
     Put(Resource.uri(api, uuid.show), UpdateDevice(newName))
