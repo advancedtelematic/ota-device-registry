@@ -112,7 +112,7 @@ class DevicesResource(
       'activated.as[Boolean].?,
       'sortBy.as[SortBy].?,
       'offset.as[Long].?,
-      'limit.as[Long].?)).as(SearchParams)
+      'limit.as[Long].?)).as(SearchParams.apply _)
     { params => complete(db.run(DeviceRepository.search(ns, params))) }
 
   def createDevice(ns: Namespace, device: DeviceT): Route = {

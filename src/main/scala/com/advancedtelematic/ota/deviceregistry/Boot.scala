@@ -8,13 +8,10 @@
 
 package com.advancedtelematic.ota.deviceregistry
 
-import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
-import akka.http.scaladsl.server.{Directive1, Directives, Route}
-import akka.stream.ActorMaterializer
-import com.advancedtelematic.libats.auth.{AuthedNamespaceScope, NamespaceDirectives}
+import akka.http.scaladsl.server.{Directives, Route}
+import com.advancedtelematic.libats.auth.NamespaceDirectives
 import com.advancedtelematic.libats.data.DataType.Namespace
-import com.advancedtelematic.libats.http.DefaultRejectionHandler.rejectionHandler
 import com.advancedtelematic.libats.http._
 import com.advancedtelematic.libats.http.monitoring.MetricsSupport
 import com.advancedtelematic.libats.http.tracing.Tracing
@@ -22,36 +19,12 @@ import com.advancedtelematic.libats.messaging._
 import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
 import com.advancedtelematic.libats.slick.db.{CheckMigrations, DatabaseConfig}
 import com.advancedtelematic.libats.slick.monitoring.{DatabaseMetrics, DbHealthResource}
-import com.advancedtelematic.metrics.prometheus.PrometheusMetricsSupport
 import com.advancedtelematic.metrics.AkkaHttpRequestMetrics
+import com.advancedtelematic.metrics.prometheus.PrometheusMetricsSupport
 import com.advancedtelematic.ota.deviceregistry.db.DeviceRepository
-import slick.jdbc.MySQLProfile.api._
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.Future
 import scala.util.Try
-
-/**
-  * Base API routing class.
-  */
-class DeviceRegistryRoutes(
-    namespaceExtractor: Directive1[AuthedNamespaceScope],
-    deviceNamespaceAuthorizer: Directive1[DeviceId],
-    messageBus: MessageBusPublisher
-)(implicit db: Database, system: ActorSystem, mat: ActorMaterializer, exec: ExecutionContext)
-    extends Directives {
-
-  val route: Route =
-    pathPrefix("api" / "v1") {
-      handleRejections(rejectionHandler) {
-        ErrorHandler.handleErrors {
-          new DevicesResource(namespaceExtractor, messageBus, deviceNamespaceAuthorizer).route ~
-          new SystemInfoResource(messageBus, namespaceExtractor, deviceNamespaceAuthorizer).route ~
-          new PublicCredentialsResource(namespaceExtractor, messageBus, deviceNamespaceAuthorizer).route ~
-          new GroupsResource(namespaceExtractor, deviceNamespaceAuthorizer).route
-      }
-    }
-  }
-}
 
 object Boot extends BootApp
   with AkkaHttpRequestMetrics

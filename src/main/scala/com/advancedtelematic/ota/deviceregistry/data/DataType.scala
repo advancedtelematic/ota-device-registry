@@ -63,6 +63,20 @@ object DataType {
   final case class DeviceInstallationResult(correlationId: CorrelationId, resultCode: ResultCode, deviceId: DeviceId, success: Boolean, receivedAt: Instant, installationReport: Json)
   final case class EcuInstallationResult(correlationId: CorrelationId, resultCode: ResultCode, deviceId: DeviceId, ecuId: EcuIdentifier, success: Boolean)
 
+  object SearchParams {
+    def all(limit: Option[Long], offset: Option[Long]) = SearchParams(
+      None,
+      None,
+      None,
+      None,
+      None,
+      None,
+      Some(SortBy.CreatedAt),
+      offset,
+      limit
+    )
+  }
+
   final case class SearchParams(oemId: Option[DeviceOemId],
                                 grouped: Option[Boolean],
                                 groupType: Option[GroupType],
