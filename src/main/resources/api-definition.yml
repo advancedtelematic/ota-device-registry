@@ -1,0 +1,184 @@
+openapi: 3.0.0
+info:
+  description: |
+    HERE OTA API for device information
+
+    This api uses a Bearer token for authentication. To obtain a bearer token download a credentials.zip from the HERE OTA UI and extract `treehub.json`.
+
+    To obtain a valid Bearer token you can use HTTP:
+
+    ```
+    curl -X POST <auth-plus-url>/token -d "grant_type=client_credentials" \
+      -u <client-id>:<client-secret> |
+      jq -r .access_token
+    ````
+
+    `auth-plus-url`, `client-id` and `client-secret` are included in `treehub.json`.
+
+    This access token can be used to access this api:
+
+    ```
+    curl -H 'Authorization: Bearer $token' https://this-api-url/v1/devices
+    ```
+
+    The token will expire every 24 hours. The user needs to request a new token before the current token expires to continue using the api
+
+  version: "1.0.0"
+  title: "HERE OTA API"
+servers:
+  - url: http://api.ota.here.com/v1
+    description: production
+  - url: https://ota-api-gateway-sit.borg-rd.nw.ops.here.com/v1
+    description: sit
+  - url: "{uri}/api/v1"
+    description: custom
+    variables:
+      uri:
+        default: /api-provider
+        description: full uri to api
+
+security:
+  - bearerAuth: []
+
+paths:
+  /devices:
+    get:
+      tags:
+        - "devices"
+      summary: "Returns all devices for the current account"
+      description: "Paginated list of devices"
+      parameters:
+        - in: query
+          name: limit
+          schema:
+            type: integer
+        - in: query
+          name: offset
+          schema:
+            type: integer
+      responses:
+        200:
+          description: "successful operation"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginationResponseDevice"
+        401:
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /devices/{deviceId}:
+    get:
+      tags:
+        - "devices"
+      summary: "Find device by ID"
+      description: "Returns a single device"
+      parameters:
+        - name: "deviceId"
+          in: "path"
+          description: "ID of device to return"
+          required: true
+          schema:
+            type: "string"
+            format: "uuid"
+      responses:
+        200:
+          description: "information about the device"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Device"
+        404:
+          description: "Device not found"
+        401:
+          $ref: '#/components/responses/UnauthorizedError'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    SimplifiedDevice:
+      type: "object"
+      required:
+      - "id"
+      - "oemId"
+      properties:
+        id:
+          type: "string"
+          format: "uuid"
+        oemId:
+          type: "string"
+          format: "string"
+
+    PaginationResponseDevice:
+      type: "object"
+      properties:
+        total:
+          type: "integer"
+          format: "int64"
+        offset:
+          type: "integer"
+          format: "int64"
+        values:
+          type: "array"
+          items:
+            $ref: "#/components/schemas/SimplifiedDevice"
+
+    Device:
+      type: "object"
+      required: [id, oemId, name, status]
+      properties:
+        id:
+          type: "string"
+          format: "uuid"
+        oemId:
+          type: "string"
+          format: "string"
+        name:
+          type: "string"
+          format: "string"
+        lastSeen:
+          type: "string"
+          format: "date-time"
+        primaryEcu:
+          type: object
+          required: [ecuId, installedTarget]
+          properties:
+            ecuId:
+              type: string
+              format: string
+            installedTarget:
+              type: object
+              required: [filename, target]
+              properties:
+                filename:
+                  type: string
+                  format: string
+                target:
+                  type: object
+                  properties:
+                    length:
+                      type: integer
+                    hashes:
+                      type: object
+                      properties:
+                        sha256:
+                          type: string
+                          format: string
+                          minLength: 64
+                          maxLength: 64
+                      required: [sha256]
+        status:
+          type: string
+          description: "current status of device"
+          enum:
+          - NotSeen
+          - Error
+          - UpToDate
+          - Outdated
+
+  responses:
+    UnauthorizedError:
+      description: Access token is missing or invalid
