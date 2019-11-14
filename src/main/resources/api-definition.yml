@@ -18,7 +18,7 @@ info:
     This access token can be used to access this api:
 
     ```
-    curl -H 'Authorization: Bearer $token' https://this-api-url/v1/devices
+    curl -H 'Authorization: Bearer $token' https://this-api-url/v1alpha/devices
     ```
 
     The token will expire every 24 hours. The user needs to request a new token before the current token expires to continue using the api
@@ -26,11 +26,11 @@ info:
   version: "1.0.0"
   title: "HERE OTA API"
 servers:
-  - url: http://api.ota.here.com/v1
+  - url: http://api.ota.here.com/v1alpha
     description: production
-  - url: https://ota-api-gateway-sit.borg-rd.nw.ops.here.com/v1
+  - url: https://ota-api-gateway-sit.borg-rd.nw.ops.here.com/v1alpha
     description: sit
-  - url: "{uri}/api/v1"
+  - url: "{uri}/api/v1alpha"
     description: custom
     variables:
       uri:

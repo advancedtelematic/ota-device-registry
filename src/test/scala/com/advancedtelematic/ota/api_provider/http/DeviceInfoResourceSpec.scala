@@ -22,7 +22,7 @@ class DeviceInfoResourceSpec extends FunSuite with ResourceSpec with Eventually 
   import com.advancedtelematic.ota.api_provider.data.DataType._
 
   private def apiProviderUri(pathSuffixes: String*): Uri = {
-    val BasePath = Path("/api-provider") / "api" / "v1"
+    val BasePath = Path("/api-provider") / "api" / "v1alpha"
     Uri.Empty.withPath(pathSuffixes.foldLeft(BasePath)(_ / _))
   }
 

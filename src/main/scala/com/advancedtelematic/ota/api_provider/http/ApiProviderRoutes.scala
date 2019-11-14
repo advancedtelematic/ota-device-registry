@@ -45,7 +45,7 @@ class ApiProviderRoutes(namespaceExtractor: Directive1[AuthedNamespaceScope],
 
   val route: Route = withVersionHeaders {
     pathPrefix("api-provider") {
-      pathPrefix ("api" / "v1") {
+      pathPrefix ("api" / "v1alpha") {
         handleRejections(DefaultRejectionHandler.rejectionHandler) {
           ErrorHandler.handleErrors {
             new DeviceInfoResource(namespaceExtractor, deviceNamespaceAuthorizer, directorClient).route
