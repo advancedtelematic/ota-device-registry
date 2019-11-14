@@ -51,6 +51,28 @@ class DeviceInfoResourceSpec extends FunSuite with ResourceSpec with Eventually 
     }
   }
 
+  test("list devices, paginated, filtered by oem id") {
+    val device = genDeviceT.retryUntil(_.uuid.isDefined).generate
+    createDeviceOk(device)
+
+    val device02 = genDeviceT.retryUntil(_.uuid.isDefined).generate
+    createDeviceOk(device02)
+
+    Get(apiProviderUri("devices").withRawQueryString(s"oemId=${device.deviceId.show}"))  ~> route ~> check {
+      status shouldBe StatusCodes.OK
+      val pages = responseAs[PaginationResult[ListingDevice]]
+
+      pages.limit shouldBe 50
+      pages.offset shouldBe 0
+      pages.total shouldBe 1
+
+      val first = pages.values.head
+
+      first shouldBe ListingDevice(device.uuid.get, device.deviceId)
+    }
+  }
+
+
   test("gets information for a device") {
     val device = genDeviceT.retryUntil(_.uuid.isDefined).generate
     val deviceId = createDeviceOk(device)
@@ -76,6 +98,22 @@ class DeviceInfoResourceSpec extends FunSuite with ResourceSpec with Eventually 
       apiDevice.primaryEcu.map(_.installedTarget.filename) should contain(targetFilename)
       apiDevice.primaryEcu.map(_.installedTarget.target.length) should contain(2222)
       apiDevice.primaryEcu.map(_.installedTarget.target.hashes.head._2) should contain(hash)
+    }
+  }
+
+  test("returns empty primary ecu info if director returns 404") {
+    val device = genDeviceT.retryUntil(_.uuid.isDefined).generate
+    val deviceId = createDeviceOk(device)
+
+    Get(apiProviderUri("devices", deviceId.show)) ~> route ~> check {
+      status shouldBe StatusCodes.OK
+      val apiDevice = responseAs[ApiDevice]
+      apiDevice.oemId shouldBe device.deviceId
+      apiDevice.id shouldBe device.uuid.get
+      apiDevice.lastSeen shouldBe None
+      apiDevice.status shouldBe DeviceStatus.NotSeen
+
+      apiDevice.primaryEcu shouldBe empty
     }
   }
 }

@@ -30,11 +30,11 @@ servers:
     description: production
   - url: https://ota-api-gateway-sit.borg-rd.nw.ops.here.com/v1alpha
     description: sit
-  - url: "{uri}/api/v1alpha"
+  - url: "{uri}"
     description: custom
     variables:
       uri:
-        default: /api-provider
+        default: http://localhost/v1alpha
         description: full uri to api
 
 security:
@@ -48,6 +48,11 @@ paths:
       summary: "Returns all devices for the current account"
       description: "Paginated list of devices"
       parameters:
+        - in: query
+          name: oemId
+          description: the id used by the OEM to provision the device
+          schema:
+            type: string
         - in: query
           name: limit
           schema:

@@ -4,7 +4,8 @@ import akka.actor.ActorSystem
 import akka.http.scaladsl.model.Uri.Path
 import akka.http.scaladsl.model.Uri.Path.Slash
 import akka.http.scaladsl.model.headers.RawHeader
-import akka.http.scaladsl.model.{HttpMethods, HttpRequest, HttpResponse, Uri}
+import akka.http.scaladsl.model.{HttpMethods, HttpRequest, HttpResponse, StatusCodes, Uri}
+import akka.http.scaladsl.util.FastFuture
 import akka.stream.Materializer
 import com.advancedtelematic.libats.data.DataType.{Namespace, ValidChecksum}
 import com.advancedtelematic.libats.data.EcuIdentifier
@@ -49,8 +50,10 @@ class DirectorHttpClient(directorUri: Uri,
   private def apiUri(path: Path) = directorUri.withPath(Path("/api") / "v1" ++ Slash(path))
 
   override def fetchDeviceEcus(ns: Namespace, deviceId: DeviceId): Future[Seq[EcuInfoResponse]] = {
-    val req = HttpRequest(HttpMethods.GET, uri = apiUri(Path(s"admin/v1/${deviceId.uuid.toString}"))).withHeaders(RawHeader("x-ats-namespace", ns.get))
-
-    execHttp[Seq[EcuInfoResponse]](req)()
+    val req = HttpRequest(HttpMethods.GET, uri = apiUri(Path(s"admin/devices/${deviceId.uuid.toString}"))).withHeaders(RawHeader("x-ats-namespace", ns.get))
+    execHttp[Seq[EcuInfoResponse]](req) {
+      case e if e.status == StatusCodes.NotFound =>
+        FastFuture.successful(Seq.empty)
+    }
   }
 }

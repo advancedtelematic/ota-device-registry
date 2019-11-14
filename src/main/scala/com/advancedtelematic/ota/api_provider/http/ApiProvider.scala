@@ -8,6 +8,7 @@ import com.advancedtelematic.ota.api_provider.client.DirectorClient
 import com.advancedtelematic.ota.api_provider.data.DataType.{ApiDevice, InstalledTarget, ListingDevice, PrimaryEcu}
 import com.advancedtelematic.ota.deviceregistry.data.DataType.SearchParams
 import com.advancedtelematic.ota.deviceregistry.data.Device
+import com.advancedtelematic.ota.deviceregistry.data.Device.DeviceOemId
 import com.advancedtelematic.ota.deviceregistry.db.DeviceRepository
 import org.slf4j.LoggerFactory
 import slick.jdbc.MySQLProfile.api._
@@ -39,8 +40,8 @@ class ApiProvider(directorClient: DirectorClient)(implicit ec: ExecutionContext,
     localInfo.toApi(primaryEcuInfo)
   }
 
-  def allDevices(ns: Namespace, limit: Option[Long], offset: Option[Long]): Future[PaginationResult[ListingDevice]] = {
-    val f = db.run(DeviceRepository.search(ns, SearchParams.all(limit, offset)))
+  def allDevices(ns: Namespace, oemId: Option[DeviceOemId], limit: Option[Long], offset: Option[Long]): Future[PaginationResult[ListingDevice]] = {
+    val f = db.run(DeviceRepository.search(ns, SearchParams.all(limit, offset).copy(oemId = oemId)))
     f.map(_.map { device =>
       ListingDevice(device.uuid, device.deviceId)
     })

@@ -14,6 +14,7 @@ import com.advancedtelematic.libtuf.data.ClientCodecs._
 import com.advancedtelematic.libtuf.data.TufCodecs._
 import com.advancedtelematic.ota.deviceregistry.data.Codecs._
 import com.advancedtelematic.ota.deviceregistry.data.Device.DeviceOemId._
+import JsonDropNullValues._
 
 object DataType {
 
@@ -34,7 +35,8 @@ object DataType {
 
   implicit val installedTargetCodec = deriveCodec[InstalledTarget]
 
-  implicit val primaryEcuCodec = deriveCodec[PrimaryEcu]
+  implicit val primaryEcuEncoder = deriveEncoder[PrimaryEcu].mapJson(_.dropNullValuesDeep)
+  implicit val primaryEcuDecoder = deriveDecoder[PrimaryEcu]
 
   implicit val apiDeviceCodec = deriveCodec[ApiDevice]
 

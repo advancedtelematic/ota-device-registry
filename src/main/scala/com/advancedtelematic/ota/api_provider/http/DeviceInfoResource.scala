@@ -5,8 +5,10 @@ import com.advancedtelematic.libats.auth.AuthedNamespaceScope
 import com.advancedtelematic.libats.data.PaginationResult
 import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
 import com.advancedtelematic.ota.api_provider.client.DirectorClient
+import com.advancedtelematic.ota.deviceregistry.data.Device.DeviceOemId
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
 import slick.jdbc.MySQLProfile.api._
+import com.advancedtelematic.libats.http.AnyvalMarshallingSupport._
 
 import scala.concurrent.ExecutionContext
 
@@ -21,8 +23,8 @@ class DeviceInfoResource(namespaceExtractor: Directive1[AuthedNamespaceScope],
 
   val route: Route = namespaceExtractor { ns =>
     pathPrefix("devices") {
-      (get & pathEnd & parameters('offset.as[Long].?, 'limit.as[Long].?))  { (offset, limit) =>
-        val f = apiProvider.allDevices(ns.namespace, offset, limit)
+      (get & pathEnd & parameters(('oemId.as[DeviceOemId].?, 'offset.as[Long].?, 'limit.as[Long].?)))  { (oemId, offset, limit) =>
+        val f = apiProvider.allDevices(ns.namespace, oemId, offset, limit)
         complete(f)
       } ~
       deviceNamespaceAuthorizer { deviceId =>

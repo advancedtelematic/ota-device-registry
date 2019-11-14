@@ -1,11 +1,7 @@
 package com.advancedtelematic.ota.api_provider.http
 
-import java.nio.file.Paths
-
 import akka.actor.ActorSystem
-import akka.http.scaladsl.model.ContentTypes
 import akka.http.scaladsl.model.headers.RawHeader
-import akka.http.scaladsl.server.ContentNegotiator.Alternative.ContentType
 import akka.http.scaladsl.server.{Directive1, Directives, Route}
 import akka.stream.ActorMaterializer
 import com.advancedtelematic.libats.auth.AuthedNamespaceScope
@@ -16,20 +12,6 @@ import slick.jdbc.MySQLProfile.api._
 
 import scala.concurrent.ExecutionContext
 
-class ApiDocsResource {
-  import Directives._
-
-  val route: Route = {
-    pathPrefix("docs") {
-      path("definition.yml") {
-        getFromResource("api-definition.yml", ContentTypes.`text/plain(UTF-8)`)
-      } ~
-      pathEnd {
-        getFromResource("swagger.html", ContentTypes.`text/html(UTF-8)`)
-      }
-    }
-  }
-}
 
 class ApiProviderRoutes(namespaceExtractor: Directive1[AuthedNamespaceScope],
                         deviceNamespaceAuthorizer: Directive1[DeviceId],
