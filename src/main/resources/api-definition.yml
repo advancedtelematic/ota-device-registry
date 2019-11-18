@@ -23,13 +23,15 @@ info:
 
     The token will expire every 24 hours. The user needs to request a new token before the current token expires to continue using the api
 
-  version: "1.0.0"
-  title: "HERE OTA API"
+  version: 1.0.0-alpha
+  title: HERE OTA API
 servers:
   - url: http://api.ota.here.com/v1alpha
     description: production
   - url: https://ota-api-gateway-sit.borg-rd.nw.ops.here.com/v1alpha
     description: sit
+  - url: /v1alpha
+    description: this instance
   - url: "{uri}"
     description: custom
     variables:
@@ -44,9 +46,9 @@ paths:
   /devices:
     get:
       tags:
-        - "devices"
-      summary: "Returns all devices for the current account"
-      description: "Paginated list of devices"
+        - devices
+      summary: Returns all devices for the current account
+      description: Paginated list of devices
       parameters:
         - in: query
           name: oemId
@@ -63,7 +65,7 @@ paths:
             type: integer
       responses:
         200:
-          description: "successful operation"
+          description: successful operation
           content:
             application/json:
               schema:
@@ -74,26 +76,26 @@ paths:
   /devices/{deviceId}:
     get:
       tags:
-        - "devices"
-      summary: "Find device by ID"
-      description: "Returns a single device"
+        - devices
+      summary: Find device by ID"
+      description: Returns a single device
       parameters:
-        - name: "deviceId"
-          in: "path"
-          description: "ID of device to return"
+        - name: deviceId
+          in: path
+          description: ID of device to return
           required: true
           schema:
-            type: "string"
-            format: "uuid"
+            type: string
+            format: uuid
       responses:
         200:
-          description: "information about the device"
+          description: information about the device
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Device"
         404:
-          description: "Device not found"
+          description: Device not found
         401:
           $ref: '#/components/responses/UnauthorizedError'
 
@@ -105,48 +107,48 @@ components:
       bearerFormat: JWT
   schemas:
     SimplifiedDevice:
-      type: "object"
+      type: object
       required:
-      - "id"
-      - "oemId"
+      - id
+      - oemId
       properties:
         id:
-          type: "string"
-          format: "uuid"
+          type: string
+          format: uuid
         oemId:
-          type: "string"
-          format: "string"
+          type: string
+          format: string
 
     PaginationResponseDevice:
-      type: "object"
+      type: object
       properties:
         total:
-          type: "integer"
-          format: "int64"
+          type: integer
+          format: int64
         offset:
-          type: "integer"
-          format: "int64"
+          type: integer
+          format: int64
         values:
-          type: "array"
+          type: array
           items:
             $ref: "#/components/schemas/SimplifiedDevice"
 
     Device:
-      type: "object"
+      type: object
       required: [id, oemId, name, status]
       properties:
         id:
-          type: "string"
-          format: "uuid"
+          type: string
+          format: uuid
         oemId:
-          type: "string"
-          format: "string"
+          type: string
+          format: string
         name:
-          type: "string"
-          format: "string"
+          type: string
+          format: string
         lastSeen:
-          type: "string"
-          format: "date-time"
+          type: string
+          format: date-time
         primaryEcu:
           type: object
           required: [ecuId, installedTarget]
@@ -177,7 +179,7 @@ components:
                       required: [sha256]
         status:
           type: string
-          description: "current status of device"
+          description: current status of device
           enum:
           - NotSeen
           - Error
