@@ -21,7 +21,13 @@ info:
     curl -H 'Authorization: Bearer $token' https://this-api-url/v1alpha/devices
     ```
 
-    The token will expire every 24 hours. The user needs to request a new token before the current token expires to continue using the api
+    The token will expire every 24 hours. If the current token is expired, the user needs to request a new token to continue using the API.
+
+    To try out the API, you can obtain a token using the above steps and click the "Authorize" button below. Paste the token in the "Value" field and click "Authorize". You are now logged in and you can click the "try it it now" buttons bellow.
+
+    *Warning*
+
+    This api is currently in alpha and can change without prior notice.
 
   version: 1.0.0-alpha
   title: HERE OTA API
@@ -51,8 +57,8 @@ paths:
       description: Paginated list of devices
       parameters:
         - in: query
-          name: oemId
-          description: the id used by the OEM to provision the device
+          name: clientDeviceId
+          description: the id used by the client to provision the device
           schema:
             type: string
         - in: query
@@ -110,12 +116,12 @@ components:
       type: object
       required:
       - id
-      - oemId
+      - clientDeviceId
       properties:
         id:
           type: string
           format: uuid
-        oemId:
+        clientDeviceId:
           type: string
           format: string
 
@@ -135,12 +141,12 @@ components:
 
     Device:
       type: object
-      required: [id, oemId, name, status]
+      required: [id, clientDeviceId, name, status]
       properties:
         id:
           type: string
           format: uuid
-        oemId:
+        clientDeviceId:
           type: string
           format: string
         name:

@@ -24,9 +24,9 @@ object DataType {
 
   case class PrimaryEcu(ecuId: EcuIdentifier, installedTarget: InstalledTarget)
 
-  case class ListingDevice(id: DeviceId, oemId: DeviceOemId)
+  case class ListingDevice(id: DeviceId, clientDeviceId: DeviceOemId)
 
-  case class ApiDevice(oemId: DeviceOemId,
+  case class ApiDevice(clientDeviceId: DeviceOemId,
                        id: DeviceId,
                        name: DeviceName,
                        lastSeen: Option[Instant],
