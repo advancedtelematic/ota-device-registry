@@ -24,6 +24,7 @@ lazy val `ota-device-registry` =
       libraryDependencies += "org.tpolecat" %% "atto-core" % "0.7.1"
     )
     .settings(libraryDependencies ++= library.libAts)
+    .settings(libraryDependencies += "com.advancedtelematic" %% "libtuf-server" % "0.7.0-59-gf6013d6")
     .settings(dependencyOverrides += library.kafkaClient)
 
 // *****************************************************************************

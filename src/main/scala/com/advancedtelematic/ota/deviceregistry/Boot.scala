@@ -8,49 +8,32 @@
 
 package com.advancedtelematic.ota.deviceregistry
 
-import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
-import akka.http.scaladsl.server.{Directive1, Directives, Route}
-import akka.stream.ActorMaterializer
-import com.advancedtelematic.libats.auth.{AuthedNamespaceScope, NamespaceDirectives}
+import akka.http.scaladsl.model.Uri
+import akka.http.scaladsl.server.{Directives, Route}
+import com.advancedtelematic.libats.auth.NamespaceDirectives
 import com.advancedtelematic.libats.data.DataType.Namespace
-import com.advancedtelematic.libats.http.DefaultRejectionHandler.rejectionHandler
 import com.advancedtelematic.libats.http._
 import com.advancedtelematic.libats.http.monitoring.MetricsSupport
 import com.advancedtelematic.libats.http.tracing.Tracing
+import com.advancedtelematic.libats.http.tracing.Tracing.ServerRequestTracing
 import com.advancedtelematic.libats.messaging._
 import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
 import com.advancedtelematic.libats.slick.db.{CheckMigrations, DatabaseConfig}
 import com.advancedtelematic.libats.slick.monitoring.{DatabaseMetrics, DbHealthResource}
-import com.advancedtelematic.metrics.prometheus.PrometheusMetricsSupport
 import com.advancedtelematic.metrics.AkkaHttpRequestMetrics
+import com.advancedtelematic.metrics.prometheus.PrometheusMetricsSupport
+import com.advancedtelematic.ota.api_provider.client.DirectorHttpClient
 import com.advancedtelematic.ota.deviceregistry.db.DeviceRepository
-import slick.jdbc.MySQLProfile.api._
+import com.typesafe.config.ConfigFactory
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.Future
 import scala.util.Try
 
-/**
-  * Base API routing class.
-  */
-class DeviceRegistryRoutes(
-    namespaceExtractor: Directive1[AuthedNamespaceScope],
-    deviceNamespaceAuthorizer: Directive1[DeviceId],
-    messageBus: MessageBusPublisher
-)(implicit db: Database, system: ActorSystem, mat: ActorMaterializer, exec: ExecutionContext)
-    extends Directives {
+trait Settings {
+  private lazy val _config = ConfigFactory.load()
 
-  val route: Route =
-    pathPrefix("api" / "v1") {
-      handleRejections(rejectionHandler) {
-        ErrorHandler.handleErrors {
-          new DevicesResource(namespaceExtractor, messageBus, deviceNamespaceAuthorizer).route ~
-          new SystemInfoResource(messageBus, namespaceExtractor, deviceNamespaceAuthorizer).route ~
-          new PublicCredentialsResource(namespaceExtractor, messageBus, deviceNamespaceAuthorizer).route ~
-          new GroupsResource(namespaceExtractor, deviceNamespaceAuthorizer).route
-      }
-    }
-  }
+  val directorUri = Uri(_config.getString("director.uri"))
 }
 
 object Boot extends BootApp
@@ -61,7 +44,9 @@ object Boot extends BootApp
   with Directives
   with MetricsSupport
   with PrometheusMetricsSupport
-  with VersionInfo {
+  with VersionInfo
+  with Settings
+  with ServiceHttpClientSupport {
 
   import VersionDirectives._
 
@@ -78,11 +63,13 @@ object Boot extends BootApp
 
   val tracing = Tracing.fromConfig(config, projectName)
 
+  def directorClient(implicit tracing: ServerRequestTracing) = new DirectorHttpClient(directorUri, defaultHttpClient)
+
   val routes: Route =
   (LogDirectives.logResponseMetrics("device-registry") & requestMetrics(metricRegistry) & versionHeaders(version)) {
     prometheusMetricsRoutes ~
-      tracing.traceRequests { _ =>
-        new DeviceRegistryRoutes(authNamespace, namespaceAuthorizer, messageBus).route
+      tracing.traceRequests { implicit serverRequestTracing =>
+        new DeviceRegistryRoutes(authNamespace, namespaceAuthorizer, messageBus, directorClient).route
       }
   } ~ DbHealthResource(versionMap, healthMetrics = Seq(new BusListenerMetrics(metricRegistry))).route
 
