@@ -14,7 +14,7 @@ import com.advancedtelematic.libtuf.data.ClientCodecs._
 import com.advancedtelematic.libtuf.data.TufCodecs._
 import com.advancedtelematic.ota.deviceregistry.data.Codecs._
 import com.advancedtelematic.ota.deviceregistry.data.Device.DeviceOemId._
-import JsonDropNullValues._
+import com.advancedtelematic.libats.codecs.JsonDropNullValues._
 
 object DataType {
 
