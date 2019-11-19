@@ -4,7 +4,7 @@ import java.time.Instant
 
 import com.advancedtelematic.libats.data.EcuIdentifier
 import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
-import com.advancedtelematic.libtuf.data.ClientDataType.ClientTargetItem
+import com.advancedtelematic.libtuf.data.ClientDataType.{ClientHashes, ClientTargetItem}
 import com.advancedtelematic.libtuf.data.TufDataType.TargetFilename
 import com.advancedtelematic.ota.deviceregistry.data.Device.DeviceOemId
 import com.advancedtelematic.ota.deviceregistry.data.DeviceName
@@ -20,11 +20,11 @@ object DataType {
 
   import io.circe.generic.semiauto._
 
-  case class InstalledTarget(filename: TargetFilename, target: ClientTargetItem)
+  case class InstalledTarget(filename: TargetFilename, hashes: ClientHashes, length: Long)
 
-  case class PrimaryEcu(ecuId: EcuIdentifier, installedTarget: InstalledTarget)
+  case class PrimaryEcu(ecuId: EcuIdentifier, installedSoftwareVersion: InstalledTarget)
 
-  case class ListingDevice(id: DeviceId, clientDeviceId: DeviceOemId)
+  case class ListingDevice(uuid: DeviceId, deviceId: DeviceOemId)
 
   case class ApiDevice(clientDeviceId: DeviceOemId,
                        id: DeviceId,

@@ -57,7 +57,7 @@ paths:
       description: Paginated list of devices
       parameters:
         - in: query
-          name: clientDeviceId
+          name: deviceId
           description: the id used by the client to provision the device
           schema:
             type: string
@@ -79,7 +79,7 @@ paths:
         401:
           $ref: '#/components/responses/UnauthorizedError'
 
-  /devices/{deviceId}:
+  /devices/{uuid}:
     get:
       tags:
         - devices
@@ -115,13 +115,13 @@ components:
     SimplifiedDevice:
       type: object
       required:
-      - id
-      - clientDeviceId
+      - uuid
+      - deviceId
       properties:
         id:
           type: string
           format: uuid
-        clientDeviceId:
+        deviceId:
           type: string
           format: string
 
@@ -141,12 +141,12 @@ components:
 
     Device:
       type: object
-      required: [id, clientDeviceId, name, status]
+      required: [uuid, deviceId, name, status]
       properties:
         id:
           type: string
           format: uuid
-        clientDeviceId:
+        deviceId:
           type: string
           format: string
         name:
@@ -157,32 +157,30 @@ components:
           format: date-time
         primaryEcu:
           type: object
-          required: [ecuId, installedTarget]
+          required: [ecuId, installedSofwareVersion]
           properties:
             ecuId:
               type: string
               format: string
-            installedTarget:
+            installedSofwareVersion:
               type: object
-              required: [filename, target]
+              required: [filename, length, hashes]
               properties:
                 filename:
                   type: string
                   format: string
-                target:
+                length:
+                  type: integer
+                hashes:
                   type: object
+                  required: [sha256]
                   properties:
-                    length:
-                      type: integer
-                    hashes:
-                      type: object
-                      properties:
-                        sha256:
-                          type: string
-                          format: string
-                          minLength: 64
-                          maxLength: 64
-                      required: [sha256]
+                    sha256:
+                      type: string
+                      format: string
+                      minLength: 64
+                      maxLength: 64
+
         status:
           type: string
           description: current status of device
