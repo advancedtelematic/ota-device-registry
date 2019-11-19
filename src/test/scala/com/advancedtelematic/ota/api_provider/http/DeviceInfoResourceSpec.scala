@@ -58,7 +58,7 @@ class DeviceInfoResourceSpec extends FunSuite with ResourceSpec with Eventually 
     val device02 = genDeviceT.retryUntil(_.uuid.isDefined).generate
     createDeviceOk(device02)
 
-    Get(apiProviderUri("devices").withRawQueryString(s"clientDeviceId=${device.deviceId.show}"))  ~> route ~> check {
+    Get(apiProviderUri("devices").withRawQueryString(s"deviceId=${device.deviceId.show}"))  ~> route ~> check {
       status shouldBe StatusCodes.OK
       val pages = responseAs[PaginationResult[ListingDevice]]
 
@@ -95,9 +95,9 @@ class DeviceInfoResourceSpec extends FunSuite with ResourceSpec with Eventually 
 
       apiDevice.primaryEcu shouldBe defined
       apiDevice.primaryEcu.map(_.ecuId) should contain(ecuId)
-      apiDevice.primaryEcu.map(_.installedTarget.filename) should contain(targetFilename)
-      apiDevice.primaryEcu.map(_.installedTarget.target.length) should contain(2222)
-      apiDevice.primaryEcu.map(_.installedTarget.target.hashes.head._2) should contain(hash)
+      apiDevice.primaryEcu.map(_.installedSoftwareVersion.filename) should contain(targetFilename)
+      apiDevice.primaryEcu.map(_.installedSoftwareVersion.length) should contain(2222)
+      apiDevice.primaryEcu.map(_.installedSoftwareVersion.hashes.head._2) should contain(hash)
     }
   }
 

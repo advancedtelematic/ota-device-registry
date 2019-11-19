@@ -30,7 +30,7 @@ class ApiProvider(directorClient: DirectorClient)(implicit ec: ExecutionContext,
   } yield {
     val primaryEcuInfo = directorInfo.find(_.primary).map { ecuInfo =>
       val hashes = Map(HashMethod.SHA256 -> ecuInfo.image.hash.sha256)
-      PrimaryEcu(ecuInfo.id, InstalledTarget(ecuInfo.image.filepath, ClientTargetItem(hashes, ecuInfo.image.size, custom = None)))
+      PrimaryEcu(ecuInfo.id, InstalledTarget(ecuInfo.image.filepath, hashes, ecuInfo.image.size))
     }
 
     if(primaryEcuInfo.isEmpty) {
