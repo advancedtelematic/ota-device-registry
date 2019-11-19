@@ -83,7 +83,7 @@ paths:
     get:
       tags:
         - devices
-      summary: Find device by ID"
+      summary: Find device by ID
       description: Returns a single device
       parameters:
         - name: deviceId

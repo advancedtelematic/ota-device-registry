@@ -24,7 +24,7 @@ class DeviceInfoResource(namespaceExtractor: Directive1[AuthedNamespaceScope],
   val route: Route = namespaceExtractor { ns =>
     pathPrefix("devices") {
       (get & pathEnd & parameters(('clientDeviceId.as[DeviceOemId].?, 'offset.as[Long].?, 'limit.as[Long].?)))  { (clientDeviceId, offset, limit) =>
-        val f = apiProvider.allDevices(ns.namespace, clientDeviceId, offset, limit)
+        val f = apiProvider.allDevices(ns.namespace, clientDeviceId, limit, offset)
         complete(f)
       } ~
       deviceNamespaceAuthorizer { deviceId =>
