@@ -86,7 +86,7 @@ paths:
       summary: Find device by ID
       description: Returns a single device
       parameters:
-        - name: deviceId
+        - name: uuid
           in: path
           description: ID of device to return
           required: true
