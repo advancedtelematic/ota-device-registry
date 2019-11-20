@@ -20,6 +20,9 @@ test:
   stage: test
   tags:
     - docker-sock
+  except:
+    refs:
+      - deploy/sit
   services:
     - name: mariadb:10.2
       alias: db
