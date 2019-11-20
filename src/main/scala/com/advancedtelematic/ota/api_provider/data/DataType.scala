@@ -26,8 +26,8 @@ object DataType {
 
   case class ListingDevice(uuid: DeviceId, deviceId: DeviceOemId)
 
-  case class ApiDevice(clientDeviceId: DeviceOemId,
-                       id: DeviceId,
+  case class ApiDevice(deviceId: DeviceOemId,
+                       uuid: DeviceId,
                        name: DeviceName,
                        lastSeen: Option[Instant],
                        status: DeviceStatus,
