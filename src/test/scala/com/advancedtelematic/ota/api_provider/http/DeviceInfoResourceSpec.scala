@@ -88,8 +88,8 @@ class DeviceInfoResourceSpec extends FunSuite with ResourceSpec with Eventually 
     Get(apiProviderUri("devices", deviceId.show))  ~> route ~> check {
       status shouldBe StatusCodes.OK
       val apiDevice = responseAs[ApiDevice]
-      apiDevice.clientDeviceId shouldBe device.deviceId
-      apiDevice.id shouldBe device.uuid.get
+      apiDevice.deviceId shouldBe device.deviceId
+      apiDevice.uuid shouldBe device.uuid.get
       apiDevice.lastSeen shouldBe None
       apiDevice.status shouldBe DeviceStatus.NotSeen
 
@@ -108,8 +108,8 @@ class DeviceInfoResourceSpec extends FunSuite with ResourceSpec with Eventually 
     Get(apiProviderUri("devices", deviceId.show)) ~> route ~> check {
       status shouldBe StatusCodes.OK
       val apiDevice = responseAs[ApiDevice]
-      apiDevice.clientDeviceId shouldBe device.deviceId
-      apiDevice.id shouldBe device.uuid.get
+      apiDevice.deviceId shouldBe device.deviceId
+      apiDevice.uuid shouldBe device.uuid.get
       apiDevice.lastSeen shouldBe None
       apiDevice.status shouldBe DeviceStatus.NotSeen
 
