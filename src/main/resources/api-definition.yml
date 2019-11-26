@@ -3,9 +3,9 @@ info:
   description: |
     HERE OTA API for device information
 
-    This api uses a Bearer token for authentication. To obtain a bearer token download a credentials.zip from the HERE OTA UI and extract `treehub.json`.
+    This API uses a Bearer token for authentication. To obtain a bearer token, download a credentials.zip from the HERE OTA Connect website and extract `treehub.json`.
 
-    To obtain a valid Bearer token you can use HTTP:
+    To obtain a valid Bearer token, you can use HTTP:
 
     ```
     curl -X POST <auth-plus-url>/token -d "grant_type=client_credentials" \
@@ -15,7 +15,7 @@ info:
 
     `auth-plus-url`, `client-id` and `client-secret` are included in `treehub.json`.
 
-    This access token can be used to access this api:
+    This access token can be used to access this API:
 
     ```
     curl -H 'Authorization: Bearer $token' https://this-api-url/v1alpha/devices
@@ -23,11 +23,11 @@ info:
 
     The token will expire every 24 hours. If the current token is expired, the user needs to request a new token to continue using the API.
 
-    To try out the API, you can obtain a token using the above steps and click the "Authorize" button below. Paste the token in the "Value" field and click "Authorize". You are now logged in and you can click the "try it it now" buttons bellow.
+    To try out the API, you can obtain a token using the above steps and click the "Authorize" button below. Paste the token in the "Value" field and click "Authorize". You are now logged in and you can click the "try it now" buttons below.
 
     *Warning*
 
-    This api is currently in alpha and can change without prior notice.
+    This API is currently in alpha and can change without prior notice.
 
   version: 1.0.0-alpha
   title: HERE OTA API
@@ -95,7 +95,7 @@ paths:
             format: uuid
       responses:
         200:
-          description: information about the device
+          description: Information about the device
           content:
             application/json:
               schema:
@@ -162,7 +162,7 @@ components:
             ecuId:
               type: string
               format: string
-            installedSofwareVersion:
+            installedSoftwareVersion:
               type: object
               required: [filename, length, hashes]
               properties:
@@ -183,7 +183,7 @@ components:
 
         status:
           type: string
-          description: current status of device
+          description: Current status of device
           enum:
           - NotSeen
           - Error
