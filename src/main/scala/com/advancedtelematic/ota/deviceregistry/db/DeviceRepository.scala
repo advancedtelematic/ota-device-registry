@@ -172,9 +172,10 @@ object DeviceRepository {
     query.filter(_.uuid in deviceIdsByName)
   }
 
-  private val groupedDevicesQuery: Option[GroupType] => Query[DeviceTable, Device, Seq] = groupType =>
+  private val groupedDevicesQuery: (Namespace, Option[GroupType]) => Query[DeviceTable, Device, Seq] = (ns, groupType) =>
     groupInfos
       .maybeFilter(_.groupType === groupType)
+      .filter(_.namespace === ns)
       .join(groupMembers)
       .on(_.id === _.groupId)
       .join(devices)
@@ -189,10 +190,10 @@ object DeviceRepository {
         findByDeviceIdQuery(ns, oemId)
 
       case SearchParams(None, Some(true), gt, None, nameContains, None, _, _, _) =>
-        runQueryFilteringByName(ns, groupedDevicesQuery(gt), nameContains)
+        runQueryFilteringByName(ns, groupedDevicesQuery(ns, gt), nameContains)
 
       case SearchParams(None, Some(false), gt, None, nameContains, None, _, _, _) =>
-        val ungroupedDevicesQuery = devices.filterNot(_.uuid.in(groupedDevicesQuery(gt).map(_.uuid)))
+        val ungroupedDevicesQuery = devices.filterNot(_.uuid.in(groupedDevicesQuery(ns, gt).map(_.uuid)))
         runQueryFilteringByName(ns, ungroupedDevicesQuery, nameContains)
 
       case SearchParams(None, _, _, gid, nameContains, notSeenSinceHours, _, _, _) =>
