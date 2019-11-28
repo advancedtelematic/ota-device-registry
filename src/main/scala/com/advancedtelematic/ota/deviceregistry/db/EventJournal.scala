@@ -23,6 +23,7 @@ import com.advancedtelematic.ota.deviceregistry.db.SlickMappings._
 import io.circe.Json
 import org.slf4j.LoggerFactory
 import slick.jdbc.MySQLProfile.api._
+import com.advancedtelematic.libats.slick.db.SlickExtensions._
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -118,23 +119,20 @@ class EventJournal()(implicit db: Database, ec: ExecutionContext) {
 
   def getEvents(deviceUuid: DeviceId, correlationId: Option[CorrelationId]): Future[Seq[Event]] =
     if(correlationId.isDefined)
-      db.run(findEventsByCorrelationId(deviceUuid, correlationId.get))
+      getIndexedEvents(deviceUuid, correlationId).map(_.map(_._1))
     else
       db.run(events.filter(_.deviceUuid === deviceUuid).result)
 
-  def getIndexedEvents(deviceUuid: DeviceId): Future[Seq[IndexedEvent]] =
-    db.run(indexedEvents.filter(_.deviceUuid === deviceUuid).result)
+  def getIndexedEvents(deviceUuid: DeviceId, correlationId: Option[CorrelationId]): Future[Seq[(Event, IndexedEvent)]] = db.run {
+    EventJournal.events
+      .filter(_.deviceUuid === deviceUuid)
+      .join(EventJournal.indexedEvents.maybeFilter(_.correlationId === correlationId))
+      .on { case (ej, ie) => ej.deviceUuid === ie.deviceUuid && ej.eventId === ie.eventId }
+      .sortBy(_._1.deviceTime.desc)
+      .result
+  }
 
   protected [db] def getArchivedIndexedEvents(deviceUuid: DeviceId): Future[Seq[IndexedEvent]] =
     db.run(indexedEventsArchive.filter(_.deviceUuid === deviceUuid).result)
-
-  protected [db] def findEventsByCorrelationId(deviceUuid: DeviceId, correlationId: CorrelationId): DBIO[Seq[Event]] = {
-    EventJournal.events
-      .filter(_.deviceUuid === deviceUuid)
-      .join(EventJournal.indexedEvents.filter(_.correlationId === correlationId))
-      .on { case (ej, ie) => ej.deviceUuid === ie.deviceUuid && ej.eventId === ie.eventId }
-      .map(_._1)
-      .result
-  }
 }
 

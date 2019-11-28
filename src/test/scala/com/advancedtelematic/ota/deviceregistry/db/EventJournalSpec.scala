@@ -23,7 +23,6 @@ import com.advancedtelematic.ota.deviceregistry.ResourcePropSpec
 import com.advancedtelematic.ota.deviceregistry.db.EventJournalSpec.EventPayload
 import com.advancedtelematic.ota.deviceregistry.daemon.{DeleteDeviceHandler, DeviceEventListener}
 import com.advancedtelematic.ota.deviceregistry.data.DataType.DeviceT
-import com.advancedtelematic.ota.deviceregistry.db.EventJournal
 import com.advancedtelematic.ota.deviceregistry.messages.DeleteDeviceRequest
 import io.circe.generic.semiauto._
 import io.circe.testing.ArbitraryInstances
@@ -165,7 +164,7 @@ class EventJournalSpec extends ResourcePropSpec with ScalaFutures with Eventuall
     new DeleteDeviceHandler().apply(new DeleteDeviceRequest(defaultNs, uuid))
 
     eventually(timeout(5.seconds), interval(100.millis)) {
-      journal.getIndexedEvents(uuid).futureValue shouldBe Nil
+      journal.getIndexedEvents(uuid, correlationId = None).futureValue shouldBe empty
       journal.getArchivedIndexedEvents(uuid).futureValue.map(_.eventID) shouldBe Seq(event.eventId)
     }
   }
