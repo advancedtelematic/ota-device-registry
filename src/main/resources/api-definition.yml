@@ -157,7 +157,7 @@ components:
           format: date-time
         primaryEcu:
           type: object
-          required: [ecuId, installedSofwareVersion]
+          required: [ecuId, installedSoftwareVersion]
           properties:
             ecuId:
               type: string
