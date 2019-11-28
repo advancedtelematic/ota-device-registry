@@ -19,7 +19,8 @@ lazy val `ota-device-registry` =
         library.akkaHttpTestKit % Test,
         library.circeTesting % Test,
         library.akkaStreamTestKit % Test,
-        library.akkaSlf4J
+        library.akkaSlf4J,
+        library.toml
       ),
       libraryDependencies += "org.tpolecat" %% "atto-core" % "0.7.1"
     )
@@ -36,12 +37,13 @@ lazy val library =
     object Version {
       val scalaCheck = "1.14.1"
       val scalaTest  = "3.0.8"
-      val libAts     = "0.3.0-55-g1134e13"
+      val libAts     = "0.3.0-62-g16acc26"
       val akka = "2.5.25"
       val akkaHttp = "10.1.10"
       val mariaDb = "2.4.4"
       val circe = "0.12.1"
       val kafkaClient = "0.11.0.3"
+      val toml = "0.2.2"
     }
     val scalaCheck = "org.scalacheck" %% "scalacheck" % Version.scalaCheck
     val scalaTest  = "org.scalatest"  %% "scalatest"  % Version.scalaTest
@@ -63,6 +65,7 @@ lazy val library =
     val circeTesting = "io.circe" %% "circe-testing" % Version.circe
     val akkaSlf4J = "com.typesafe.akka" %% "akka-slf4j" % Version.akka
     val kafkaClient = "org.apache.kafka" % "kafka-clients" % Version.kafkaClient
+    val toml = "tech.sparse" %% "toml-scala" % Version.toml
   }
 
 // *****************************************************************************

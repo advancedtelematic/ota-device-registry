@@ -24,6 +24,7 @@ import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
 import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
 import com.advancedtelematic.ota.deviceregistry.data.SortBy.SortBy
 import com.advancedtelematic.ota.deviceregistry.data.{DeviceName, GroupExpression, PackageId}
+import com.advancedtelematic.ota.deviceregistry.http.`application/toml`
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
 import io.circe.Json
 
@@ -133,6 +134,9 @@ trait DeviceRequests { self: ResourceSpec =>
     val uri = Resource.uri(api, uuid.show, "system_info", "network")
     Get(uri)
   }
+
+  def uploadSystemConfig(uuid: DeviceId, config: String): HttpRequest =
+    Post(Resource.uri(api, uuid.show, "system_info", "config")).withEntity(`application/toml`, config)
 
   def listGroupsForDevice(device: DeviceId)(implicit ec: ExecutionContext): HttpRequest =
     Get(Resource.uri(api, device.show, "groups"))
