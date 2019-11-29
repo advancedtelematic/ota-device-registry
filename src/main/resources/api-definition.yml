@@ -164,14 +164,14 @@ components:
               format: string
             installedSoftwareVersion:
               type: object
-              required: [filename, length, hashes]
+              required: [filename, length, hash]
               properties:
                 filename:
                   type: string
                   format: string
                 length:
                   type: integer
-                hashes:
+                hash:
                   type: object
                   required: [sha256]
                   properties:
