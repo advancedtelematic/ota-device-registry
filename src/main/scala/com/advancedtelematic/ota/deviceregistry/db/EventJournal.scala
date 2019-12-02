@@ -125,7 +125,7 @@ class EventJournal()(implicit db: Database, ec: ExecutionContext) {
   def getIndexedEvents(deviceUuid: DeviceId): Future[Seq[IndexedEvent]] =
     db.run(indexedEvents.filter(_.deviceUuid === deviceUuid).result)
 
-  def getArchivedIndexedEvents(deviceUuid: DeviceId): Future[Seq[IndexedEvent]] =
+  protected [db] def getArchivedIndexedEvents(deviceUuid: DeviceId): Future[Seq[IndexedEvent]] =
     db.run(indexedEventsArchive.filter(_.deviceUuid === deviceUuid).result)
 
   protected [db] def findEventsByCorrelationId(deviceUuid: DeviceId, correlationId: CorrelationId): DBIO[Seq[Event]] = {

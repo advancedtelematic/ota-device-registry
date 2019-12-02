@@ -6,7 +6,7 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
 
-package com.advancedtelematic.ota.deviceregistry
+package com.advancedtelematic.ota.deviceregistry.db
 
 import java.time.Instant
 import java.time.temporal.ChronoUnit
@@ -19,7 +19,8 @@ import com.advancedtelematic.libats.data.DataType.{CampaignId, CorrelationId, Mu
 import com.advancedtelematic.libats.messaging_datatype.DataType.{Event, EventType}
 import com.advancedtelematic.libats.messaging_datatype.MessageCodecs._
 import com.advancedtelematic.libats.messaging_datatype.Messages.DeviceEventMessage
-import com.advancedtelematic.ota.deviceregistry.EventJournalSpec.EventPayload
+import com.advancedtelematic.ota.deviceregistry.ResourcePropSpec
+import com.advancedtelematic.ota.deviceregistry.db.EventJournalSpec.EventPayload
 import com.advancedtelematic.ota.deviceregistry.daemon.{DeleteDeviceHandler, DeviceEventListener}
 import com.advancedtelematic.ota.deviceregistry.data.DataType.DeviceT
 import com.advancedtelematic.ota.deviceregistry.db.EventJournal
@@ -30,6 +31,7 @@ import io.circe.{Decoder, Json}
 import org.scalacheck.{Arbitrary, Gen, Shrink}
 import org.scalatest.concurrent.{Eventually, ScalaFutures}
 import org.scalatest.time.SpanSugar._
+import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
 
 object EventJournalSpec {
   private[EventJournalSpec] final case class EventPayload(id: UUID,
@@ -52,7 +54,6 @@ object EventJournalSpec {
 
 class EventJournalSpec extends ResourcePropSpec with ScalaFutures with Eventually with ArbitraryInstances {
   import com.advancedtelematic.ota.deviceregistry.data.GeneratorOps._
-  import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
   import io.circe.syntax._
 
   private[this] val InstantGen: Gen[Instant] = Gen
