@@ -262,6 +262,8 @@ components:
         hashes:
           type: object
           required: [sha256]
+          description: A map containing the available checksums for this update. The key for each item is the
+            algorithm used to calculate the checksum defined in the value.
           properties:
             sha256:
               type: string
