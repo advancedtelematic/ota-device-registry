@@ -54,7 +54,7 @@ paths:
       tags:
         - devices
       summary: Returns all devices for the current account
-      description: Paginated list of devices
+      description: Paginated list of devices, sorted by creation date descending
       parameters:
         - in: query
           name: deviceId
