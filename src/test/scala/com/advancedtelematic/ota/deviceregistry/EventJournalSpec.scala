@@ -134,6 +134,25 @@ class EventJournalSpec extends ResourcePropSpec with ScalaFutures with Eventuall
     }
   }
 
+  property("does not return events that do not match on correlation id") {
+    val deviceUuid = createDeviceOk(genDeviceT.generate)
+    val (event0, _) = installCompleteEventGen.generate
+    val event1 = EventGen.retryUntil(_.eventType.id != "InstallationComplete").generate
+
+    List(event0, event1)
+      .map(ep => Event(deviceUuid, ep.id.toString, ep.eventType, ep.deviceTime, Instant.now, ep.event))
+      .map(DeviceEventMessage(defaultNs, _))
+      .map(listener.apply)
+
+    eventually(timeout(3.seconds), interval(100.millis)) {
+      getEvents(deviceUuid, CampaignId(UUID.randomUUID()).some) ~> route ~> check {
+        status should equal(StatusCodes.OK)
+        val events = responseAs[List[EventPayload]]
+        events shouldBe empty
+      }
+    }
+  }
+
   property("DELETE device archives its indexed events") {
     val uuid = createDeviceOk(genDeviceT.generate)
     val (e, _) = installCompleteEventGen.generate
