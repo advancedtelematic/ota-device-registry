@@ -1,4 +1,4 @@
-openapi: 3.0.0
+qopenapi: 3.0.0
 info:
   description: |
     HERE OTA API for device information
@@ -105,6 +105,58 @@ paths:
         401:
           $ref: '#/components/responses/UnauthorizedError'
 
+
+  /devices/{uuid}/queue:
+    get:
+      tags:
+        - devices
+      description: Show the update queue for a device
+      parameters:
+        - name: uuid
+          in: path
+          description: ID of the device to return the queue
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        200:
+          description: Queued updates for the device
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/QueueItem"
+
+  /devices/{uuid}/events:
+    get:
+      tags:
+        - devices
+      description: Show all events reported by a device, sorted by most recent first
+      parameters:
+        - name: uuid
+          in: path
+          description: ID of the device
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: updateId
+          in: query
+          description: Only return events that refer to this update
+          required: false
+          schema:
+            type: string
+            format: string
+      responses:
+        200:
+          description: A description of the current status of the update in this device
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeviceEvents"
+
 components:
   securitySchemes:
     bearerAuth:
@@ -139,6 +191,86 @@ components:
           items:
             $ref: "#/components/schemas/SimplifiedDevice"
 
+    DeviceEvents:
+      type: object
+      properties:
+        deviceUuid:
+          type: string
+          format: uuid
+        events:
+          type: array
+          items:
+            type: object
+            required: [name, receivedTime]
+            properties:
+              updateId:
+                type: string
+                format: string
+              ecuId:
+                type: string
+                format: string
+              name:
+                type: string
+                enum:
+                  - DownloadComplete
+                  - DownloadStarted
+                  - DownloadCompleted
+                  - InstallationStarted
+                  - InstallationApplied
+                  - InstallationCompleted
+                  - DevicePaused
+                  - DeviceResumed
+                  - Accepted
+                  - Declined
+                  - Postponed
+                  - InstallationComplete
+              receivedTime:
+                type: string
+                format: date-time
+              deviceTime:
+                type: string
+                format: date-time
+
+    QueueItem:
+      type: object
+      properties:
+        deviceUuid:
+          type: string
+          format: uuid
+        updateId:
+          type: string
+          format: string
+        ecus:
+          type: object
+          required: [ecuId, softwareVersion]
+          properties:
+            ecuId:
+              type: string
+              format: string
+            softwareVersion:
+              $ref: "#/components/schemas/SoftwareVersion"
+
+    SoftwareVersion:
+      type: object
+      required: [filename, length, hashes]
+      properties:
+        filename:
+          type: string
+          format: string
+        length:
+          type: integer
+        hashes:
+          type: object
+          required: [sha256]
+          description: A map containing the available checksums for this update. The key for each item is the
+            algorithm used to calculate the checksum defined in the value.
+          properties:
+            sha256:
+              type: string
+              format: string
+              minLength: 64
+              maxLength: 64
+
     Device:
       type: object
       required: [uuid, deviceId, name, status]
@@ -157,29 +289,13 @@ components:
           format: date-time
         primaryEcu:
           type: object
-          required: [ecuId, installedSofwareVersion]
+          required: [ecuId, installedSoftwareVersion]
           properties:
             ecuId:
               type: string
               format: string
             installedSoftwareVersion:
-              type: object
-              required: [filename, length, hashes]
-              properties:
-                filename:
-                  type: string
-                  format: string
-                length:
-                  type: integer
-                hashes:
-                  type: object
-                  required: [sha256]
-                  properties:
-                    sha256:
-                      type: string
-                      format: string
-                      minLength: 64
-                      maxLength: 64
+              $ref: "#/components/schemas/SoftwareVersion"
 
         status:
           type: string

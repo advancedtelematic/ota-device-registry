@@ -45,7 +45,6 @@ import slick.jdbc.MySQLProfile.api._
 import scala.concurrent.{ExecutionContext, Future}
 
 object DevicesResource {
-
   type EventPayload = (DeviceId, Instant) => Event
 
   private[DevicesResource] implicit val EventPayloadDecoder: io.circe.Decoder[EventPayload] =
@@ -59,23 +58,6 @@ object DevicesResource {
         (deviceUuid: DeviceId, receivedAt: Instant) =>
           Event(deviceUuid, id, eventType, deviceTime, receivedAt, payload)
     }
-}
-
-class DevicesResource(
-    namespaceExtractor: Directive1[AuthedNamespaceScope],
-    messageBus: MessageBusPublisher,
-    deviceNamespaceAuthorizer: Directive1[DeviceId]
-)(implicit system: ActorSystem, db: Database, mat: ActorMaterializer, ec: ExecutionContext) {
-
-  import Directives._
-  import StatusCodes._
-  import com.advancedtelematic.libats.http.AnyvalMarshallingSupport._
-  import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
-
-  val extractPackageId: Directive1[PackageId] =
-    pathPrefix(Segment / Segment).as(PackageId.apply)
-
-  val eventJournal = new EventJournal()
 
   implicit val groupIdUnmarshaller: Unmarshaller[String, GroupId] = GroupId.unmarshaller
 
@@ -92,7 +74,7 @@ class DevicesResource(
         case "ecu"    => InstallationStatsLevel.Ecu
         case s        => throw new IllegalArgumentException(s"Invalid value for installation stats level parameter: $s.")
       }
-  }
+    }
 
   implicit val sortByUnmarshaller: FromStringUnmarshaller[SortBy] = Unmarshaller.strict {
     _.toLowerCase match {
@@ -101,6 +83,25 @@ class DevicesResource(
       case s           => throw new IllegalArgumentException(s"Invalid value for sorting parameter: '$s'.")
     }
   }
+}
+
+class DevicesResource(
+    namespaceExtractor: Directive1[AuthedNamespaceScope],
+    messageBus: MessageBusPublisher,
+    deviceNamespaceAuthorizer: Directive1[DeviceId]
+)(implicit system: ActorSystem, db: Database, mat: ActorMaterializer, ec: ExecutionContext) {
+
+  import Directives._
+  import StatusCodes._
+  import com.advancedtelematic.libats.http.AnyvalMarshallingSupport._
+  import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
+
+  import DevicesResource._
+
+  val extractPackageId: Directive1[PackageId] =
+    pathPrefix(Segment / Segment).as(PackageId.apply)
+
+  val eventJournal = new EventJournal()
 
   def searchDevice(ns: Namespace): Route =
     parameters((
@@ -254,6 +255,9 @@ class DevicesResource(
         path("events") {
           import DevicesResource.EventPayloadDecoder
           (get & parameter('correlationId.as[CorrelationId].?)) { correlationId =>
+            // TODO: This should not return raw Events
+            // https://saeljira.it.here.com/browse/OTA-4163
+            // API should not return arbitrary json (`payload`) to the clients. This is why we index interesting events, so we can give this info to clients
             val events = eventJournal.getEvents(uuid, correlationId)
             complete(events)
           } ~
