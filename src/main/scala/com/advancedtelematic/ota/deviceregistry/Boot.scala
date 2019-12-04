@@ -11,6 +11,7 @@ package com.advancedtelematic.ota.deviceregistry
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.Uri
 import akka.http.scaladsl.server.{Directives, Route}
+import akka.http.scaladsl.settings.{ParserSettings, ServerSettings}
 import com.advancedtelematic.libats.auth.NamespaceDirectives
 import com.advancedtelematic.libats.data.DataType.Namespace
 import com.advancedtelematic.libats.http._
@@ -25,6 +26,7 @@ import com.advancedtelematic.metrics.AkkaHttpRequestMetrics
 import com.advancedtelematic.metrics.prometheus.PrometheusMetricsSupport
 import com.advancedtelematic.ota.api_provider.client.DirectorHttpClient
 import com.advancedtelematic.ota.deviceregistry.db.DeviceRepository
+import com.advancedtelematic.ota.deviceregistry.http.`application/toml`
 import com.typesafe.config.ConfigFactory
 
 import scala.concurrent.Future
@@ -75,7 +77,11 @@ object Boot extends BootApp
 
   val host = config.getString("server.host")
   val port = config.getInt("server.port")
-  Http().bindAndHandle(routes, host, port)
+
+  val parserSettings = ParserSettings(system).withCustomMediaTypes(`application/toml`.mediaType)
+  val serverSettings = ServerSettings(system).withParserSettings(parserSettings)
+
+  Http().bindAndHandle(routes, host, port, settings = serverSettings)
 
   log.info(s"device registry started at http://$host:$port/")
 

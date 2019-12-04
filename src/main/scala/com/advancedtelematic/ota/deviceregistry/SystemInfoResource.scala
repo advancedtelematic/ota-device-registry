@@ -8,29 +8,37 @@
 
 package com.advancedtelematic.ota.deviceregistry
 
+import java.time.Instant
+
 import akka.Done
 import akka.actor.ActorSystem
+import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.model.StatusCodes._
 import akka.http.scaladsl.server.{Directive1, Route}
 import akka.http.scaladsl.server.Directives._
+import akka.http.scaladsl.unmarshalling.{FromEntityUnmarshaller, Unmarshaller}
 import com.advancedtelematic.libats.auth.{AuthedNamespaceScope, Scopes}
 import com.advancedtelematic.libats.data.DataType.Namespace
 import com.advancedtelematic.libats.messaging.MessageBusPublisher
-import com.advancedtelematic.ota.deviceregistry.common.Errors.MissingSystemInfo
+import com.advancedtelematic.ota.deviceregistry.common.Errors.{Codes, MissingSystemInfo}
 import com.advancedtelematic.ota.deviceregistry.db.SystemInfoRepository
 import com.advancedtelematic.ota.deviceregistry.db.SystemInfoRepository.NetworkInfo
 import io.circe.{Decoder, Encoder, Json}
-import org.slf4j.LoggerFactory
 import slick.jdbc.MySQLProfile.api._
 import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
 import com.advancedtelematic.libats.http.UUIDKeyAkka._
 import cats.syntax.show._
 import cats.syntax.option._
-import com.advancedtelematic.libats.messaging_datatype.Messages
-import com.advancedtelematic.libats.messaging_datatype.Messages.{DeviceSystemInfoChanged, SystemInfo}
+import com.advancedtelematic.libats.http.Errors.RawError
+import com.advancedtelematic.libats.messaging_datatype.Messages.{AktualizrConfigChanged, DeviceSystemInfoChanged}
+import toml.Toml
+import http.`application/toml`
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.ExecutionContext
 
+case class AktualizrConfig(uptane: Uptane, pacman: Pacman)
+case class Uptane(polling_sec: Int, force_install_completion: Boolean)
+case class Pacman(`type`: String)
 
 class SystemInfoResource(
     messageBus: MessageBusPublisher,
@@ -38,8 +46,6 @@ class SystemInfoResource(
     deviceNamespaceAuthorizer: Directive1[DeviceId]
 )(implicit db: Database, actorSystem: ActorSystem, ec: ExecutionContext) {
   import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
-
-  private val logger = LoggerFactory.getLogger(this.getClass)
 
   private val systemInfoUpdatePublisher = new SystemInfoUpdatePublisher(messageBus)
 
@@ -59,6 +65,15 @@ class SystemInfoResource(
       hostname <- c.get[String]("hostname")
     } yield (uuid: DeviceId) => NetworkInfo(uuid, ip, hostname, mac)
   }
+
+  implicit val aktualizrConfigUnmarshaller: FromEntityUnmarshaller[AktualizrConfig] = Unmarshaller.stringUnmarshaller.map { s =>
+    import toml.Codecs._
+
+    Toml.parseAs[AktualizrConfig](s) match {
+      case Left((_,msg)) => throw RawError(Codes.MalformedInput, StatusCodes.BadRequest, msg)
+      case Right(aktualizrConfig) => aktualizrConfig
+    }
+  }.forContentTypes(`application/toml`)
 
   def fetchSystemInfo(uuid: DeviceId): Route = {
     val comp = db.run(SystemInfoRepository.findByUuid(uuid)).recover {
@@ -125,6 +140,18 @@ class SystemInfoResource(
                     messageBus.publish(DeviceSystemInfoChanged(ns.namespace, uuid, None))
                 }
               complete(NoContent -> result)
+            }
+          } ~
+          path("config") {
+            pathEnd {
+              post {
+                entity(as[AktualizrConfig]) { config =>
+                  val result = messageBus.publish(AktualizrConfigChanged(ns.namespace, uuid, config.uptane.polling_sec,
+                                                                         config.uptane.force_install_completion,
+                                                                         config.pacman.`type`, Instant.now))
+                  complete(result.map(_ => NoContent))
+                }
+              }
             }
           }
         }

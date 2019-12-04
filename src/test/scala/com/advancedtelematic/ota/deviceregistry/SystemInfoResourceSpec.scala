@@ -13,13 +13,16 @@ import com.advancedtelematic.ota.deviceregistry.db.SystemInfoRepository.removeId
 import io.circe.Json
 import org.scalacheck.Shrink
 import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
-import com.advancedtelematic.libats.messaging_datatype.Messages.DeviceSystemInfoChanged
+import com.advancedtelematic.libats.messaging_datatype.Messages.{AktualizrConfigChanged, DeviceSystemInfoChanged}
 import com.advancedtelematic.ota.deviceregistry.data.DataType.DeviceT
+import com.advancedtelematic.ota.deviceregistry.data.Device.DeviceOemId
 import com.advancedtelematic.ota.deviceregistry.data.GeneratorOps._
 import org.scalatest.concurrent.Eventually._
 import org.scalatest.OptionValues._
+import toml.Toml
 
 class SystemInfoResourceSpec extends ResourcePropSpec {
+
   import akka.http.scaladsl.model.StatusCodes._
   import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
 
@@ -76,7 +79,7 @@ class SystemInfoResourceSpec extends ResourcePropSpec {
 
   property("GET system_info after POST should return what was posted.") {
     forAll { (device: DeviceT, json0: Json) =>
-      val uuid  = createDeviceOk(device)
+      val uuid = createDeviceOk(device)
       val json1: Json = removeIdNrs(json0)
 
       createSystemInfo(uuid, json1) ~> route ~> check {
@@ -168,7 +171,7 @@ class SystemInfoResourceSpec extends ResourcePropSpec {
 
   property("DeviceSystemInfoChanged is published when client updates system_info") {
     val device: DeviceT = genDeviceT.generate
-    val uuid  = createDeviceOk(device)
+    val uuid = createDeviceOk(device)
 
     val json = io.circe.parser.parse(
       """
@@ -190,7 +193,7 @@ class SystemInfoResourceSpec extends ResourcePropSpec {
 
   property("DeviceSystemInfoChanged is published with empty system info if server could not parse json") {
     val device: DeviceT = genDeviceT.generate
-    val uuid  = createDeviceOk(device)
+    val uuid = createDeviceOk(device)
 
     val json = io.circe.parser.parse(
       """
@@ -210,4 +213,66 @@ class SystemInfoResourceSpec extends ResourcePropSpec {
     }
   }
 
+  property("TOML parsing") {
+    import toml.Codecs._
+
+    val content =
+      """
+        |
+        |[pacman]
+        |type = "ostree"
+        |
+        |[uptane]
+        |polling_sec = 91
+        |force_install_completion = true
+        |
+        |""".stripMargin
+    Toml.parseAs[AktualizrConfig](content) shouldBe Right(AktualizrConfig(Uptane(91, true), Pacman("ostree")))
+  }
+
+  property("system config can be uploaded") {
+    import akka.http.scaladsl.unmarshalling.Unmarshaller._
+
+    val deviceUuid = createDeviceOk(genDeviceT.generate.copy(deviceId = DeviceOemId("abcd-1234")))
+    val config =
+      """
+        |
+        |[pacman]
+        |type = "arcade"
+        |
+        |[uptane]
+        |polling_sec = 123
+        |force_install_completion = true
+        |
+        |""".stripMargin
+
+    uploadSystemConfig(deviceUuid, config) ~> route ~> check {
+      status shouldBe NoContent
+      responseAs[String] shouldBe ""
+    }
+
+    eventually {
+      val msg = messageBus.findReceived[AktualizrConfigChanged](deviceUuid.toString)
+      msg.get.pollingSec shouldBe 123
+      msg.get.installerType shouldBe "arcade"
+    }
+  }
+
+  property("system config TOML parsing error handling") {
+    import akka.http.scaladsl.unmarshalling.Unmarshaller._
+
+    val deviceUuid = createDeviceOk(genDeviceT.generate.copy(deviceId = DeviceOemId("abcd-1234-error")))
+    val config =
+      """
+        |error
+        |
+        |""".stripMargin
+
+    uploadSystemConfig(deviceUuid, config) ~> route ~> check {
+      status shouldBe BadRequest
+      val res = responseAs[String]
+      res should include("The request content was malformed")
+      res should include("error")
+    }
+  }
 }
