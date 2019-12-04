@@ -22,7 +22,7 @@ import com.advancedtelematic.libats.messaging._
 import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
 import com.advancedtelematic.libats.slick.db.{CheckMigrations, DatabaseConfig}
 import com.advancedtelematic.libats.slick.monitoring.{DatabaseMetrics, DbHealthResource}
-import com.advancedtelematic.metrics.AkkaHttpRequestMetrics
+import com.advancedtelematic.metrics.{AkkaHttpConnectionMetrics, AkkaHttpRequestMetrics}
 import com.advancedtelematic.metrics.prometheus.PrometheusMetricsSupport
 import com.advancedtelematic.ota.api_provider.client.DirectorHttpClient
 import com.advancedtelematic.ota.deviceregistry.db.DeviceRepository
@@ -40,6 +40,7 @@ trait Settings {
 
 object Boot extends BootApp
   with AkkaHttpRequestMetrics
+  with AkkaHttpConnectionMetrics
   with CheckMigrations
   with DatabaseConfig
   with DatabaseMetrics
@@ -81,7 +82,7 @@ object Boot extends BootApp
   val parserSettings = ParserSettings(system).withCustomMediaTypes(`application/toml`.mediaType)
   val serverSettings = ServerSettings(system).withParserSettings(parserSettings)
 
-  Http().bindAndHandle(routes, host, port, settings = serverSettings)
+  Http().bindAndHandle(withConnectionMetrics(routes, metricRegistry), host, port, settings = serverSettings)
 
   log.info(s"device registry started at http://$host:$port/")
 
