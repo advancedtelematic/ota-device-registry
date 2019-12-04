@@ -13,6 +13,9 @@ import java.time.OffsetDateTime
 import akka.http.scaladsl.model.Uri.{Path, Query}
 import akka.http.scaladsl.model.{HttpRequest, StatusCodes, Uri}
 import akka.http.scaladsl.server.Route
+import cats.instances.int._
+import cats.instances.string._
+import cats.syntax.option._
 import cats.syntax.show._
 import com.advancedtelematic.libats.data.DataType.{CorrelationId, Namespace}
 import com.advancedtelematic.libats.http.HttpOps.HttpRequestOps
@@ -71,10 +74,11 @@ trait DeviceRequests { self: ResourceSpec =>
                       groupId: Option[GroupId] = None,
                       notSeenSinceHours: Option[Int] = None,
                      ): HttpRequest = {
-    val m = ("deviceId" -> deviceId.show) +: Seq(
-      nameContains.map("nameContains" -> _),
+    val m = Seq(
+      deviceId.some.map("deviceId" -> _.show),
+      nameContains.map("nameContains" -> _.show),
       groupId.map("groupId" -> _.show),
-      notSeenSinceHours.map("notSeenSinceHours" -> _.toString),
+      notSeenSinceHours.map("notSeenSinceHours" -> _.show),
     ).collect { case Some(a) => a }
     Get(Resource.uri(api).withQuery(Query(m.toMap)))
   }
