@@ -62,6 +62,7 @@ object EventJournal {
     def eventId = column[String]("event_id")
     def eventType = column[IndexedEventType]("event_type")
     def correlationId = column[Option[CorrelationId]]("correlation_id")
+    def createdAt = column[Instant]("created_at")
 
     def pk = primaryKey("indexed_event_pk", (deviceUuid, eventId))
 
@@ -128,7 +129,7 @@ class EventJournal()(implicit db: Database, ec: ExecutionContext) {
       .filter(_.deviceUuid === deviceUuid)
       .join(EventJournal.indexedEvents.maybeFilter(_.correlationId === correlationId))
       .on { case (ej, ie) => ej.deviceUuid === ie.deviceUuid && ej.eventId === ie.eventId }
-      .sortBy(_._1.deviceTime.desc)
+      .sortBy { case (ej, ie) => ej.deviceTime.desc -> ie.createdAt.desc }
       .result
   }
 
