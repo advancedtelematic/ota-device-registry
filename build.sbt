@@ -37,12 +37,12 @@ lazy val library =
     object Version {
       val scalaCheck = "1.14.1"
       val scalaTest  = "3.0.8"
-      val libAts     = "0.3.0-62-g16acc26"
+      val libAts     = "0.3.0-64-gaba8100"
       val akka = "2.5.25"
       val akkaHttp = "10.1.10"
       val mariaDb = "2.4.4"
       val circe = "0.12.1"
-      val kafkaClient = "0.11.0.3"
+      val kafkaClient = "2.1.1"
       val toml = "0.2.2"
     }
     val scalaCheck = "org.scalacheck" %% "scalacheck" % Version.scalaCheck
