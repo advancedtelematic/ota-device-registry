@@ -14,37 +14,50 @@ import akka.Done
 import akka.actor.ActorSystem
 import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.model.StatusCodes._
-import akka.http.scaladsl.server.{Directive1, Route}
 import akka.http.scaladsl.server.Directives._
+import akka.http.scaladsl.server.{Directive1, Route}
 import akka.http.scaladsl.unmarshalling.{FromEntityUnmarshaller, Unmarshaller}
+import cats.syntax.option._
+import cats.syntax.show._
 import com.advancedtelematic.libats.auth.{AuthedNamespaceScope, Scopes}
 import com.advancedtelematic.libats.data.DataType.Namespace
+import com.advancedtelematic.libats.http.Errors.RawError
+import com.advancedtelematic.libats.http.UUIDKeyAkka._
 import com.advancedtelematic.libats.messaging.MessageBusPublisher
+import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
+import com.advancedtelematic.libats.messaging_datatype.Messages.{AktualizrConfigChanged, DeviceSystemInfoChanged}
 import com.advancedtelematic.ota.deviceregistry.common.Errors.{Codes, MissingSystemInfo}
 import com.advancedtelematic.ota.deviceregistry.db.SystemInfoRepository
 import com.advancedtelematic.ota.deviceregistry.db.SystemInfoRepository.NetworkInfo
+import com.advancedtelematic.ota.deviceregistry.http.`application/toml`
 import io.circe.{Decoder, Encoder, Json}
 import slick.jdbc.MySQLProfile.api._
-import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
-import com.advancedtelematic.libats.http.UUIDKeyAkka._
-import cats.syntax.show._
-import cats.syntax.option._
-import com.advancedtelematic.libats.http.Errors.RawError
-import com.advancedtelematic.libats.messaging_datatype.Messages.{AktualizrConfigChanged, DeviceSystemInfoChanged}
 import toml.Toml
-import http.`application/toml`
+import toml.Value.{Bool, Num, Str, Tbl}
 
 import scala.concurrent.ExecutionContext
+import scala.util.Try
 
 case class AktualizrConfig(uptane: Uptane, pacman: Pacman)
 case class Uptane(polling_sec: Int, force_install_completion: Boolean)
 case class Pacman(`type`: String)
 
+object SystemInfoResource {
+  def parseAktualizrConfigToml(s: String): Try[AktualizrConfig] = for {
+    toml <- Toml.parse(s).left.map(err => new Exception(err._2)).toTry
+    pacmanTable <- Try(toml.values("pacman").asInstanceOf[Tbl])
+    pacmanType <- Try(pacmanTable.values("type").asInstanceOf[Str].value)
+    uptaneTable <- Try(toml.values("uptane").asInstanceOf[Tbl])
+    pollingSec <- Try(uptaneTable.values("polling_sec").asInstanceOf[Num].value.toInt)
+    forceInstallCompletion <- Try(uptaneTable.values("force_install_completion").asInstanceOf[Bool].value)
+  } yield(AktualizrConfig(Uptane(pollingSec,forceInstallCompletion), Pacman(pacmanType)))
+}
 class SystemInfoResource(
     messageBus: MessageBusPublisher,
     authNamespace: Directive1[AuthedNamespaceScope],
     deviceNamespaceAuthorizer: Directive1[DeviceId]
 )(implicit db: Database, actorSystem: ActorSystem, ec: ExecutionContext) {
+  import SystemInfoResource._
   import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
 
   private val systemInfoUpdatePublisher = new SystemInfoUpdatePublisher(messageBus)
@@ -67,11 +80,9 @@ class SystemInfoResource(
   }
 
   implicit val aktualizrConfigUnmarshaller: FromEntityUnmarshaller[AktualizrConfig] = Unmarshaller.stringUnmarshaller.map { s =>
-    import toml.Codecs._
-
-    Toml.parseAs[AktualizrConfig](s) match {
-      case Left((_,msg)) => throw RawError(Codes.MalformedInput, StatusCodes.BadRequest, msg)
-      case Right(aktualizrConfig) => aktualizrConfig
+    parseAktualizrConfigToml(s) match {
+      case scala.util.Success(aktualizrConfig) => aktualizrConfig
+      case scala.util.Failure(t) => throw RawError(Codes.MalformedInput, StatusCodes.BadRequest, t.getMessage)
     }
   }.forContentTypes(`application/toml`)
 

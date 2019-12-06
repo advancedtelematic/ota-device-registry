@@ -20,6 +20,7 @@ import com.advancedtelematic.ota.deviceregistry.data.GeneratorOps._
 import org.scalatest.concurrent.Eventually._
 import org.scalatest.OptionValues._
 import toml.Toml
+import toml.Value.{Str, Tbl}
 
 class SystemInfoResourceSpec extends ResourcePropSpec {
 
@@ -213,12 +214,10 @@ class SystemInfoResourceSpec extends ResourcePropSpec {
     }
   }
 
-  property("TOML parsing") {
-    import toml.Codecs._
-
+  property("TOML parsing by hand") {
     val content =
       """
-        |
+        |n = 1
         |[pacman]
         |type = "ostree"
         |
@@ -227,24 +226,102 @@ class SystemInfoResourceSpec extends ResourcePropSpec {
         |force_install_completion = true
         |
         |""".stripMargin
-    Toml.parseAs[AktualizrConfig](content) shouldBe Right(AktualizrConfig(Uptane(91, true), Pacman("ostree")))
+
+    val t = Toml.parse(content).right.get
+    val pacmanSection = t.values("pacman")
+    val pacmanTable = pacmanSection.asInstanceOf[Tbl]
+    pacmanTable.values("type").asInstanceOf[Str].value shouldBe "ostree"
+  }
+
+  property("A key with the name of an expected section leads to error") {
+    val content = """
+        |n = 1
+        |pacman = "ostree"
+        |type = "ostree"
+        |
+        |[uptane]
+        |polling_sec = 91
+        |force_install_completion = true
+        |
+        |""".stripMargin
+
+    SystemInfoResource.parseAktualizrConfigToml(content).failed.get.getMessage shouldBe "toml.Value$Str cannot be cast to toml.Value$Tbl"
+  }
+
+  property("missing section leads to error") {
+    val content = """
+        n = 1
+        [uptane]
+        polling_sec = 91
+        force_install_completion = true""".stripMargin
+
+    SystemInfoResource.parseAktualizrConfigToml(content).failed.get.getMessage shouldBe "key not found: pacman"
+  }
+
+  property("additional root key is allowed") {
+    val content = """
+        n = 1
+        [pacman]
+        type = "ostree"
+
+        [uptane]
+        polling_sec = 91
+        force_install_completion = true"""
+
+    SystemInfoResource.parseAktualizrConfigToml(content) shouldBe 'success
+  }
+
+  property("section order doesn't matter") {
+    val content = """
+        [uptane]
+        polling_sec = 91
+        force_install_completion = true
+        n = 1
+        [pacman]
+        type = "ostree"
+        """
+
+    SystemInfoResource.parseAktualizrConfigToml(content) shouldBe 'success
+  }
+
+  property("additional section key is allowed") {
+    val content = """
+        [pacman]
+        type = "ostree"
+        kind = "very"
+
+        [uptane]
+        polling_sec = 91
+        force_install_completion = true"""
+
+    SystemInfoResource.parseAktualizrConfigToml(content) shouldBe 'success
+  }
+
+  property("only key, no value in section") {
+    val content = """
+        [pacman]
+        type = "ostree"
+        kind
+
+        [uptane]
+        polling_sec = 91
+        force_install_completion = true"""
+
+    SystemInfoResource.parseAktualizrConfigToml(content).failed.get.getMessage shouldBe "End:4:9 ...\"kind\\n\\n    \""
   }
 
   property("system config can be uploaded") {
     import akka.http.scaladsl.unmarshalling.Unmarshaller._
 
     val deviceUuid = createDeviceOk(genDeviceT.generate.copy(deviceId = DeviceOemId("abcd-1234")))
-    val config =
-      """
-        |
-        |[pacman]
-        |type = "arcade"
-        |
-        |[uptane]
-        |polling_sec = 123
-        |force_install_completion = true
-        |
-        |""".stripMargin
+    val config = """
+
+        [pacman]
+        type = "arcade"
+
+        [uptane]
+        polling_sec = 123
+        force_install_completion = true"""
 
     uploadSystemConfig(deviceUuid, config) ~> route ~> check {
       status shouldBe NoContent
