@@ -16,8 +16,9 @@ import com.advancedtelematic.ota.deviceregistry.data.Codecs._
 import com.advancedtelematic.ota.deviceregistry.data.Device.DeviceOemId._
 import com.advancedtelematic.libats.codecs.JsonDropNullValues._
 import com.advancedtelematic.libats.data.DataType.CorrelationId
-import com.advancedtelematic.ota.api_provider.data.DataType.ApiDeviceUpdateEventName.ApiDeviceUpdateEventName
 import com.advancedtelematic.ota.api_provider.client.DirectorClient._
+import com.advancedtelematic.ota.deviceregistry.data.DataType.IndexedEventType
+import com.advancedtelematic.ota.deviceregistry.data.DataType.IndexedEventType.IndexedEventType
 
 
 object DataType {
@@ -40,22 +41,7 @@ object DataType {
 
   type ApiUpdateId = CorrelationId
 
-  object ApiDeviceUpdateEventName extends Enumeration {
-    type ApiDeviceUpdateEventName = Value
-
-    val DownloadComplete,
-    DownloadStarted,
-    DownloadCompleted,
-    InstallationStarted,
-    InstallationApplied,
-    InstallationCompleted,
-    DevicePaused,
-    DeviceResumed,
-    Accepted,
-    Declined,
-    Postponed,
-    InstallationComplete = Value
-  }
+  type ApiDeviceUpdateEventName = IndexedEventType
 
   case class ApiDeviceEvent(ecuId: Option[EcuIdentifier], updateId: Option[ApiUpdateId], name: ApiDeviceUpdateEventName,
                             receivedTime: Instant, deviceTime: Instant)
@@ -68,7 +54,7 @@ object DataType {
 
   implicit val queueItemCodec = deriveCodec[QueueItem]
 
-  implicit val apiDeviceUpdateEventNameCodec = io.circe.Codec.codecForEnumeration(ApiDeviceUpdateEventName)
+  implicit val apiDeviceUpdateEventNameCodec = io.circe.Codec.codecForEnumeration(IndexedEventType)
 
   implicit val apiDeviceUpdateCodec = deriveCodec[ApiDeviceEvent]
 

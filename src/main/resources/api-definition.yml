@@ -213,16 +213,16 @@ components:
                 type: string
                 enum:
                   - DownloadComplete
-                  - DownloadStarted
-                  - DownloadCompleted
-                  - InstallationStarted
-                  - InstallationApplied
-                  - InstallationCompleted
+                  - EcuDownloadStarted
+                  - EcuDownloadCompleted
+                  - EcuInstallationStarted
+                  - EcuInstallationApplied
+                  - EcuInstallationCompleted
                   - DevicePaused
                   - DeviceResumed
-                  - Accepted
-                  - Declined
-                  - Postponed
+                  - CampaignAccepted
+                  - CampaignDeclined
+                  - CampaignPostponed
                   - InstallationComplete
               receivedTime:
                 type: string
