@@ -15,7 +15,7 @@ import slick.jdbc.MySQLProfile.api._
 
 import scala.async.Async._
 import scala.concurrent.{ExecutionContext, Future}
-import scala.util.Try
+
 
 class ApiProvider(directorClient: DirectorClient, eventJournal: EventJournal)(implicit ec: ExecutionContext, db: Database) {
   private val _log = LoggerFactory.getLogger(this.getClass)
@@ -62,7 +62,7 @@ class ApiProvider(directorClient: DirectorClient, eventJournal: EventJournal)(im
             None
         }
 
-      }.toVector.flatten
+      }.toVector.flatten.distinct
     }
   }
 
