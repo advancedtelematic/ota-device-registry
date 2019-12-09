@@ -69,20 +69,9 @@ class ApiProvider(directorClient: DirectorClient, eventJournal: EventJournal)(im
   def findUpdateEvents(namespace: Namespace, deviceId: DeviceId, correlationId: Option[CorrelationId]): Future[ApiDeviceEvents] = async {
     val indexedEvents = await(eventJournal.getIndexedEvents(deviceId, correlationId))
 
-    val events = indexedEvents.toVector.flatMap { case (event, indexedEvent) =>
-      val str = indexedEvent.eventType.toString
-        .replace("Ecu", "")
-        .replace("Campaign", "")
-      val eventNameO = Try(ApiDeviceUpdateEventName.withName(str)).toOption
+    val events = indexedEvents.toVector.map { case (event, indexedEvent) =>
       val ecuO = event.payload.hcursor.downField("ecu").as[EcuIdentifier].toOption
-
-      eventNameO match {
-        case Some(eventName) =>
-          Option(ApiDeviceEvent(ecuO, indexedEvent.correlationId, eventName, event.receivedAt, event.deviceTime))
-        case _ =>
-          _log.warn(s"Could not extract (ecu, eventName) from event (${event.eventId}, ${event.deviceUuid}")
-          None
-      }
+      ApiDeviceEvent(ecuO, indexedEvent.correlationId, indexedEvent.eventType, event.receivedAt, event.deviceTime)
     }
 
     ApiDeviceEvents(deviceId, events)

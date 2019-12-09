@@ -3,7 +3,7 @@ package com.advancedtelematic.ota.api_provider.http
 import java.time.Instant
 import java.util.UUID
 
-import akka.http.scaladsl.model.Uri.{Path, Query}
+import akka.http.scaladsl.model.Uri.Path
 import akka.http.scaladsl.model.{StatusCodes, Uri}
 import com.advancedtelematic.libats.data.{EcuIdentifier, PaginationResult}
 import com.advancedtelematic.ota.deviceregistry.{DeviceRequests, ResourceSpec}
@@ -23,6 +23,7 @@ import cats.syntax.option._
 import com.advancedtelematic.libats.messaging_datatype.DataType.{Event, EventType}
 import com.advancedtelematic.libats.messaging_datatype.Messages.DeviceEventMessage
 import com.advancedtelematic.ota.deviceregistry.daemon.DeviceEventListener
+import com.advancedtelematic.ota.deviceregistry.data.DataType.IndexedEventType
 import io.circe.syntax._
 import org.scalatest.OptionValues._
 
@@ -216,7 +217,7 @@ class DeviceInfoResourceSpec extends FunSuite with ResourceSpec with Eventually 
 
       events.headOption.value.updateId.value shouldBe campaignId
       events.headOption.value.ecuId.value shouldBe ecuId
-      events.map(_.name) shouldBe Vector(ApiDeviceUpdateEventName.InstallationCompleted, ApiDeviceUpdateEventName.InstallationStarted, ApiDeviceUpdateEventName.Accepted)
+      events.map(_.name) shouldBe Vector(IndexedEventType.EcuInstallationCompleted, IndexedEventType.EcuInstallationStarted, IndexedEventType.CampaignAccepted)
     }
   }
 
@@ -256,7 +257,7 @@ class DeviceInfoResourceSpec extends FunSuite with ResourceSpec with Eventually 
       events should have size(1)
 
       events.headOption.value.updateId.value shouldBe campaignId01
-      events.map(_.name).headOption.value shouldBe ApiDeviceUpdateEventName.InstallationStarted
+      events.map(_.name).headOption.value shouldBe IndexedEventType.EcuInstallationStarted
     }
   }
 }
