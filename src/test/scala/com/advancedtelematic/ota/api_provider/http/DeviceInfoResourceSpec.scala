@@ -26,6 +26,7 @@ import com.advancedtelematic.ota.deviceregistry.daemon.DeviceEventListener
 import com.advancedtelematic.ota.deviceregistry.data.DataType.IndexedEventType
 import io.circe.syntax._
 import org.scalatest.OptionValues._
+import org.scalatest.LoneElement._
 
 class DeviceInfoResourceSpec extends FunSuite with ResourceSpec with Eventually with DeviceRequests with ScalaFutures {
 
@@ -258,6 +259,25 @@ class DeviceInfoResourceSpec extends FunSuite with ResourceSpec with Eventually 
 
       events.headOption.value.updateId.value shouldBe campaignId01
       events.map(_.name).headOption.value shouldBe IndexedEventType.EcuInstallationStarted
+    }
+  }
+
+  test("removes duplicates if director returns duplicate queue items") {
+    val device = genDeviceT.retryUntil(_.uuid.isDefined).generate
+    val deviceId = createDeviceOk(device)
+
+    val ecuId = EcuIdentifier("somefakeid").valueOr(throw _)
+    val correlationId = CampaignId(UUID.randomUUID())
+    val targetFilename = "some-hash".refineTry[ValidTargetFilename].get
+    val hash = "848cba347e8a37330b97835936dd4f846291739d0d5efa9eb10c75e4c15ba87a".refineTry[ValidChecksum].get
+    val image = EcuInfoImage(targetFilename, 2222, Hashes(hash))
+
+    directorClient.addQueueItem(deviceId, DirectorQueueItem(correlationId.some, Map(ecuId -> image)))
+    directorClient.addQueueItem(deviceId, DirectorQueueItem(correlationId.some, Map(ecuId -> image)))
+
+    Get(apiProviderUri("devices", deviceId.show, "queue")) ~> route ~> check {
+      status shouldBe StatusCodes.OK
+      responseAs[List[QueueItem]].loneElement.updateId shouldBe correlationId
     }
   }
 }
