@@ -110,6 +110,7 @@ paths:
     get:
       tags:
         - devices
+      summary: Queue for a device
       description: Show the update queue for a device
       parameters:
         - name: uuid
@@ -133,6 +134,7 @@ paths:
     get:
       tags:
         - devices
+      summary: Events reported by a device
       description: Show all events reported by a device, sorted by most recent first
       parameters:
         - name: uuid
@@ -211,19 +213,18 @@ components:
                 format: string
               name:
                 type: string
-                enum:
-                  - DownloadComplete
-                  - EcuDownloadStarted
-                  - EcuDownloadCompleted
-                  - EcuInstallationStarted
-                  - EcuInstallationApplied
-                  - EcuInstallationCompleted
-                  - DevicePaused
-                  - DeviceResumed
-                  - CampaignAccepted
-                  - CampaignDeclined
-                  - CampaignPostponed
-                  - InstallationComplete
+                enum: [EcuDownloadStarted, EcuDownloadCompleted, EcuInstallationStarted, EcuInstallationApplied, EcuInstallationCompleted, DevicePaused, DeviceResumed, CampaignAccepted, CampaignDeclined, CampaignPostponed]
+                description:  >
+                  EcuDownloadStarted - Package download for this ECU has started <br>
+                  EcuDownloadCompleted - Package download for this ECU is completed <br>
+                  EcuInstallationStarted - Package installation for this ECU has started <br>
+                  EcuInstallationApplied - Package has been applied to this ECU but is pending reboot <br>
+                  EcuInstallationCompleted - Package installation for this ECU is completed <br>
+                  DevicePaused - The device has been paused (downloads are paused and API calls are deferred) <br>
+                  DeviceResumed - The device has resumed after being paused <br>
+                  CampaignAccepted - Campaign has been accepted by the user or it has been automatically accepted by the device <br>
+                  CampaignDeclined - Campaign has been declined by the user <br>
+                  CampaignPostponed - Campaign has been postponed by the user <br>
               receivedTime:
                 type: string
                 format: date-time
