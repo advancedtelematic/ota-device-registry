@@ -25,15 +25,24 @@ class DeviceRegistryRoutes(
     extends Directives {
 
   val route: Route =
-    pathPrefix("api" / "v1") {
-      handleRejections(rejectionHandler) {
-        ErrorHandler.handleErrors {
-          new DevicesResource(namespaceExtractor, messageBus, deviceNamespaceAuthorizer).route ~
-          new SystemInfoResource(messageBus, namespaceExtractor, deviceNamespaceAuthorizer).route ~
-          new PublicCredentialsResource(namespaceExtractor, messageBus, deviceNamespaceAuthorizer).route ~
-          new GroupsResource(namespaceExtractor, deviceNamespaceAuthorizer).route
+    pathPrefix("api") {
+      pathPrefix("v1") {
+        handleRejections(rejectionHandler) {
+          ErrorHandler.handleErrors {
+            new DevicesResource(namespaceExtractor, messageBus, deviceNamespaceAuthorizer).route ~
+            new SystemInfoResource(messageBus, namespaceExtractor, deviceNamespaceAuthorizer).route ~
+            new PublicCredentialsResource(namespaceExtractor, messageBus, deviceNamespaceAuthorizer).route ~
+            new GroupsResource(namespaceExtractor, deviceNamespaceAuthorizer).route
+          }
+        }
+      } ~
+      pathPrefix("v2") {
+        handleRejections(rejectionHandler) {
+          ErrorHandler.handleErrors {
+            new DeviceResource2(namespaceExtractor, deviceNamespaceAuthorizer).route
+          }
+        }
       }
-    }
-  } ~
-      new ApiProviderRoutes(namespaceExtractor, deviceNamespaceAuthorizer, directorClient).route
+    } ~
+    new ApiProviderRoutes(namespaceExtractor, deviceNamespaceAuthorizer, directorClient).route
 }

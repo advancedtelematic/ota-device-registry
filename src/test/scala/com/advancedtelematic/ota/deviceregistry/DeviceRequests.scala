@@ -42,6 +42,11 @@ object Resource {
     val BasePath = Path("/api") / "v1"
     Uri.Empty.withPath(pathSuffixes.foldLeft(BasePath)(_ / _))
   }
+
+  def uriV2(pathSuffixes: String*): Uri = {
+    val BasePath = Path("/api") / "v2"
+    Uri.Empty.withPath(pathSuffixes.foldLeft(BasePath)(_ / _))
+  }
 }
 
 /**
@@ -188,6 +193,11 @@ trait DeviceRequests { self: ResourceSpec =>
   def getEvents(deviceUuid: DeviceId, correlationId: Option[CorrelationId] = None): HttpRequest = {
     val query = Query(correlationId.map("correlationId" -> _.toString).toMap)
     Get(Resource.uri(api, deviceUuid.show, "events").withQuery(query))
+  }
+
+  def getEventsV2(deviceUuid: DeviceId, updateId: Option[CorrelationId] = None): HttpRequest = {
+    val query = Query(updateId.map("updateId" -> _.toString).toMap)
+    Get(Resource.uriV2(api, deviceUuid.show, "events").withQuery(query))
   }
 
   def getGroupsOfDevice(deviceUuid: DeviceId): HttpRequest = Get(Resource.uri(api, deviceUuid.show, "groups"))
