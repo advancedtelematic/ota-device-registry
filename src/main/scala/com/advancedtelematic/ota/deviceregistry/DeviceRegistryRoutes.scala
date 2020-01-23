@@ -7,8 +7,6 @@ import com.advancedtelematic.libats.http.DefaultRejectionHandler.rejectionHandle
 import com.advancedtelematic.libats.http.ErrorHandler
 import com.advancedtelematic.libats.messaging.MessageBusPublisher
 import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
-import com.advancedtelematic.ota.api_provider.client.DirectorClient
-import com.advancedtelematic.ota.api_provider.http.ApiProviderRoutes
 
 import scala.concurrent.ExecutionContext
 import slick.jdbc.MySQLProfile.api._
@@ -19,8 +17,7 @@ import slick.jdbc.MySQLProfile.api._
 class DeviceRegistryRoutes(
     namespaceExtractor: Directive1[AuthedNamespaceScope],
     deviceNamespaceAuthorizer: Directive1[DeviceId],
-    messageBus: MessageBusPublisher,
-    directorClient: DirectorClient
+    messageBus: MessageBusPublisher
 )(implicit db: Database, system: ActorSystem, mat: ActorMaterializer, exec: ExecutionContext)
     extends Directives {
 
@@ -43,6 +40,5 @@ class DeviceRegistryRoutes(
           }
         }
       }
-    } ~
-    new ApiProviderRoutes(namespaceExtractor, deviceNamespaceAuthorizer, directorClient).route
+    }
 }
