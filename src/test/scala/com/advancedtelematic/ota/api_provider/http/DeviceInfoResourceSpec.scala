@@ -39,13 +39,6 @@ class DeviceInfoResourceSpec extends FunSuite with ResourceSpec with Eventually 
     Uri.Empty.withPath(pathSuffixes.foldLeft(BasePath)(_ / _))
   }
 
-  test("sets different provider version header") {
-    Get(apiProviderUri("devices"))  ~> route ~> check {
-      status shouldBe StatusCodes.OK
-      response.headers.find(_.is("x-here-ota-api-provider-version")).map(_.value()) should contain("api-provider@device-registry")
-    }
-  }
-
   test("list devices, paginated") {
     val device = genDeviceT.retryUntil(_.uuid.isDefined).generate
     createDeviceOk(device)
