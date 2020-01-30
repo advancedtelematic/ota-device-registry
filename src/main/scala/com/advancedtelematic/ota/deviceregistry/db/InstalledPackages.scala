@@ -62,7 +62,7 @@ object InstalledPackages {
     def * = (device, name, version, lastModified) <> (fromTuple, toTuple)
   }
 
-  private val installedPackages = TableQuery[InstalledPackageTable]
+  private[db] val installedPackages = TableQuery[InstalledPackageTable]
 
   def setInstalled(device: DeviceId, packages: Set[PackageId])(implicit ec: ExecutionContext): DBIO[Unit] =
     DBIO

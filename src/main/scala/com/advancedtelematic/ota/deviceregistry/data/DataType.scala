@@ -93,4 +93,7 @@ object DataType {
       require(notSeenSinceHours.isEmpty, "Invalid parameters: notSeenSinceHours must be empty when searching by deviceId.")
     }
   }
+
+  case class PackageListItem(namespace: Namespace, packageId: PackageId, comment: String)
+  case class PackageListItemCount(packageId: PackageId, deviceCount: Int)
 }

@@ -10,6 +10,7 @@ package com.advancedtelematic.ota.deviceregistry.common
 
 import com.advancedtelematic.libats.data.ErrorCode
 import com.advancedtelematic.libats.http.Errors.{EntityAlreadyExists, MissingEntity, RawError}
+import com.advancedtelematic.ota.deviceregistry.data.DataType.PackageListItem
 import com.advancedtelematic.ota.deviceregistry.data.{Group, GroupExpression}
 import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
 import com.advancedtelematic.ota.deviceregistry.db.GroupMemberRepository.GroupMember
@@ -64,4 +65,7 @@ object Errors {
              "cannot remove device from dynamic group")
 
   val MalformedInputFile = RawError(Codes.MalformedInput, StatusCodes.BadRequest, "The file cannot be read because it is malformed.")
+
+  val MissingPackageListItem = MissingEntity[PackageListItem]
+  val ConflictingPackageListItem = EntityAlreadyExists[PackageListItem]
 }
