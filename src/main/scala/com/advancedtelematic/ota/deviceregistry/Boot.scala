@@ -17,14 +17,12 @@ import com.advancedtelematic.libats.data.DataType.Namespace
 import com.advancedtelematic.libats.http._
 import com.advancedtelematic.libats.http.monitoring.MetricsSupport
 import com.advancedtelematic.libats.http.tracing.Tracing
-import com.advancedtelematic.libats.http.tracing.Tracing.ServerRequestTracing
 import com.advancedtelematic.libats.messaging._
 import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
 import com.advancedtelematic.libats.slick.db.{CheckMigrations, DatabaseConfig}
 import com.advancedtelematic.libats.slick.monitoring.{DatabaseMetrics, DbHealthResource}
 import com.advancedtelematic.metrics.{AkkaHttpConnectionMetrics, AkkaHttpRequestMetrics}
 import com.advancedtelematic.metrics.prometheus.PrometheusMetricsSupport
-import com.advancedtelematic.ota.api_provider.client.DirectorHttpClient
 import com.advancedtelematic.ota.deviceregistry.db.DeviceRepository
 import com.advancedtelematic.ota.deviceregistry.http.`application/toml`
 import com.typesafe.config.ConfigFactory
@@ -66,13 +64,11 @@ object Boot extends BootApp
 
   val tracing = Tracing.fromConfig(config, projectName)
 
-  def directorClient(implicit tracing: ServerRequestTracing) = new DirectorHttpClient(directorUri, defaultHttpClient)
-
   val routes: Route =
   (LogDirectives.logResponseMetrics("device-registry") & requestMetrics(metricRegistry) & versionHeaders(version)) {
     prometheusMetricsRoutes ~
       tracing.traceRequests { implicit serverRequestTracing =>
-        new DeviceRegistryRoutes(authNamespace, namespaceAuthorizer, messageBus, directorClient).route
+        new DeviceRegistryRoutes(authNamespace, namespaceAuthorizer, messageBus).route
       }
   } ~ DbHealthResource(versionMap, healthMetrics = Seq(new BusListenerMetrics(metricRegistry))).route
 
