@@ -10,7 +10,7 @@ package com.advancedtelematic.ota.deviceregistry.db
 
 import com.advancedtelematic.libats.data.DataType.Namespace
 import com.advancedtelematic.libats.slick.codecs.SlickEnumMapper
-import com.advancedtelematic.ota.deviceregistry.data.DataType.IndexedEventType
+import com.advancedtelematic.ota.deviceregistry.data.DataType.{PackageListItemCount, IndexedEventType}
 import com.advancedtelematic.ota.deviceregistry.data.{CredentialsType, GroupType, PackageId}
 import slick.jdbc.MySQLProfile.api._
 
@@ -28,4 +28,7 @@ object SlickMappings {
 
   private[db] implicit object LiftedPackageShape
     extends CaseClassShape(LiftedPackageId.tupled, (p: (PackageId.Name, PackageId.Version)) => PackageId(p._1, p._2))
+
+  private[db] case class LiftedPackageListItemCount(packageId: LiftedPackageId, deviceCount: Rep[Int])
+  private[db] implicit object ListedPackageListItemCountShape extends CaseClassShape(LiftedPackageListItemCount.tupled, PackageListItemCount.tupled)
 }

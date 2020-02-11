@@ -29,6 +29,7 @@ class DeviceRegistryRoutes(
             new DevicesResource(namespaceExtractor, messageBus, deviceNamespaceAuthorizer).route ~
             new SystemInfoResource(messageBus, namespaceExtractor, deviceNamespaceAuthorizer).route ~
             new PublicCredentialsResource(namespaceExtractor, messageBus, deviceNamespaceAuthorizer).route ~
+            new PackageListsResource(namespaceExtractor, deviceNamespaceAuthorizer).route ~
             new GroupsResource(namespaceExtractor, deviceNamespaceAuthorizer).route
           }
         }
