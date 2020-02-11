@@ -31,6 +31,6 @@ class MigrateBlacklistedPackages(sotaCoreClient: SotaCoreClient)
       .mapAsyncUnordered(1)(sotaCoreClient.getBlacklistedPackages)
       .fold(Seq.empty[PackageListItem])(_ ++ _)
       .map(_.map(createOrUpdateBlacklistedPackage))
-      .runForeach(_.map(db.run))
+      .runForeach(action => db.run(DBIO.sequence(action)))
   }
 }
