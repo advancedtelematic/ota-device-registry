@@ -28,9 +28,9 @@ class MigrateBlacklistedPackages(sotaCoreClient: SotaCoreClient)
     val source = db.stream(devices.map(_.namespace).distinct.result)
     Source
       .fromPublisher(source)
-      .mapAsyncUnordered(1)(sotaCoreClient.getBlacklistedPackages)
-      .fold(Seq.empty[PackageListItem])(_ ++ _)
+      .mapAsyncUnordered(3)(sotaCoreClient.getBlacklistedPackages)
       .map(_.map(createOrUpdateBlacklistedPackage))
-      .runForeach(action => db.run(DBIO.sequence(action)))
+      .mapAsyncUnordered(3)(a => db.run(DBIO.sequence(a)))
+      .runForeach(s => _log.info(s"Migrated ${s.length} records."))
   }
 }
