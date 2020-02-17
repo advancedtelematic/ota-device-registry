@@ -274,7 +274,7 @@ components:
 
     Device:
       type: object
-      required: [deviceId, uuid, name, status]
+      required: [deviceId, deviceUuid, name, status]
       properties:
         deviceId:
           type: string
