@@ -172,7 +172,7 @@ components:
       - uuid
       - deviceId
       properties:
-        id:
+        deviceUuid:
           type: string
           format: uuid
         deviceId:
@@ -274,14 +274,14 @@ components:
 
     Device:
       type: object
-      required: [uuid, deviceId, name, status]
+      required: [deviceId, uuid, name, status]
       properties:
-        id:
-          type: string
-          format: uuid
         deviceId:
           type: string
           format: string
+        deviceUuid:
+          type: string
+          format: uuid
         name:
           type: string
           format: string
