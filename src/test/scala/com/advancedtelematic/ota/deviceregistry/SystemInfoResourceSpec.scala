@@ -241,6 +241,7 @@ class SystemInfoResourceSpec extends ResourcePropSpec {
         |
         |[uptane]
         |polling_sec = 91
+        |secondary_preinstall_wait_sec = 60
         |force_install_completion = true
         |
         |""".stripMargin
@@ -253,6 +254,7 @@ class SystemInfoResourceSpec extends ResourcePropSpec {
         n = 1
         [uptane]
         polling_sec = 91
+        secondary_preinstall_wait_sec = 60
         force_install_completion = true""".stripMargin
 
     SystemInfoResource.parseAktualizrConfigToml(content).failed.get.getMessage shouldBe "key not found: pacman"
@@ -266,6 +268,7 @@ class SystemInfoResourceSpec extends ResourcePropSpec {
 
         [uptane]
         polling_sec = 91
+        secondary_preinstall_wait_sec = 60
         force_install_completion = true"""
 
     SystemInfoResource.parseAktualizrConfigToml(content) shouldBe 'success
@@ -275,6 +278,7 @@ class SystemInfoResourceSpec extends ResourcePropSpec {
     val content = """
         [uptane]
         polling_sec = 91
+        secondary_preinstall_wait_sec = 60
         force_install_completion = true
         n = 1
         [pacman]
@@ -292,6 +296,7 @@ class SystemInfoResourceSpec extends ResourcePropSpec {
 
         [uptane]
         polling_sec = 91
+        secondary_preinstall_wait_sec = 60
         force_install_completion = true"""
 
     SystemInfoResource.parseAktualizrConfigToml(content) shouldBe 'success
@@ -311,6 +316,32 @@ class SystemInfoResourceSpec extends ResourcePropSpec {
   }
 
   property("system config can be uploaded") {
+    import akka.http.scaladsl.unmarshalling.Unmarshaller._
+
+    val deviceUuid = createDeviceOk(genDeviceT.generate.copy(deviceId = DeviceOemId("abcd-1234")))
+    val config = """
+
+        [pacman]
+        type = "arcade"
+
+        [uptane]
+        polling_sec = 123
+        secondary_preinstall_wait_sec = 60
+        force_install_completion = true"""
+
+    uploadSystemConfig(deviceUuid, config) ~> route ~> check {
+      status shouldBe NoContent
+      responseAs[String] shouldBe ""
+    }
+
+    eventually {
+      val msg = messageBus.findReceived[AktualizrConfigChanged](deviceUuid.toString)
+      msg.get.pollingSec shouldBe 123
+      msg.get.installerType shouldBe "arcade"
+    }
+  }
+
+  property("system config without 'secondary_preinstall_wait_sec' can be uploaded") {
     import akka.http.scaladsl.unmarshalling.Unmarshaller._
 
     val deviceUuid = createDeviceOk(genDeviceT.generate.copy(deviceId = DeviceOemId("abcd-1234")))

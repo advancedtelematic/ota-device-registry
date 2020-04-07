@@ -39,7 +39,7 @@ import scala.concurrent.ExecutionContext
 import scala.util.Try
 
 case class AktualizrConfig(uptane: Uptane, pacman: Pacman)
-case class Uptane(polling_sec: Int, force_install_completion: Boolean)
+case class Uptane(polling_sec: Int, force_install_completion: Boolean, secondary_preinstall_wait_sec: Int)
 case class Pacman(`type`: String)
 
 object SystemInfoResource {
@@ -50,7 +50,8 @@ object SystemInfoResource {
     uptaneTable <- Try(toml.values("uptane").asInstanceOf[Tbl])
     pollingSec <- Try(uptaneTable.values("polling_sec").asInstanceOf[Num].value.toInt)
     forceInstallCompletion <- Try(uptaneTable.values("force_install_completion").asInstanceOf[Bool].value)
-  } yield(AktualizrConfig(Uptane(pollingSec,forceInstallCompletion), Pacman(pacmanType)))
+    secondaryPreinstallWaitSec <- Try(uptaneTable.values("secondary_preinstall_wait_sec").asInstanceOf[Num].value.toInt)
+  } yield(AktualizrConfig(Uptane(pollingSec, forceInstallCompletion, secondaryPreinstallWaitSec), Pacman(pacmanType)))
 }
 class SystemInfoResource(
     messageBus: MessageBusPublisher,
