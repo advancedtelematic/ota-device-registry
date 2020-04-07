@@ -39,7 +39,7 @@ import scala.concurrent.ExecutionContext
 import scala.util.Try
 
 case class AktualizrConfig(uptane: Uptane, pacman: Pacman)
-case class Uptane(polling_sec: Int, force_install_completion: Boolean)
+case class Uptane(polling_sec: Int, force_install_completion: Boolean, secondary_preinstall_wait_sec: Option[Int])
 case class Pacman(`type`: String)
 
 object SystemInfoResource {
@@ -50,7 +50,8 @@ object SystemInfoResource {
     uptaneTable <- Try(toml.values("uptane").asInstanceOf[Tbl])
     pollingSec <- Try(uptaneTable.values("polling_sec").asInstanceOf[Num].value.toInt)
     forceInstallCompletion <- Try(uptaneTable.values("force_install_completion").asInstanceOf[Bool].value)
-  } yield(AktualizrConfig(Uptane(pollingSec,forceInstallCompletion), Pacman(pacmanType)))
+    secondaryPreinstallWaitSec <- Try(uptaneTable.values.get("secondary_preinstall_wait_sec").map(_.asInstanceOf[Num].value.toInt))
+  } yield(AktualizrConfig(Uptane(pollingSec, forceInstallCompletion, secondaryPreinstallWaitSec), Pacman(pacmanType)))
 }
 class SystemInfoResource(
     messageBus: MessageBusPublisher,
@@ -158,6 +159,7 @@ class SystemInfoResource(
               post {
                 entity(as[AktualizrConfig]) { config =>
                   val result = messageBus.publish(AktualizrConfigChanged(ns.namespace, uuid, config.uptane.polling_sec,
+                                                                         config.uptane.secondary_preinstall_wait_sec,
                                                                          config.uptane.force_install_completion,
                                                                          config.pacman.`type`, Instant.now))
                   complete(result.map(_ => NoContent))
