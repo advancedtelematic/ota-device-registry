@@ -337,6 +337,7 @@ class SystemInfoResourceSpec extends ResourcePropSpec {
     eventually {
       val msg = messageBus.findReceived[AktualizrConfigChanged](deviceUuid.toString)
       msg.get.pollingSec shouldBe 123
+      msg.get.secondaryPreinstallWaitSec should contain(60)
       msg.get.installerType shouldBe "arcade"
     }
   }
@@ -344,7 +345,7 @@ class SystemInfoResourceSpec extends ResourcePropSpec {
   property("system config without 'secondary_preinstall_wait_sec' can be uploaded") {
     import akka.http.scaladsl.unmarshalling.Unmarshaller._
 
-    val deviceUuid = createDeviceOk(genDeviceT.generate.copy(deviceId = DeviceOemId("abcd-1234")))
+    val deviceUuid = createDeviceOk(genDeviceT.generate.copy(deviceId = DeviceOemId("abcd-1234-legacy")))
     val config = """
 
         [pacman]
@@ -362,6 +363,7 @@ class SystemInfoResourceSpec extends ResourcePropSpec {
     eventually {
       val msg = messageBus.findReceived[AktualizrConfigChanged](deviceUuid.toString)
       msg.get.pollingSec shouldBe 123
+      msg.get.secondaryPreinstallWaitSec shouldBe None
       msg.get.installerType shouldBe "arcade"
     }
   }
