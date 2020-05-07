@@ -8,8 +8,8 @@ lazy val `ota-device-registry` =
     .enablePlugins(GitVersioning, BuildInfoPlugin, DockerPlugin, JavaAppPackaging)
     .settings(settings)
     .settings(
-      resolvers += "Sonatype Nexus Repository Manager" at "http://nexus.advancedtelematic.com:8081/content/repositories/releases",
-      resolvers += "Central" at "http://nexus.advancedtelematic.com:8081/content/repositories/central"
+      resolvers += "Releases" at "https://nexus.ota.here.com/content/repositories/releases",
+      resolvers += "Central" at "https://nexus.ota.here.com/content/repositories/central"
     )
     .settings(
       libraryDependencies ++= Seq(
@@ -78,7 +78,8 @@ commonSettings ++
 gitSettings ++
 scalafmtSettings ++
 buildInfoSettings ++
-dockerSettings
+dockerSettings ++
+sonarSettings
 
 lazy val commonSettings =
   Seq(
@@ -135,3 +136,14 @@ lazy val buildInfoSettings = Seq(
   buildInfoPackage := organization.value,
   buildInfoOptions ++= Seq(BuildInfoOption.ToJson, BuildInfoOption.ToMap)
 )
+
+lazy val sonarSettings = Seq(
+  sonarProperties ++= Map(
+    "sonar.projectName" -> "OTA Connect Device Registry",
+    "sonar.projectKey" -> "ota-connect-device-registry",
+    "sonar.host.url" -> "http://sonar.in.here.com",
+    "sonar.links.issue" -> "https://saeljira.it.here.com/projects/OTA/issues",
+    "sonar.links.scm" -> "https://main.gitlab.in.here.com/olp/edge/ota/connect/back-end/ota-device-registry",
+    "sonar.links.ci" -> "https://main.gitlab.in.here.com/olp/edge/ota/connect/back-end/ota-device-registry/pipelines",
+    "sonar.projectVersion" -> version.value,
+    "sonar.language" -> "scala"))

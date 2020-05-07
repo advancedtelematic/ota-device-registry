@@ -1,10 +1,7 @@
 stages:
-  - prepare
   - test
   - build image
   - trigger deploy
-  - update deployment
-  - integration test
   - veracode scan
   - deps scan
   - publish dependencies scan
@@ -18,8 +15,6 @@ variables:
 
 test:
   stage: test
-  tags:
-    - docker-sock
   except:
     refs:
       - deploy/sit
@@ -38,7 +33,7 @@ test:
     - mysqladmin ping --protocol=TCP -h db -P 3306 -u device_registry -pdevice_registry
     - mysql -v -h db -u root -proot < db_user.sql
   script:
-    - sbt -sbt-dir ./.sbt -ivy ./.ivy2 -J-Xmx1G -J-XX:ReservedCodeCacheSize=128m test
+    - sbt -sbt-dir ./.sbt -ivy ./.ivy2 -J-Xmx1G -J-XX:ReservedCodeCacheSize=128m clean coverageOn test coverageReport sonarScan
   cache:
     paths:
       - .ivy2/
@@ -140,7 +135,3 @@ pages:
     paths:
       - public
     expire_in: 64 days
-
-include:
-  - project: olp/edge/ota/testing/dynamic-hats
-    file: /.gitlab-ci.yml
