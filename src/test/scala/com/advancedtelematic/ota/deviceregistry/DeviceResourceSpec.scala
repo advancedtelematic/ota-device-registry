@@ -12,7 +12,6 @@ import java.time.temporal.ChronoUnit
 import java.time.{Instant, OffsetDateTime}
 
 import akka.http.scaladsl.model.StatusCodes._
-import akka.http.scaladsl.model.Uri.Query
 import cats.syntax.option._
 import com.advancedtelematic.libats.data.DataType.Namespace
 import com.advancedtelematic.libats.data.{ErrorRepresentation, PaginationResult}
@@ -21,7 +20,8 @@ import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
 import com.advancedtelematic.libats.messaging_datatype.Messages.DeviceSeen
 import com.advancedtelematic.ota.deviceregistry.common.{Errors, PackageStat}
 import com.advancedtelematic.ota.deviceregistry.daemon.{DeleteDeviceHandler, DeviceSeenListener}
-import com.advancedtelematic.ota.deviceregistry.data.DataType.DeviceT
+import com.advancedtelematic.ota.deviceregistry.data.Codecs.deviceTagCodec
+import com.advancedtelematic.ota.deviceregistry.data.DataType.{DeviceT, DeviceTag, WriteDeviceTag}
 import com.advancedtelematic.ota.deviceregistry.data.DeviceName.validatedDeviceType
 import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
 import com.advancedtelematic.ota.deviceregistry.data.{Device, DeviceStatus, PackageId, _}
@@ -855,6 +855,40 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
       status shouldBe OK
       val devices = responseAs[PaginationResult[Device]].values
       devices.map(_.createdAt) shouldBe devices.sortBy(_.createdAt).map(_.createdAt).reverse
+    }
+  }
+
+  property("can create and fetch device tags") {
+    val tagNames = Gen.resize(20, Gen.nonEmptyListOf(Gen.alphaNumStr)).sample.get.map(WriteDeviceTag)
+    val expected = (0 to tagNames.length).zip(tagNames.map(_.name)).map { case (tagId, tagName) =>
+      DeviceTag(defaultNs, tagId, tagName)
+    }
+
+    tagNames.foreach { tagName =>
+      Post(Resource.uri("device_tags"), tagName) ~> route ~> check {
+        status shouldBe OK
+      }
+    }
+
+    Get(Resource.uri("device_tags")) ~> route ~> check {
+      status shouldBe OK
+      responseAs[Seq[DeviceTag]]
+    } should contain theSameElementsAs expected
+  }
+
+  property("can rename a device tag") {
+    val oldName = Gen.alphaNumStr.sample.get
+    val newName = Gen.alphaNumStr.sample.get
+
+    Post(Resource.uri("device_tags"), WriteDeviceTag(oldName)) ~> route ~> check {
+      status shouldBe OK
+    }
+    Patch(Resource.uri("device_tags", "0"), WriteDeviceTag(newName)) ~> route ~> check {
+      status shouldBe OK
+    }
+    Get(Resource.uri("device_tags")) ~> route ~> check {
+      status shouldBe OK
+      responseAs[Seq[DeviceTag]] should contain (DeviceTag(defaultNs, 0, newName))
     }
   }
 

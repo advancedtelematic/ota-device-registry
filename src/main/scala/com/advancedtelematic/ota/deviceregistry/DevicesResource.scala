@@ -30,7 +30,7 @@ import com.advancedtelematic.libats.messaging_datatype.Messages.DeviceEventMessa
 import com.advancedtelematic.ota.deviceregistry.common.Errors
 import com.advancedtelematic.ota.deviceregistry.data.Codecs._
 import com.advancedtelematic.ota.deviceregistry.data.DataType.InstallationStatsLevel.InstallationStatsLevel
-import com.advancedtelematic.ota.deviceregistry.data.DataType.{DeviceT, InstallationStatsLevel, SearchParams, UpdateDevice}
+import com.advancedtelematic.ota.deviceregistry.data.DataType.{WriteDeviceTag, DeviceT, InstallationStatsLevel, SearchParams, UpdateDevice}
 import com.advancedtelematic.ota.deviceregistry.data.Device.{ActiveDeviceCount, DeviceOemId}
 import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
 import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
@@ -206,6 +206,15 @@ class DevicesResource(
     complete(db.run(action))
   }
 
+  private def fetchDeviceTags(ns: Namespace): Route =
+    complete(db.run(DeviceTagRepository.fetchAll(ns)))
+
+  private def createDeviceTag(ns: Namespace, tagName: String): Route =
+    complete(db.run(DeviceTagRepository.create(ns, tagName)))
+
+  private def renameDeviceTag(ns: Namespace, tagId: Int, tagName: String): Route =
+    complete(db.run(DeviceTagRepository.rename(ns, tagId, tagName).map(_ => ())))
+
   def api: Route = namespaceExtractor { ns =>
     val scope = Scopes.devices(ns)
     pathPrefix("devices") {
@@ -278,6 +287,17 @@ class DevicesResource(
             }
           }
         }
+      }
+    } ~
+    pathPrefix("device_tags") {
+      (pathEnd & scope.get) {
+        fetchDeviceTags(ns.namespace)
+      } ~
+      (pathEnd & scope.post & entity(as[WriteDeviceTag])) { body =>
+        createDeviceTag(ns.namespace, body.name)
+      } ~
+      (path(IntNumber) & scope.patch & entity(as[WriteDeviceTag])) { (tagId, body) =>
+        renameDeviceTag(ns.namespace, tagId, body.name)
       }
     } ~
     (scope.get & pathPrefix("device_count") & extractPackageId) { pkg =>
