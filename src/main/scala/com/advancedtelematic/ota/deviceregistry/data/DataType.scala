@@ -42,8 +42,8 @@ object DataType {
     case object Ecu extends InstallationStatsLevel
   }
 
-  final case class DeviceTag(namespace: Namespace, tagId: Int, tagName: String)
-  final case class WriteDeviceTag(name: String)
+  final case class DeviceTag(namespace: Namespace, tagId: Int, tagName: DeviceTagName)
+  final case class WriteDeviceTag(name: DeviceTagName)
 
   final case class DeviceT(uuid: Option[DeviceId] = None,
                            deviceName: DeviceName,

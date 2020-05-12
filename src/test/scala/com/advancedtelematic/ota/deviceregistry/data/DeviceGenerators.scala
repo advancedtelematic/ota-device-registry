@@ -11,8 +11,9 @@ package com.advancedtelematic.ota.deviceregistry.data
 import java.time.Instant
 
 import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
-import com.advancedtelematic.ota.deviceregistry.data.DataType.DeviceT
+import com.advancedtelematic.ota.deviceregistry.data.DataType.{DeviceT, WriteDeviceTag}
 import com.advancedtelematic.ota.deviceregistry.data.DeviceName.validatedDeviceType
+import com.advancedtelematic.ota.deviceregistry.data.DeviceTagName.validatedDeviceTagName
 import com.advancedtelematic.ota.deviceregistry.data.Namespaces.defaultNs
 import org.scalacheck.{Arbitrary, Gen}
 
@@ -77,6 +78,13 @@ trait DeviceGenerators {
           genDeviceTWith(nameG, idG).sample.get
       }
     }
+
+  val genDeviceWriteTag: Gen[WriteDeviceTag] = for {
+    n <- Gen.choose(1, 15)
+    validChars = Gen.oneOf(Gen.alphaNumChar, Gen.oneOf(" _"))
+    chars <- Gen.listOfN(n, validChars)
+    tagName = validatedDeviceTagName.from(chars.mkString).right.get
+  } yield WriteDeviceTag(tagName)
 
   implicit lazy val arbDeviceName: Arbitrary[DeviceName] = Arbitrary(genDeviceName)
   implicit lazy val arbDeviceUUID: Arbitrary[DeviceId] = Arbitrary(genDeviceUUID)

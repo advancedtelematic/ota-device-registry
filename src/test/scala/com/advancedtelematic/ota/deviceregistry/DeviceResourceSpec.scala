@@ -859,7 +859,7 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
   }
 
   property("can create and fetch device tags") {
-    val tagNames = Gen.resize(20, Gen.nonEmptyListOf(Gen.alphaNumStr)).sample.get.map(WriteDeviceTag)
+    val tagNames = Gen.resize(20, Gen.nonEmptyListOf(genDeviceWriteTag)).generate
     val expected = (0 to tagNames.length).zip(tagNames.map(_.name)).map { case (tagId, tagName) =>
       DeviceTag(defaultNs, tagId, tagName)
     }
@@ -877,18 +877,18 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
   }
 
   property("can rename a device tag") {
-    val oldName = Gen.alphaNumStr.sample.get
-    val newName = Gen.alphaNumStr.sample.get
+    val oldName = genDeviceWriteTag.generate
+    val newName = genDeviceWriteTag.generate
 
-    Post(Resource.uri("device_tags"), WriteDeviceTag(oldName)) ~> route ~> check {
+    Post(Resource.uri("device_tags"), oldName) ~> route ~> check {
       status shouldBe OK
     }
-    Patch(Resource.uri("device_tags", "0"), WriteDeviceTag(newName)) ~> route ~> check {
+    Patch(Resource.uri("device_tags", "0"), newName) ~> route ~> check {
       status shouldBe OK
     }
     Get(Resource.uri("device_tags")) ~> route ~> check {
       status shouldBe OK
-      responseAs[Seq[DeviceTag]] should contain (DeviceTag(defaultNs, 0, newName))
+      responseAs[Seq[DeviceTag]] should contain (DeviceTag(defaultNs, 0, newName.name))
     }
   }
 

@@ -30,12 +30,12 @@ import com.advancedtelematic.libats.messaging_datatype.Messages.DeviceEventMessa
 import com.advancedtelematic.ota.deviceregistry.common.Errors
 import com.advancedtelematic.ota.deviceregistry.data.Codecs._
 import com.advancedtelematic.ota.deviceregistry.data.DataType.InstallationStatsLevel.InstallationStatsLevel
-import com.advancedtelematic.ota.deviceregistry.data.DataType.{WriteDeviceTag, DeviceT, InstallationStatsLevel, SearchParams, UpdateDevice}
+import com.advancedtelematic.ota.deviceregistry.data.DataType.{DeviceT, InstallationStatsLevel, SearchParams, UpdateDevice, WriteDeviceTag}
 import com.advancedtelematic.ota.deviceregistry.data.Device.{ActiveDeviceCount, DeviceOemId}
 import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
 import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
 import com.advancedtelematic.ota.deviceregistry.data.SortBy.SortBy
-import com.advancedtelematic.ota.deviceregistry.data.{GroupExpression, PackageId, SortBy}
+import com.advancedtelematic.ota.deviceregistry.data.{DeviceTagName, GroupExpression, PackageId, SortBy}
 import com.advancedtelematic.ota.deviceregistry.db._
 import com.advancedtelematic.ota.deviceregistry.messages.{DeleteDeviceRequest, DeviceCreated}
 import io.circe.Json
@@ -209,10 +209,10 @@ class DevicesResource(
   private def fetchDeviceTags(ns: Namespace): Route =
     complete(db.run(DeviceTagRepository.fetchAll(ns)))
 
-  private def createDeviceTag(ns: Namespace, tagName: String): Route =
+  private def createDeviceTag(ns: Namespace, tagName: DeviceTagName): Route =
     complete(db.run(DeviceTagRepository.create(ns, tagName)))
 
-  private def renameDeviceTag(ns: Namespace, tagId: Int, tagName: String): Route =
+  private def renameDeviceTag(ns: Namespace, tagId: Int, tagName: DeviceTagName): Route =
     complete(db.run(DeviceTagRepository.rename(ns, tagId, tagName).map(_ => ())))
 
   def api: Route = namespaceExtractor { ns =>
