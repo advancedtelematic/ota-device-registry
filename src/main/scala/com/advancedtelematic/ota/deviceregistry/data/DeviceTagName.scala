@@ -1,8 +1,8 @@
 package com.advancedtelematic.ota.deviceregistry.data
 
-import com.advancedtelematic.libats.codecs.CirceValidatedGeneric
+import com.advancedtelematic.libats.codecs.CirceValidatedGeneric.{validatedGenericDecoder, validatedGenericEncoder}
 import com.advancedtelematic.libats.data.{ValidatedGeneric, ValidationError}
-import io.circe.{Decoder, Encoder}
+import io.circe.Codec
 
 final case class DeviceTagName private(value: String) extends AnyVal
 
@@ -19,7 +19,6 @@ object DeviceTagName {
     else
       Left(ValidationError(s"$s should contain between one and a fifteen alphanumeric, underscore or space characters."))
 
-  implicit val groupNameEncoder: Encoder[DeviceTagName] = CirceValidatedGeneric.validatedGenericEncoder
-  implicit val groupNameDecoder: Decoder[DeviceTagName] = CirceValidatedGeneric.validatedGenericDecoder
+  implicit val deviceTagNameCodec: Codec[DeviceTagName] = Codec.from(validatedGenericDecoder, validatedGenericEncoder)
 
 }

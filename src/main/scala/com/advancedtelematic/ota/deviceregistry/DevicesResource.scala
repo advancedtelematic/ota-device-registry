@@ -146,9 +146,9 @@ class DevicesResource(
   def countDynamicGroupCandidates(ns: Namespace, expression: GroupExpression): Route =
     complete(db.run(DeviceRepository.countDevicesForExpression(ns, expression)))
 
-  def getGroupsForDevice(ns: Namespace, uuid: DeviceId): Route =
+  def getGroupsForDevice(uuid: DeviceId): Route =
     parameters(('offset.as[Long].?, 'limit.as[Long].?)) { (offset, limit) =>
-      complete(db.run(GroupMemberRepository.listGroupsForDevice(ns, uuid, offset, limit)))
+      complete(db.run(GroupMemberRepository.listGroupsForDevice(uuid, offset, limit)))
     }
 
   def updateInstalledSoftware(device: DeviceId): Route =
@@ -236,7 +236,7 @@ class DevicesResource(
       deviceNamespaceAuthorizer { uuid =>
         scope.get {
           path("groups") {
-            getGroupsForDevice(ns.namespace, uuid)
+            getGroupsForDevice(uuid)
           } ~
           path("packages") {
             listPackagesOnDevice(uuid)

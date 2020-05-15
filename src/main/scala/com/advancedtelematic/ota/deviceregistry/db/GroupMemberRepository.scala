@@ -76,10 +76,9 @@ object GroupMemberRepository {
   )(implicit ec: ExecutionContext): DBIO[Long] =
     listDevicesInGroupAction(groupId, None, None).map(_.total)
 
-  def deleteDynamicGroupsForDevice(namespace: Namespace, deviceUuid: DeviceId)(
-      implicit ec: ExecutionContext
-  ): DBIO[Unit] =
+  def deleteDynamicGroupsForDevice(deviceUuid: DeviceId)(implicit ec: ExecutionContext): DBIO[Unit] =
     groupMembers
+      .filter(_.deviceUuid === deviceUuid)
       .filter { _.groupId.in(GroupInfoRepository.groupInfos.filter(_.groupType === GroupType.dynamic).map(_.id)) }
       .delete
       .map(_ => ())
@@ -100,7 +99,7 @@ object GroupMemberRepository {
     }.map(_ => ())
   }
 
-  def listGroupsForDevice(namespace: Namespace, deviceUuid: DeviceId, offset: Option[Long], limit: Option[Long])
+  def listGroupsForDevice(deviceUuid: DeviceId, offset: Option[Long], limit: Option[Long])
                          (implicit ec: ExecutionContext): DBIO[PaginationResult[GroupId]] =
     groupMembers
       .filter(_.deviceUuid === deviceUuid)
