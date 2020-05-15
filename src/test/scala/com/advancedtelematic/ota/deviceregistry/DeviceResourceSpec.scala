@@ -20,13 +20,12 @@ import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
 import com.advancedtelematic.libats.messaging_datatype.Messages.DeviceSeen
 import com.advancedtelematic.ota.deviceregistry.common.{Errors, PackageStat}
 import com.advancedtelematic.ota.deviceregistry.daemon.{DeleteDeviceHandler, DeviceSeenListener}
-import com.advancedtelematic.ota.deviceregistry.data.Codecs.deviceTagCodec
-import com.advancedtelematic.ota.deviceregistry.data.DataType.{DeviceT, DeviceTag, WriteDeviceTag}
+import com.advancedtelematic.ota.deviceregistry.data.DataType.DeviceT
 import com.advancedtelematic.ota.deviceregistry.data.DeviceName.validatedDeviceType
 import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
 import com.advancedtelematic.ota.deviceregistry.data.{Device, DeviceStatus, PackageId, _}
-import com.advancedtelematic.ota.deviceregistry.db.InstalledPackages
 import com.advancedtelematic.ota.deviceregistry.db.InstalledPackages.{DevicesCount, InstalledPackage}
+import com.advancedtelematic.ota.deviceregistry.db.{InstalledPackages, TaggedDeviceRepository}
 import com.advancedtelematic.ota.deviceregistry.messages.DeleteDeviceRequest
 import io.circe.generic.auto._
 import org.scalacheck.Arbitrary._
@@ -154,7 +153,6 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
         updateDevice(uuid, d2.deviceName) ~> route ~> check {
           status shouldBe OK
           fetchDevice(uuid) ~> route ~> check {
-            println(response)
             status shouldBe OK
             val devicePost: Device = responseAs[Device]
             devicePost.uuid shouldBe uuid
@@ -858,38 +856,58 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
     }
   }
 
-  property("can create and fetch device tags") {
-    val tagNames = Gen.resize(20, Gen.nonEmptyListOf(genDeviceWriteTag)).generate
-    val expected = (0 to tagNames.length).zip(tagNames.map(_.name)).map { case (tagId, tagName) =>
-      DeviceTag(defaultNs, tagId, tagName)
-    }
+  property("can tag devices from a csv file and ignores unprovisioned devices") {
+    val device1 = genDeviceT.generate
+    val device2 = genDeviceT.generate
+    val duid1 = createDeviceOk(device1)
+    val duid2 = createDeviceOk(device2)
+    val csvRows = Seq(
+      Seq(device1.deviceId.underlying, "Germany", "Premium"),
+      Seq(genDeviceId.generate.underlying , "France", "Standard"),
+      Seq(device2.deviceId.underlying, "China", "Deluxe"),
+      Seq(genDeviceId.generate.underlying , "Spain", "Standard"),
+    )
 
-    tagNames.foreach { tagName =>
-      Post(Resource.uri("device_tags"), tagName) ~> route ~> check {
-        status shouldBe OK
-      }
-    }
-
-    Get(Resource.uri("device_tags")) ~> route ~> check {
+    postDeviceTags(csvRows) ~> route ~> check {
       status shouldBe OK
-      responseAs[Seq[DeviceTag]]
-    } should contain theSameElementsAs expected
-  }
-
-  property("can rename a device tag") {
-    val oldName = genDeviceWriteTag.generate
-    val newName = genDeviceWriteTag.generate
-
-    Post(Resource.uri("device_tags"), oldName) ~> route ~> check {
-      status shouldBe OK
-    }
-    Patch(Resource.uri("device_tags", "0"), newName) ~> route ~> check {
-      status shouldBe OK
-    }
-    Get(Resource.uri("device_tags")) ~> route ~> check {
-      status shouldBe OK
-      responseAs[Seq[DeviceTag]] should contain (DeviceTag(defaultNs, 0, newName.name))
+      db.run(TaggedDeviceRepository.fetchForDevice(duid1)).futureValue
+        .map { case (k, v) => k.value -> v } should contain only ("market" -> "Germany", "trim" -> "Premium")
+      db.run(TaggedDeviceRepository.fetchForDevice(duid2)).futureValue
+        .map { case (k, v) => k.value -> v } should contain only ("market" -> "China", "trim" -> "Deluxe")
     }
   }
 
+  property("tagging from a csv overrides the previous tags") {
+    val deviceT = genDeviceT.generate
+    val duid = createDeviceOk(deviceT)
+    val csvRows = Seq(
+      Seq(deviceT.deviceId.underlying, "Germany", "Premium"),
+      Seq(genDeviceId.generate.underlying , "France", "Standard"),
+    )
+
+    postDeviceTags(csvRows) ~> route ~> check {
+      status shouldBe OK
+      db.run(TaggedDeviceRepository.fetchForDevice(duid)).futureValue
+        .map { case (k, v) => k.value -> v } should contain only ("market" -> "Germany", "trim" -> "Premium")
+    }
+
+    val newRows = Seq(Seq(deviceT.deviceId.underlying, "China", "Deluxe"))
+    postDeviceTags(newRows) ~> route ~> check {
+      status shouldBe OK
+      db.run(TaggedDeviceRepository.fetchForDevice(duid)).futureValue
+        .map { case (k, v) => k.value -> v } should contain only ("market" -> "China", "trim" -> "Deluxe")
+    }
+  }
+
+  property("fails if there are more than 20 tags in the csv file") {
+    val deviceT = genDeviceT.generate
+    createDeviceOk(deviceT)
+    val headers = "deviceId" +: (1 to 30).map(i => s"column$i")
+    val csvRows = Seq(deviceT.deviceId.underlying +: headers.tail.map(_ => "some-value"))
+
+    postDeviceTags(csvRows, headers) ~> route ~> check {
+      status shouldBe BadRequest
+      responseAs[ErrorRepresentation].code shouldBe Errors.MalformedInputFile.code
+    }
+  }
 }
