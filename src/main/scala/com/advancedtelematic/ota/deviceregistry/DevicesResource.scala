@@ -16,6 +16,9 @@ import akka.http.scaladsl.model.headers._
 import akka.http.scaladsl.server._
 import akka.http.scaladsl.unmarshalling.{FromStringUnmarshaller, Unmarshaller}
 import akka.stream.ActorMaterializer
+import akka.stream.alpakka.csv.scaladsl.{CsvParsing, CsvToMap}
+import akka.stream.scaladsl.{Sink, Source}
+import akka.util.ByteString
 import cats.syntax.either._
 import cats.syntax.show._
 import com.advancedtelematic.libats.auth.{AuthedNamespaceScope, Scopes}
@@ -27,21 +30,25 @@ import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId._
 import com.advancedtelematic.libats.messaging_datatype.DataType.{DeviceId, Event, EventType}
 import com.advancedtelematic.libats.messaging_datatype.MessageCodecs._
 import com.advancedtelematic.libats.messaging_datatype.Messages.DeviceEventMessage
+import com.advancedtelematic.libats.slick.db.SlickExtensions._
 import com.advancedtelematic.ota.deviceregistry.common.Errors
+import com.advancedtelematic.ota.deviceregistry.common.Errors.MissingDevice
 import com.advancedtelematic.ota.deviceregistry.data.Codecs._
 import com.advancedtelematic.ota.deviceregistry.data.DataType.InstallationStatsLevel.InstallationStatsLevel
-import com.advancedtelematic.ota.deviceregistry.data.DataType.{DeviceT, InstallationStatsLevel, SearchParams, UpdateDevice, WriteDeviceTag}
+import com.advancedtelematic.ota.deviceregistry.data.DataType.{DeviceT, InstallationStatsLevel, SearchParams, UpdateDevice}
 import com.advancedtelematic.ota.deviceregistry.data.Device.{ActiveDeviceCount, DeviceOemId}
 import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
 import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
 import com.advancedtelematic.ota.deviceregistry.data.SortBy.SortBy
-import com.advancedtelematic.ota.deviceregistry.data.{DeviceTagName, GroupExpression, PackageId, SortBy}
+import com.advancedtelematic.ota.deviceregistry.data.TagId.validatedTagId
+import com.advancedtelematic.ota.deviceregistry.data.{GroupExpression, PackageId, SortBy}
 import com.advancedtelematic.ota.deviceregistry.db._
 import com.advancedtelematic.ota.deviceregistry.messages.{DeleteDeviceRequest, DeviceCreated}
 import io.circe.Json
 import slick.jdbc.MySQLProfile.api._
 
 import scala.concurrent.{ExecutionContext, Future}
+import scala.util.Failure
 
 object DevicesResource {
   type EventPayload = (DeviceId, Instant) => Event
@@ -90,12 +97,11 @@ class DevicesResource(
     deviceNamespaceAuthorizer: Directive1[DeviceId]
 )(implicit system: ActorSystem, db: Database, mat: ActorMaterializer, ec: ExecutionContext) {
 
+  import DevicesResource._
   import Directives._
   import StatusCodes._
   import com.advancedtelematic.libats.http.AnyvalMarshallingSupport._
   import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
-
-  import DevicesResource._
 
   val extractPackageId: Directive1[PackageId] =
     pathPrefix(Segment / Segment).as(PackageId.apply)
@@ -146,9 +152,9 @@ class DevicesResource(
   def countDynamicGroupCandidates(ns: Namespace, expression: GroupExpression): Route =
     complete(db.run(DeviceRepository.countDevicesForExpression(ns, expression)))
 
-  def getGroupsForDevice(ns: Namespace, uuid: DeviceId): Route =
+  def getGroupsForDevice(uuid: DeviceId): Route =
     parameters(('offset.as[Long].?, 'limit.as[Long].?)) { (offset, limit) =>
-      complete(db.run(GroupMemberRepository.listGroupsForDevice(ns, uuid, offset, limit)))
+      complete(db.run(GroupMemberRepository.listGroupsForDevice(uuid, offset, limit)))
     }
 
   def updateInstalledSoftware(device: DeviceId): Route =
@@ -207,13 +213,33 @@ class DevicesResource(
   }
 
   private def fetchDeviceTags(ns: Namespace): Route =
-    complete(db.run(DeviceTagRepository.fetchAll(ns)))
+    complete(db.run(TaggedDeviceRepository.fetchAll(ns)))
 
-  private def createDeviceTag(ns: Namespace, tagName: DeviceTagName): Route =
-    complete(db.run(DeviceTagRepository.create(ns, tagName)))
+  private def tagDevicesFromCsv(ns: Namespace, byteSource: Source[ByteString, Any]): Route = {
+    val deviceIdKey = "DeviceID"
+    val csvRows = byteSource
+      .via(CsvParsing.lineScanner(delimiter = CsvParsing.SemiColon))
+      .via(CsvToMap.toMapAsStrings())
+      .runWith(Sink.seq)
+      .flatMap { rows =>
+        if (rows.head.keys.exists(_ == deviceIdKey)) Future.successful(rows)
+        else Future.failed(Errors.MalformedInputFile)
+      }
 
-  private def renameDeviceTag(ns: Namespace, tagId: Int, tagName: DeviceTagName): Route =
-    complete(db.run(DeviceTagRepository.rename(ns, tagId, tagName).map(_ => ())))
+    val f = csvRows.map(_.map { row =>
+      val deviceId = DeviceOemId(row(deviceIdKey))
+      val tags = row.collect { case (k, v) if k != deviceIdKey =>
+        validatedTagId.from(k).map(_ -> v).valueOr(throw _)
+      }
+      TaggedDeviceRepository
+        .tagDeviceByOemId(ns, deviceId, tags)
+        .recover { case Failure(MissingDevice) => DBIO.successful(()) }
+    })
+
+    complete {
+      f.map(DBIO.sequence(_).transactionally).flatMap(db.run)
+    }
+  }
 
   def api: Route = namespaceExtractor { ns =>
     val scope = Scopes.devices(ns)
@@ -236,7 +262,7 @@ class DevicesResource(
       deviceNamespaceAuthorizer { uuid =>
         scope.get {
           path("groups") {
-            getGroupsForDevice(ns.namespace, uuid)
+            getGroupsForDevice(uuid)
           } ~
           path("packages") {
             listPackagesOnDevice(uuid)
@@ -290,14 +316,14 @@ class DevicesResource(
       }
     } ~
     pathPrefix("device_tags") {
-      (pathEnd & scope.get) {
-        fetchDeviceTags(ns.namespace)
-      } ~
-      (pathEnd & scope.post & entity(as[WriteDeviceTag])) { body =>
-        createDeviceTag(ns.namespace, body.name)
-      } ~
-      (path(IntNumber) & scope.patch & entity(as[WriteDeviceTag])) { (tagId, body) =>
-        renameDeviceTag(ns.namespace, tagId, body.name)
+      pathEnd {
+        scope.get {
+          fetchDeviceTags(ns.namespace)
+        } ~
+        // TODO use extractRequestEntity instead of fileUpload
+        (scope.post & fileUpload("custom-device-fields")) { case (_, byteSource) =>
+          tagDevicesFromCsv(ns.namespace, byteSource)
+        }
       }
     } ~
     (scope.get & pathPrefix("device_count") & extractPackageId) { pkg =>

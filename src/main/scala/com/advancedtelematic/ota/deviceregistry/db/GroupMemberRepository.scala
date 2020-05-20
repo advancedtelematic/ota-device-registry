@@ -15,8 +15,9 @@ import com.advancedtelematic.libats.slick.db.SlickAnyVal._
 import com.advancedtelematic.libats.slick.db.SlickExtensions._
 import com.advancedtelematic.libats.slick.db.SlickUUIDKey._
 import com.advancedtelematic.ota.deviceregistry.common.Errors
+import com.advancedtelematic.ota.deviceregistry.data.DataType.TaggedDevice
 import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
-import com.advancedtelematic.ota.deviceregistry.data.{Device, GroupExpressionAST, GroupType}
+import com.advancedtelematic.ota.deviceregistry.data.{Device, GroupExpressionAST, GroupType, TagId}
 import com.advancedtelematic.ota.deviceregistry.db.DbOps.PaginationResultOps
 import slick.jdbc.MySQLProfile.api._
 import slick.lifted.Tag
@@ -76,31 +77,29 @@ object GroupMemberRepository {
   )(implicit ec: ExecutionContext): DBIO[Long] =
     listDevicesInGroupAction(groupId, None, None).map(_.total)
 
-  def deleteDynamicGroupsForDevice(namespace: Namespace, deviceUuid: DeviceId)(
-      implicit ec: ExecutionContext
-  ): DBIO[Unit] =
+  def deleteDynamicGroupsForDevice(deviceUuid: DeviceId)(implicit ec: ExecutionContext): DBIO[Unit] =
     groupMembers
+      .filter(_.deviceUuid === deviceUuid)
       .filter { _.groupId.in(GroupInfoRepository.groupInfos.filter(_.groupType === GroupType.dynamic).map(_.id)) }
       .delete
       .map(_ => ())
 
-  def addDeviceToDynamicGroups(namespace: Namespace, device: Device)(implicit ec: ExecutionContext): DBIO[Unit] = {
+  def addDeviceToDynamicGroups(namespace: Namespace, device: Device, tags: Map[TagId, String])(implicit ec: ExecutionContext): DBIO[Unit] = {
     val dynamicGroupIds =
       GroupInfoRepository.groupInfos
-        .filter { g => (g.groupType === GroupType.dynamic) && (g.namespace === namespace) }
-        .result.map {
-        _.filter { group =>
-          val compiledExp = GroupExpressionAST.compileToScala(group.expression.get)
-          compiledExp.apply(device)
-        }
-      }
+        .filter(_.namespace === namespace)
+        .filter(_.groupType === GroupType.dynamic)
+        .result
+        .map(_.filter { group =>
+          GroupExpressionAST.compileToScala(group.expression.get)(device, tags)
+        })
 
     dynamicGroupIds.flatMap { groups =>
       DBIO.sequence(groups.map(group => GroupMemberRepository.addGroupMember(group.id, device.uuid)))
     }.map(_ => ())
   }
 
-  def listGroupsForDevice(namespace: Namespace, deviceUuid: DeviceId, offset: Option[Long], limit: Option[Long])
+  def listGroupsForDevice(deviceUuid: DeviceId, offset: Option[Long], limit: Option[Long])
                          (implicit ec: ExecutionContext): DBIO[PaginationResult[GroupId]] =
     groupMembers
       .filter(_.deviceUuid === deviceUuid)

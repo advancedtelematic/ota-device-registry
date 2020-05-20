@@ -19,7 +19,7 @@ import com.advancedtelematic.libats.slick.db.SlickExtensions._
 import com.advancedtelematic.libats.slick.db.SlickUUIDKey._
 import com.advancedtelematic.libats.slick.db.SlickValidatedGeneric.validatedStringMapper
 import com.advancedtelematic.ota.deviceregistry.common.Errors
-import com.advancedtelematic.ota.deviceregistry.data.DataType.{DeletedDevice, DeviceT, SearchParams}
+import com.advancedtelematic.ota.deviceregistry.data.DataType.{DeletedDevice, DeviceT, SearchParams, TaggedDevice}
 import com.advancedtelematic.ota.deviceregistry.data.Device._
 import com.advancedtelematic.ota.deviceregistry.data.DeviceStatus.DeviceStatus
 import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
@@ -29,6 +29,7 @@ import com.advancedtelematic.ota.deviceregistry.db.DbOps.{PaginationResultOps, s
 import com.advancedtelematic.ota.deviceregistry.db.GroupInfoRepository.groupInfos
 import com.advancedtelematic.ota.deviceregistry.db.GroupMemberRepository.groupMembers
 import com.advancedtelematic.ota.deviceregistry.db.SlickMappings._
+import com.advancedtelematic.ota.deviceregistry.db.TaggedDeviceRepository.{TaggedDeviceTable, taggedDevices}
 import slick.jdbc.MySQLProfile.api._
 
 import scala.concurrent.ExecutionContext
@@ -44,6 +45,7 @@ object DeviceRepository {
     def uuid         = column[DeviceId]("uuid")
     def deviceName   = column[DeviceName]("device_name")
     def deviceId     = column[DeviceOemId]("device_id")
+    def rawId        = column[String]("device_id")
     def deviceType   = column[DeviceType]("device_type")
     def lastSeen     = column[Option[Instant]]("last_seen")
     def createdAt    = column[Instant]("created_at")
@@ -86,7 +88,7 @@ object DeviceRepository {
     val dbIO = devices += dbDevice
     dbIO
       .handleIntegrityErrors(Errors.ConflictingDevice)
-      .andThen { GroupMemberRepository.addDeviceToDynamicGroups(ns, dbDevice) }
+      .andThen { GroupMemberRepository.addDeviceToDynamicGroups(ns, dbDevice, Map.empty) }
       .map(_ => uuid)
       .transactionally
   }
@@ -120,20 +122,18 @@ object DeviceRepository {
   def findByDeviceIdQuery(ns: Namespace, deviceId: DeviceOemId)(implicit ec: ExecutionContext): Query[DeviceTable, Device, Seq] =
     devices.filter(d => d.namespace === ns && d.deviceId === deviceId)
 
+  def devicesForExpressionQuery(ns: Namespace, expression: GroupExpression) = {
+    val all = devices.filter(_.namespace === ns).map(_.uuid)
+    GroupExpressionAST.compileToSlick(expression)(all).distinct
+  }
+
   def searchByExpression(ns: Namespace, expression: GroupExpression)
                         (implicit db: Database, ec: ExecutionContext): DBIO[Seq[DeviceId]] =
-    devices
-      .filter(_.namespace === ns)
-      .filter(GroupExpressionAST.compileToSlick(expression))
-      .map(_.uuid)
-      .result
+    devicesForExpressionQuery(ns, expression).result
 
-  def countDevicesForExpression(ns: Namespace, exp: GroupExpression)(implicit db: Database, ec: ExecutionContext): DBIO[Int] =
-    devices
-      .filter(_.namespace === ns)
-      .filter(GroupExpressionAST.compileToSlick(exp))
-      .length
-      .result
+  def countDevicesForExpression(ns: Namespace, expression: GroupExpression)
+                               (implicit db: Database, ec: ExecutionContext): DBIO[Int] =
+    devicesForExpressionQuery(ns, expression).length.result
 
   private def searchQuery(ns: Namespace,
                           nameContains: Option[String],
@@ -245,6 +245,7 @@ object DeviceRepository {
       _ <- GroupMemberRepository.removeGroupMemberAll(uuid)
       _ <- PublicCredentialsRepository.delete(uuid)
       _ <- SystemInfoRepository.delete(uuid)
+      _ <- TaggedDeviceRepository.delete(uuid)
       _ <- devices.filter(d => d.namespace === ns && d.uuid === uuid).delete
       _ <- deletedDevices += DeletedDevice(ns, device.uuid, device.deviceId)
     } yield ()

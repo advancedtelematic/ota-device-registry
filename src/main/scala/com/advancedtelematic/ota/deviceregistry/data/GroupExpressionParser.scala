@@ -5,66 +5,98 @@ import atto._
 import cats.data.NonEmptyList
 import cats.syntax.either._
 import com.advancedtelematic.libats.http.Errors.RawError
+import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
 import com.advancedtelematic.libats.slick.db.SlickExtensions._
+import com.advancedtelematic.libats.slick.db.SlickUUIDKey._
+import com.advancedtelematic.libats.slick.db.SlickValidatedGeneric.validatedStringMapper
 import com.advancedtelematic.ota.deviceregistry.common.Errors
 import com.advancedtelematic.ota.deviceregistry.data.GroupExpressionAST._
-import com.advancedtelematic.ota.deviceregistry.db.DeviceRepository.DeviceTable
+import com.advancedtelematic.ota.deviceregistry.data.TagId.validatedTagId
+import com.advancedtelematic.ota.deviceregistry.db.DeviceRepository.devices
+import com.advancedtelematic.ota.deviceregistry.db.TaggedDeviceRepository.taggedDevices
 import slick.jdbc.MySQLProfile.api._
 import slick.lifted.Rep
 
 object GroupExpressionAST {
+  type DeviceIdsQuery = Query[Rep[DeviceId], DeviceId, Seq]
+
   sealed trait Expression
   case class DeviceIdContains(word: String) extends Expression
   case class DeviceIdCharAt(char: Char, position: Int) extends Expression
+  case class TagContains(tagId: TagId, word: String) extends Expression
+  case class TagCharAt(tagId: TagId, char: Char, position: Int) extends Expression
   case class Or(cond: NonEmptyList[Expression])  extends Expression
   case class And(cond: NonEmptyList[Expression]) extends Expression
   case class Not(exp: Expression) extends Expression
 
-  def compileToSlick(groupExpression: GroupExpression): DeviceTable => Rep[Boolean] =
+  def compileToSlick(groupExpression: GroupExpression): DeviceIdsQuery => DeviceIdsQuery =
     compileString(groupExpression.value, eval)
 
-  def compileToScala(groupExpression: GroupExpression): Device => Boolean =
+  def compileToScala(groupExpression: GroupExpression): (Device, Map[TagId, String]) => Boolean =
     compileString(groupExpression.value, evalToScala)
 
   private def compileString[T](str: String, fn: Expression => T): T =
     GroupExpressionParser.parse(str).map(fn).right.get
 
-  private def evalToScala(exp: Expression): Device => Boolean = exp match {
+  private def evalToScala(exp: Expression): (Device, Map[TagId, String]) => Boolean = exp match {
     case DeviceIdContains(word) =>
-      (d: Device) => d.deviceId.underlying.toLowerCase.contains(word.toLowerCase)
+      (d: Device, _) => d.deviceId.underlying.toLowerCase.contains(word.toLowerCase)
 
     case DeviceIdCharAt(c, p) =>
-      (d: Device) =>  p < d.deviceId.underlying.length && d.deviceId.underlying.charAt(p).toLower == c.toLower
+      (d: Device, _) => p < d.deviceId.underlying.length && d.deviceId.underlying.charAt(p).toLower == c.toLower
+
+    case TagContains(tagId, word) =>
+      (_, tds: Map[TagId, String]) => tds.get(tagId).exists(_.toLowerCase.contains(word.toLowerCase))
+
+    case TagCharAt(tagId, c, p) =>
+      (_, tds: Map[TagId, String]) => tds.get(tagId).exists(_.toLowerCase.charAt(p).toLower == c.toLower)
 
     case Or(cond) =>
-      val evaledConds = cond.map(evalToScala)
-      evaledConds.reduceLeft { (a, b) => (d: Device) => a(d) || b(d) }
+      cond.map(evalToScala).reduceLeft { (a, b) =>
+        (d: Device, tds: Map[TagId, String]) => a(d, tds) || b(d, tds)
+      }
 
     case And(cond) =>
-      val evaledConds = cond.map(evalToScala)
-      evaledConds.reduceLeft { (a, b) => (d: Device) => a(d) && b(d) }
+      cond.map(evalToScala).reduceLeft { (a, b) =>
+        (d: Device, tds: Map[TagId, String]) => a(d, tds) && b(d, tds)
+      }
 
     case Not(e) =>
-      evalToScala(e).andThen(!_)
+      (d: Device, tds: Map[TagId, String]) => !evalToScala(e)(d, tds)
   }
 
-  def eval(exp: Expression): DeviceTable => Rep[Boolean] = exp match {
+  def eval(exp: Expression): DeviceIdsQuery => DeviceIdsQuery = exp match {
     case DeviceIdContains(word) =>
-      (d: DeviceTable) => d.deviceId.mappedTo[String].toLowerCase.like("%" + word.toLowerCase + "%")
+      (q: DeviceIdsQuery) =>
+        val a = devices.filter(_.rawId.toLowerCase.like("%" + word.toLowerCase + "%")).map(_.uuid)
+        q.filter(_.in(a))
 
     case DeviceIdCharAt(c, p) =>
-      (d: DeviceTable) => d.deviceId.mappedTo[String].substring(p, p + 1).toLowerCase.mappedTo[Char] === c.toLower
+      (q: DeviceIdsQuery) =>
+        val a = devices.filter(_.rawId.substring(p, p + 1).toLowerCase.mappedTo[Char] === c.toLower).map(_.uuid)
+        q.filter(_.in(a))
+
+    case TagContains(tid, word) =>
+      (q: DeviceIdsQuery) =>
+        val a = taggedDevices.filter(td => td.tagId === tid && td.tagValue.toLowerCase.like("%" + word.toLowerCase + "%")).map(_.deviceUuid)
+        q.filter(_.in(a))
+
+    case TagCharAt(tid, c, p) =>
+      (q: DeviceIdsQuery) =>
+        val a = taggedDevices.filter(td => td.tagId === tid && td.tagValue.substring(p, p + 1).toLowerCase.mappedTo[Char] === c.toLower).map(_.deviceUuid)
+        q.filter(_.in(a))
 
     case Or(cond) =>
-      val evaledConds = cond.map(eval)
-      evaledConds.reduceLeft { (a, b) => (d: DeviceTable) => a(d) || b(d) }
+      (q: DeviceIdsQuery) =>
+        cond.map(eval).map(_ (q)).reduceLeft(_ ++ _)
 
     case And(cond) =>
-      val evaledConds = cond.map(eval)
-      evaledConds.reduceLeft { (a, b) => (d: DeviceTable) => a(d) && b(d) }
+      cond.map(eval).reduceLeft { (a, b) => a.andThen(b) }
 
     case Not(e) =>
-      eval(e).andThen(!_)
+      (q: DeviceIdsQuery) =>
+        val yes = eval(e)(q)
+        q.filterNot(_.in(yes))
   }
 }
 
@@ -74,10 +106,11 @@ object GroupExpressionParser {
 
   private lazy val expression: Parser[Expression] = or | and | leftExpression
 
-  private lazy val leftExpression: Parser[Expression] = deviceIdExpression | brackets
+  private lazy val leftExpression: Parser[Expression] = deviceIdExpression | tagExpression | brackets
 
-  private lazy val deviceIdExpression
-    : Parser[Expression] = deviceIdCons ~> (deviceIdContains | deviceIdCharAtIsNot | deviceIdCharAtIs)
+  private lazy val deviceIdExpression: Parser[Expression] = deviceIdCons ~> (deviceIdContains | deviceIdCharAtIsNot | deviceIdCharAtIs)
+
+  private lazy val tagExpression = tagValueContains | tagValueCharAtIs | tagValueCharAtIsNot
 
   private lazy val brackets: Parser[Expression] = parens(expression)
 
@@ -85,12 +118,24 @@ object GroupExpressionParser {
 
   private lazy val deviceIdCons: Parser[Unit] = token(string("deviceid")).map(_ => ())
 
+  private lazy val tagIdCons: Parser[TagId] = for {
+    _ <- string("tag")
+    tagId <- parens(takeWhile1(c => c.isLetterOrDigit || c.isSpaceChar || c == '_'))
+    _ <- skipWhitespace
+  } yield validatedTagId.from(tagId).valueOr(throw _)
+
   private lazy val deviceIdContains: Parser[Expression] = for {
     _ <- token(string("contains"))
     str <- takeWhile1(c => c.isLetterOrDigit || c == '-')
   } yield DeviceIdContains(str)
 
-  private lazy val deviceIdCharAt: Parser[Int] = for {
+  private lazy val tagValueContains: Parser[Expression] = for {
+    tagId <- tagIdCons
+    _ <- token(string("contains"))
+    str <- takeWhile1(c => c.isLetterOrDigit || c == '_')
+  } yield TagContains(tagId, str)
+
+  private lazy val charAt: Parser[Int] = for {
     _ <- string("position")
     pos <- parens(int.filter(_ > 0))
     _ <- skipWhitespace
@@ -98,15 +143,28 @@ object GroupExpressionParser {
   } yield pos - 1
 
   private lazy val deviceIdCharAtIs: Parser[Expression] = for {
-    pos  <- deviceIdCharAt
+    pos  <- charAt
     char <- letterOrDigit
   } yield DeviceIdCharAt(char, pos)
 
   private lazy val deviceIdCharAtIsNot: Parser[Expression] = for {
-    pos  <- deviceIdCharAt
+    pos  <- charAt
     _    <- token(string("not"))
     char <- letterOrDigit
   } yield Not(DeviceIdCharAt(char, pos))
+
+  private lazy val tagValueCharAtIs: Parser[Expression] = for {
+    tagId <- tagIdCons
+    pos  <- charAt
+    char <- letterOrDigit
+  } yield TagCharAt(tagId, char, pos)
+
+  private lazy val tagValueCharAtIsNot: Parser[Expression] = for {
+    tagId <- tagIdCons
+    pos  <- charAt
+    _    <- token(string("not"))
+    char <- letterOrDigit
+  } yield Not(TagCharAt(tagId, char, pos))
 
   private lazy val and: Parser[Expression] = for {
     a <- leftExpression

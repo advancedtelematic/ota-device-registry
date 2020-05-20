@@ -11,8 +11,9 @@ package com.advancedtelematic.ota.deviceregistry
 import java.time.OffsetDateTime
 
 import akka.http.scaladsl.model.Uri.{Path, Query}
-import akka.http.scaladsl.model.{HttpRequest, StatusCodes, Uri}
+import akka.http.scaladsl.model.{ContentTypes, HttpEntity, HttpRequest, Multipart, StatusCodes, Uri}
 import akka.http.scaladsl.server.Route
+import akka.util.ByteString
 import cats.instances.int._
 import cats.instances.string._
 import cats.syntax.option._
@@ -220,4 +221,17 @@ trait DeviceRequests { self: ResourceSpec =>
 
   def getReportBlob(deviceId: DeviceId): HttpRequest =
     Get(Resource.uri(api, deviceId.show, "installation_history"))
+
+  def postDeviceTags(tags: Seq[Seq[String]], headers: Seq[String] = Seq("DeviceID", "market", "trim")): HttpRequest = {
+    require(tags.map(_.length == headers.length).reduce(_ && _))
+
+    val csv = (headers +: tags).map(_.mkString(";")).mkString("\n")
+    val multipartForm = Multipart.FormData(
+      Multipart.FormData.BodyPart.Strict(
+        "custom-device-fields",
+        HttpEntity(ContentTypes.`text/csv(UTF-8)`, csv),
+        Map("filename" -> "test-custom-fields.csv"))
+    )
+    Post(Resource.uri("device_tags"), multipartForm)
+  }
 }
