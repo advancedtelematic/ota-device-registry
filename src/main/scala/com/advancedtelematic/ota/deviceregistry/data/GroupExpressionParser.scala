@@ -110,7 +110,7 @@ object GroupExpressionParser {
 
   private lazy val deviceIdExpression: Parser[Expression] = deviceIdCons ~> (deviceIdContains | deviceIdCharAtIsNot | deviceIdCharAtIs)
 
-  private lazy val tagExpression = tagValueContains | tagValueCharAtIs | tagValueCharAtIsNot
+  private lazy val tagExpression = tagValueContains | tagValueCharAtIsNot | tagValueCharAtIs
 
   private lazy val brackets: Parser[Expression] = parens(expression)
 

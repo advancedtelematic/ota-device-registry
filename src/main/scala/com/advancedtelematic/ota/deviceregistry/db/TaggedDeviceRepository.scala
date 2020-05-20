@@ -33,6 +33,7 @@ object TaggedDeviceRepository {
     taggedDevices
       .filter(_.namespace === namespace)
       .map(_.tagId)
+      .distinct
       .result
 
   def fetchForDevice(deviceUuid: DeviceId)(implicit ec: ExecutionContext): DBIO[Seq[(TagId, String)]] =
