@@ -15,7 +15,7 @@ import com.advancedtelematic.libats.slick.db.SlickAnyVal._
 import com.advancedtelematic.libats.slick.db.SlickExtensions._
 import com.advancedtelematic.libats.slick.db.SlickUUIDKey._
 import com.advancedtelematic.ota.deviceregistry.common.Errors
-import com.advancedtelematic.ota.deviceregistry.data.DataType.TaggedDevice
+import com.advancedtelematic.ota.deviceregistry.common.Errors.MemberAlreadyExists
 import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
 import com.advancedtelematic.ota.deviceregistry.data.{Device, GroupExpressionAST, GroupType, TagId}
 import com.advancedtelematic.ota.deviceregistry.db.DbOps.PaginationResultOps
@@ -23,6 +23,7 @@ import slick.jdbc.MySQLProfile.api._
 import slick.lifted.Tag
 
 import scala.concurrent.ExecutionContext
+import scala.util.Failure
 
 object GroupMemberRepository {
 
@@ -95,7 +96,12 @@ object GroupMemberRepository {
         })
 
     dynamicGroupIds.flatMap { groups =>
-      DBIO.sequence(groups.map(group => GroupMemberRepository.addGroupMember(group.id, device.uuid)))
+      DBIO.sequence(
+        groups.map { g =>
+          GroupMemberRepository
+            .addGroupMember(g.id, device.uuid)
+            .recover { case Failure(MemberAlreadyExists) => DBIO.successful(0) }
+      })
     }.map(_ => ())
   }
 

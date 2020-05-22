@@ -237,7 +237,7 @@ class DevicesResource(
     })
 
     complete {
-      f.map(DBIO.sequence(_).transactionally).flatMap(db.run)
+      f.map(DBIO.sequence(_).transactionally).flatMap(db.run).map(_ => NoContent)
     }
   }
 

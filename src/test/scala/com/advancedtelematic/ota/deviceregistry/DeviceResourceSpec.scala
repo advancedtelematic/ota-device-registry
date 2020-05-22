@@ -12,6 +12,7 @@ import java.time.temporal.ChronoUnit
 import java.time.{Instant, OffsetDateTime}
 
 import akka.http.scaladsl.model.StatusCodes._
+import cats.syntax.either._
 import cats.syntax.option._
 import com.advancedtelematic.libats.data.DataType.Namespace
 import com.advancedtelematic.libats.data.{ErrorRepresentation, PaginationResult}
@@ -869,11 +870,16 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
     )
 
     postDeviceTags(csvRows) ~> route ~> check {
-      status shouldBe OK
+      status shouldBe NoContent
       db.run(TaggedDeviceRepository.fetchForDevice(duid1)).futureValue
         .map { case (k, v) => k.value -> v } should contain only ("market" -> "Germany", "trim" -> "Premium")
       db.run(TaggedDeviceRepository.fetchForDevice(duid2)).futureValue
         .map { case (k, v) => k.value -> v } should contain only ("market" -> "China", "trim" -> "Deluxe")
+    }
+
+    Get(Resource.uri("device_tags")) ~> route ~> check {
+      status shouldBe OK
+      responseAs[Seq[TagId]].map(_.value) should contain theSameElementsAs Seq("market", "trim")
     }
   }
 
@@ -886,28 +892,76 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
     )
 
     postDeviceTags(csvRows) ~> route ~> check {
-      status shouldBe OK
+      status shouldBe NoContent
       db.run(TaggedDeviceRepository.fetchForDevice(duid)).futureValue
         .map { case (k, v) => k.value -> v } should contain only ("market" -> "Germany", "trim" -> "Premium")
     }
 
     val newRows = Seq(Seq(deviceT.deviceId.underlying, "China", "Deluxe"))
     postDeviceTags(newRows) ~> route ~> check {
-      status shouldBe OK
+      status shouldBe NoContent
       db.run(TaggedDeviceRepository.fetchForDevice(duid)).futureValue
         .map { case (k, v) => k.value -> v } should contain only ("market" -> "China", "trim" -> "Deluxe")
     }
   }
 
-  property("fails if there are more than 20 tags in the csv file") {
-    val deviceT = genDeviceT.generate
-    createDeviceOk(deviceT)
-    val headers = "deviceId" +: (1 to 30).map(i => s"column$i")
-    val csvRows = Seq(deviceT.deviceId.underlying +: headers.tail.map(_ => "some-value"))
+  property("fails if the csv file contains no 'DeviceID' column") {
+    val csvRows = Seq(Seq(genDeviceId.generate.underlying , "France", "Standard"))
 
-    postDeviceTags(csvRows, headers) ~> route ~> check {
+    postDeviceTags(csvRows, Seq("did", "market", "trim")) ~> route ~> check {
       status shouldBe BadRequest
       responseAs[ErrorRepresentation].code shouldBe Errors.MalformedInputFile.code
+    }
+  }
+
+  property("tagging devices from a csv file adds the devices to existing groups") {
+    val deviceT = genDeviceT.generate
+    val duid = createDeviceOk(deviceT)
+    val expression = GroupExpression("tag(market) contains pain").valueOr(throw _)
+    val groupId = createDynamicGroupOk(expression = expression)
+
+    val csvRows = Seq(
+      Seq(deviceT.deviceId.underlying, "Spain", "Premium"),
+      Seq(genDeviceId.generate.underlying , "France", "Standard"),
+    )
+
+    postDeviceTags(csvRows) ~> route ~> check {
+      status shouldBe NoContent
+    }
+
+    listDevicesInGroup(groupId) ~> route ~> check {
+      status shouldBe OK
+      responseAs[PaginationResult[DeviceId]].values should contain only duid
+    }
+  }
+
+  property("tagging devices from a csv file doesn't add devices to groups they were already in") {
+    val deviceT = genDeviceT.generate
+    val duid = createDeviceOk(deviceT)
+    val expression = GroupExpression("tag(market) contains Ita").valueOr(throw _)
+    val groupId = createDynamicGroupOk(expression = expression)
+
+    val csvRows = Seq(
+      Seq(deviceT.deviceId.underlying, "Italy", "Premium"),
+      Seq(genDeviceId.generate.underlying , "France", "Standard"),
+    )
+
+    postDeviceTags(csvRows) ~> route ~> check {
+      status shouldBe NoContent
+    }
+
+    listDevicesInGroup(groupId) ~> route ~> check {
+      status shouldBe OK
+      responseAs[PaginationResult[DeviceId]].values should contain only duid
+    }
+
+    postDeviceTags(csvRows) ~> route ~> check {
+      status shouldBe NoContent
+    }
+
+    listDevicesInGroup(groupId) ~> route ~> check {
+      status shouldBe OK
+      responseAs[PaginationResult[DeviceId]].values should contain only duid
     }
   }
 }

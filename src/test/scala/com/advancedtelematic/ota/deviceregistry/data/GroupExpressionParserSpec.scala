@@ -179,6 +179,10 @@ class GroupExpressionParserSpec extends FunSuite with Matchers {
     runParser("tag(trim) position(1) is P") shouldBe TagCharAt("trim", 'P', 0)
   }
 
+  test("parses 'tag() position is not'") {
+    runParser("tag(trim) position(1) is not P") shouldBe Not(TagCharAt("trim", 'P', 0))
+  }
+
   test("parses 'tag() contains' and nested 'tag() position is'") {
     runParser("tag(market) contains foo and (tag(trim) position(1) is x or tag(trim) position(2) is y)") shouldBe
       And(
@@ -191,6 +195,8 @@ class GroupExpressionParserSpec extends FunSuite with Matchers {
       And(NonEmptyList.of(DeviceIdCharAt('a', 0), TagContains("market", "foo")))
     runParser("tag(market) position(1) is a and deviceid contains abc") shouldBe
       And(NonEmptyList.of(TagCharAt("market", 'a', 0), DeviceIdContains("abc")))
+    runParser("tag(market) position(1) is not a and deviceid contains abc") shouldBe
+      And(NonEmptyList.of(Not(TagCharAt("market", 'a', 0)), DeviceIdContains("abc")))
   }
 
   test("fails to parse 'tag() contains' when the tagId contains invalid characters") {
@@ -355,6 +361,7 @@ class GroupExpressionRunSpec extends FunSuite with Matchers with DatabaseSpec wi
   test("matches a device by a custom tag") {
     runGroupExpression("tag(market) contains erma") should contain only device0.uuid.get
     runGroupExpression("tag(trim) position(1) is P") should contain only device0.uuid.get
+    runGroupExpression("tag(trim) position(1) is not P") should contain only device1.uuid.get
   }
 
   test("matches a device by OR on two custom tags") {
@@ -362,6 +369,8 @@ class GroupExpressionRunSpec extends FunSuite with Matchers with DatabaseSpec wi
     runGroupExpression("tag(market) contains XermaX or tag(trim) position(1) is P") should contain only device0.uuid.get
     runGroupExpression("tag(market) contains erma or tag(trim) position(1) is X") should contain only device0.uuid.get
     runGroupExpression("tag(market) contains XermaX or tag(trim) position(1) is X") shouldBe empty
+    runGroupExpression("tag(market) contains erma or tag(trim) position(1) is not P") should contain only (device0.uuid.get, device1.uuid.get)
+    runGroupExpression("tag(market) contains XermaX or tag(trim) position(1) is not P") should contain only device1.uuid.get
   }
 
   test("matches a device by AND on two custom tags") {
@@ -369,12 +378,16 @@ class GroupExpressionRunSpec extends FunSuite with Matchers with DatabaseSpec wi
     runGroupExpression("tag(market) contains XermaX and tag(trim) position(1) is P") shouldBe empty
     runGroupExpression("tag(market) contains erma and tag(trim) position(1) is X") shouldBe empty
     runGroupExpression("tag(market) contains XermaX and tag(trim) position(1) is X") shouldBe empty
+    runGroupExpression("tag(market) contains erma and tag(trim) position(1) is not X") should contain only device0.uuid.get
+    runGroupExpression("tag(market) contains XermaX and tag(trim) position(1) is not P") shouldBe empty
   }
 
   test("matches device by deviceId and tagId") {
     runGroupExpression("tag(market) position(1) is G and deviceid contains abc") should contain only device0.uuid.get
     runGroupExpression("tag(market) contains erma and deviceid contains abc") should contain only device0.uuid.get
+    runGroupExpression("tag(market) position(1) is not X and deviceid contains abc") should contain only device0.uuid.get
     runGroupExpression("deviceid position(1) is d and tag(market) position(1) is G") should contain only device0.uuid.get
+    runGroupExpression("deviceid position(1) is d and tag(market) position(1) is not X") should contain only (device0.uuid.get, device1.uuid.get)
     runGroupExpression("deviceid position(1) is d and tag(market) contains erma") should contain only device0.uuid.get
   }
 }
