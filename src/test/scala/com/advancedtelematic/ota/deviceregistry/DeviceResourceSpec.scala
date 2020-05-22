@@ -914,6 +914,15 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
     }
   }
 
+  property("fails if the csv file headers contains invalid characters") {
+    val csvRows = Seq(Seq(genDeviceId.generate.underlying , "France", "Standard"))
+
+    postDeviceTags(csvRows, Seq("DeviceID", "mar*ket", "trim")) ~> route ~> check {
+      status shouldBe BadRequest
+      responseAs[ErrorRepresentation].code shouldBe Errors.MalformedInputFile.code
+    }
+  }
+
   property("tagging devices from a csv file adds the devices to existing groups") {
     val deviceT = genDeviceT.generate
     val duid = createDeviceOk(deviceT)
