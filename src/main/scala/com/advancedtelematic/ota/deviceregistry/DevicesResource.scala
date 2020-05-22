@@ -229,7 +229,7 @@ class DevicesResource(
     val f = csvRows.map(_.map { row =>
       val deviceId = DeviceOemId(row(deviceIdKey))
       val tags = row.collect { case (k, v) if k != deviceIdKey =>
-        validatedTagId.from(k).map(_ -> v).valueOr(throw _)
+        validatedTagId.from(k).map(_ -> v).valueOr(_ => throw Errors.MalformedInputFile)
       }
       TaggedDeviceRepository
         .tagDeviceByOemId(ns, deviceId, tags)

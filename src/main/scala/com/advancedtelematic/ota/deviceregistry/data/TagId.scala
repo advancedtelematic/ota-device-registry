@@ -14,7 +14,7 @@ object TagId {
   }
 
   def apply(s: String): Either[ValidationError, TagId] =
-    if (s.length <= 20 && s.matches("[\\w ]+"))
+    if (s.length <= 20 && s.matches("[\\w_ ]+"))
       Right(new TagId(s))
     else
       Left(ValidationError(s"$s should contain between one and a twenty alphanumeric, underscore or space characters."))
