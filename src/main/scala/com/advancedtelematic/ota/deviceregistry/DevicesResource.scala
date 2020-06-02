@@ -237,7 +237,11 @@ class DevicesResource(
     })
 
     complete {
-      f.map(DBIO.sequence(_).transactionally).flatMap(db.run).map(_ => NoContent)
+      for {
+        dbios <- f
+        action = DBIO.sequence(dbios).transactionally
+        _ <- db.run(action)
+      } yield NoContent
     }
   }
 

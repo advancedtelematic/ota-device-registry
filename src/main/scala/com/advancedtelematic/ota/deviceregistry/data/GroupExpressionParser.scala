@@ -118,9 +118,12 @@ object GroupExpressionParser {
 
   private lazy val deviceIdCons: Parser[Unit] = token(string("deviceid")).map(_ => ())
 
+  private val isValidTagChar: Char => Boolean =
+    c => c.isLetterOrDigit || c == '_' || c == '-'
+
   private lazy val tagIdCons: Parser[TagId] = for {
     _ <- string("tag")
-    tagId <- parens(takeWhile1(c => c.isLetterOrDigit || c.isSpaceChar || c == '_'))
+    tagId <- parens(takeWhile1(c => isValidTagChar(c) || c.isSpaceChar))
     _ <- skipWhitespace
   } yield validatedTagId.from(tagId).valueOr(throw _)
 
@@ -132,7 +135,7 @@ object GroupExpressionParser {
   private lazy val tagValueContains: Parser[Expression] = for {
     tagId <- tagIdCons
     _ <- token(string("contains"))
-    str <- takeWhile1(c => c.isLetterOrDigit || c == '_')
+    str <- takeWhile1(isValidTagChar)
   } yield TagContains(tagId, str)
 
   private lazy val charAt: Parser[Int] = for {

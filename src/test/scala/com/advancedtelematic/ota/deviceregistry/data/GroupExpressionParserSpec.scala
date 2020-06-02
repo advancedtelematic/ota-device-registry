@@ -175,8 +175,9 @@ class GroupExpressionParserSpec extends FunSuite with Matchers {
   }
 
   test("parses 'tag() contains' and 'tag() position is'") {
-    runParser("tag(market) contains erma") shouldBe TagContains("market", "erma")
-    runParser("tag(trim) position(1) is P") shouldBe TagCharAt("trim", 'P', 0)
+    runParser("tag(-market-) contains erma") shouldBe TagContains("-market-", "erma")
+    runParser("tag(_trim_) position(1) is P") shouldBe TagCharAt("_trim_", 'P', 0)
+    runParser("tag( mar ket ) contains erma") shouldBe TagContains("mar ket ", "erma")
   }
 
   test("parses 'tag() position is not'") {
