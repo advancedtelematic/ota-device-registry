@@ -14,10 +14,10 @@ object TagId {
   }
 
   def apply(s: String): Either[ValidationError, TagId] =
-    if (s.length <= 20 && s.matches("[\\w_ ]+"))
+    if (s.length <= 20 && s.matches("[\\w\\-_ ]+"))
       Right(new TagId(s))
     else
-      Left(ValidationError(s"$s should contain between one and a twenty alphanumeric, underscore or space characters."))
+      Left(ValidationError(s"$s should contain between one and a twenty alphanumeric, hyphen, underscore or space characters."))
 
   implicit val tagIdCodec: Codec[TagId] = Codec.from(validatedGenericDecoder, validatedGenericEncoder)
 
