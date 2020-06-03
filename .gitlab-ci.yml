@@ -44,6 +44,7 @@ test:
 
 code coverage:
   extends: .report_scala_coverage
+  allow_failure: true
   image: advancedtelematic/gitlab-jobs:0.2.4
 
 build docker image:
