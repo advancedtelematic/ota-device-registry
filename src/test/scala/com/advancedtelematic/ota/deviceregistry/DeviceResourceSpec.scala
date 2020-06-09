@@ -944,6 +944,37 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
     }
   }
 
+  property("tagging devices from a csv file removes devices from existing groups") {
+    val deviceT1 = genDeviceT.generate
+    val deviceT2 = genDeviceT.generate
+    val duid1 = createDeviceOk(deviceT1)
+    val duid2 = createDeviceOk(deviceT2)
+    val expression = GroupExpression("tag(market) contains france").valueOr(throw _)
+    val groupId = createDynamicGroupOk(expression = expression)
+
+    val csvRows = Seq(
+      Seq(deviceT1.deviceId.underlying, "France", "Premium"),
+      Seq(deviceT2.deviceId.underlying , "France", "Standard"),
+    )
+
+    postDeviceTagsOk(csvRows)
+    listDevicesInGroup(groupId) ~> route ~> check {
+      status shouldBe OK
+      responseAs[PaginationResult[DeviceId]].values should contain only (duid1, duid2)
+    }
+
+    val newCsvRows = Seq(
+      Seq(deviceT1.deviceId.underlying, "France", "Premium"),
+      Seq(deviceT2.deviceId.underlying , "", "Standard"),
+    )
+
+    postDeviceTagsOk(newCsvRows)
+    listDevicesInGroup(groupId) ~> route ~> check {
+      status shouldBe OK
+      responseAs[PaginationResult[DeviceId]].values should contain only duid1
+    }
+  }
+
   property("tagging devices from a csv file doesn't add devices to groups they were already in") {
     val deviceT = genDeviceT.generate
     val duid = createDeviceOk(deviceT)

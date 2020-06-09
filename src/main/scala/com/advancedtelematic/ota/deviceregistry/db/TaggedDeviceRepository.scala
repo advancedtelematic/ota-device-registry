@@ -11,7 +11,7 @@ import com.advancedtelematic.ota.deviceregistry.data.DataType.TaggedDevice
 import com.advancedtelematic.ota.deviceregistry.data.Device.DeviceOemId
 import com.advancedtelematic.ota.deviceregistry.data.TagId
 import com.advancedtelematic.ota.deviceregistry.db.DeviceRepository.findByDeviceIdQuery
-import com.advancedtelematic.ota.deviceregistry.db.GroupMemberRepository.addDeviceToDynamicGroups
+import com.advancedtelematic.ota.deviceregistry.db.GroupMemberRepository.{addDeviceToDynamicGroups, deleteDynamicGroupsForDevice}
 import slick.jdbc.MySQLProfile.api._
 
 import scala.concurrent.ExecutionContext
@@ -52,6 +52,7 @@ object TaggedDeviceRepository {
     val action = for {
       d <- findByDeviceIdQuery(namespace, deviceId).result.failIfNotSingle(Errors.MissingDevice)
       _ <- setDeviceTags(namespace, d.uuid, tags)
+      _ <- deleteDynamicGroupsForDevice(d.uuid)
       _ <- addDeviceToDynamicGroups(namespace, d, tags)
     } yield ()
     action.transactionally
