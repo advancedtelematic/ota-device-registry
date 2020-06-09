@@ -234,4 +234,9 @@ trait DeviceRequests { self: ResourceSpec =>
     )
     Post(Resource.uri("device_tags"), multipartForm)
   }
+
+  def postDeviceTagsOk(tags: Seq[Seq[String]]) =
+    postDeviceTags(tags) ~> route ~> check {
+      status shouldBe NoContent
+    }
 }
