@@ -5,6 +5,7 @@ import java.time.Instant
 import akka.http.scaladsl.util.FastFuture
 import com.advancedtelematic.libats.data.DataType.{CorrelationId, Namespace}
 import com.advancedtelematic.libats.messaging.MessageBusPublisher
+import com.advancedtelematic.libats.messaging.MsgOperation.MsgOperation
 import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
 import com.advancedtelematic.libats.messaging_datatype.MessageCodecs.deviceUpdateCompletedCodec
 import com.advancedtelematic.libats.messaging_datatype.MessageLike
@@ -32,7 +33,8 @@ import scala.concurrent.{ExecutionContext, Future}
     implicit val MessageLikeInstance = MessageLike.derive[DeviceUpdateStatus](_.device.show)
   }
 
-class DeviceUpdateEventListener(messageBus: MessageBusPublisher)(implicit val db: Database, ec: ExecutionContext) extends (DeviceUpdateEvent => Future[Unit]) {
+class DeviceUpdateEventListener(messageBus: MessageBusPublisher)
+                               (implicit val db: Database, ec: ExecutionContext) extends MsgOperation[DeviceUpdateEvent] {
 
   private val _log = LoggerFactory.getLogger(this.getClass)
   case class Unhandleable(name: String, deviceUuid: DeviceId, correlationId: CorrelationId) extends Exception()
