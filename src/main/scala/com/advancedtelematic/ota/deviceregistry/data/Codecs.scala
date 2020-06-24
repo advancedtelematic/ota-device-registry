@@ -2,7 +2,7 @@ package com.advancedtelematic.ota.deviceregistry.data
 
 import io.circe.{Decoder, Encoder}
 import com.advancedtelematic.libats.codecs.CirceAnyVal.{anyValStringDecoder, anyValStringEncoder}
-import com.advancedtelematic.ota.deviceregistry.data.DataType.{DeviceT, InstallationStat, PackageListItem, PackageListItemCount, UpdateDevice}
+import com.advancedtelematic.ota.deviceregistry.data.DataType.{DeviceT, InstallationStat, PackageListItem, PackageListItemCount, RenameTagId, UpdateDevice}
 
 object Codecs {
   private implicit val deviceIdEncoder = Encoder.encodeString.contramap[Device.DeviceOemId](_.underlying)
@@ -20,4 +20,6 @@ object Codecs {
   implicit val packageListItemCodec = io.circe.generic.semiauto.deriveCodec[PackageListItem]
 
   implicit val packageListItemCountCodec = io.circe.generic.semiauto.deriveCodec[PackageListItemCount]
+
+  implicit val renameTagIdCodec = io.circe.generic.semiauto.deriveCodec[RenameTagId]
 }

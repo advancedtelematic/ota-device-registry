@@ -35,13 +35,13 @@ import com.advancedtelematic.ota.deviceregistry.common.Errors
 import com.advancedtelematic.ota.deviceregistry.common.Errors.MissingDevice
 import com.advancedtelematic.ota.deviceregistry.data.Codecs._
 import com.advancedtelematic.ota.deviceregistry.data.DataType.InstallationStatsLevel.InstallationStatsLevel
-import com.advancedtelematic.ota.deviceregistry.data.DataType.{DeviceT, InstallationStatsLevel, SearchParams, UpdateDevice}
+import com.advancedtelematic.ota.deviceregistry.data.DataType.{DeviceT, InstallationStatsLevel, RenameTagId, SearchParams, UpdateDevice}
 import com.advancedtelematic.ota.deviceregistry.data.Device.{ActiveDeviceCount, DeviceOemId}
 import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
 import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
 import com.advancedtelematic.ota.deviceregistry.data.SortBy.SortBy
 import com.advancedtelematic.ota.deviceregistry.data.TagId.validatedTagId
-import com.advancedtelematic.ota.deviceregistry.data.{GroupExpression, PackageId, SortBy}
+import com.advancedtelematic.ota.deviceregistry.data.{GroupExpression, PackageId, SortBy, TagId}
 import com.advancedtelematic.ota.deviceregistry.db._
 import com.advancedtelematic.ota.deviceregistry.messages.{DeleteDeviceRequest, DeviceCreated}
 import io.circe.Json
@@ -51,6 +51,8 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Failure
 
 object DevicesResource {
+  import akka.http.scaladsl.server.PathMatchers.Segment
+
   type EventPayload = (DeviceId, Instant) => Event
 
   private[DevicesResource] implicit val EventPayloadDecoder: io.circe.Decoder[EventPayload] =
@@ -89,6 +91,8 @@ object DevicesResource {
       case s           => throw new IllegalArgumentException(s"Invalid value for sorting parameter: '$s'.")
     }
   }
+
+  val tagIdMatcher: PathMatcher1[TagId] = Segment.flatMap(TagId(_).toOption)
 }
 
 class DevicesResource(
@@ -215,6 +219,14 @@ class DevicesResource(
   private def fetchDeviceTags(ns: Namespace): Route =
     complete(db.run(TaggedDeviceRepository.fetchAll(ns)))
 
+  private def renameDeviceTag(ns: Namespace, tagId: TagId, newTagId: TagId): Route = {
+    val action = for {
+      _ <- TaggedDeviceRepository.updateTagId(ns, tagId, newTagId)
+      _ <- GroupInfoRepository.renameTagIdInExpression(ns, tagId, newTagId)
+    } yield ()
+    complete(db.run(action.transactionally))
+  }
+
   private def tagDevicesFromCsv(ns: Namespace, byteSource: Source[ByteString, Any]): Route = {
     val deviceIdKey = "DeviceID"
     val csvRows = byteSource
@@ -320,6 +332,9 @@ class DevicesResource(
       }
     } ~
     pathPrefix("device_tags") {
+      (scope.put & path(tagIdMatcher) & entity(as[RenameTagId])) { (tagId, body) =>
+        renameDeviceTag(ns.namespace, tagId, body.tagId)
+      } ~
       pathEnd {
         scope.get {
           fetchDeviceTags(ns.namespace)

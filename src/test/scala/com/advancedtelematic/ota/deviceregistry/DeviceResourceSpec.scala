@@ -15,13 +15,13 @@ import akka.http.scaladsl.model.StatusCodes._
 import cats.syntax.either._
 import cats.syntax.option._
 import com.advancedtelematic.libats.data.DataType.Namespace
-import com.advancedtelematic.libats.data.{ErrorRepresentation, PaginationResult}
+import com.advancedtelematic.libats.data.{ErrorCodes, ErrorRepresentation, PaginationResult}
 import com.advancedtelematic.libats.messaging.MessageBusPublisher
 import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
 import com.advancedtelematic.libats.messaging_datatype.Messages.DeviceSeen
 import com.advancedtelematic.ota.deviceregistry.common.{Errors, PackageStat}
 import com.advancedtelematic.ota.deviceregistry.daemon.{DeleteDeviceHandler, DeviceSeenListener}
-import com.advancedtelematic.ota.deviceregistry.data.DataType.DeviceT
+import com.advancedtelematic.ota.deviceregistry.data.DataType.{DeviceT, RenameTagId}
 import com.advancedtelematic.ota.deviceregistry.data.DeviceName.validatedDeviceType
 import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
 import com.advancedtelematic.ota.deviceregistry.data.{Device, DeviceStatus, PackageId, _}
@@ -1003,5 +1003,113 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
       status shouldBe OK
       responseAs[PaginationResult[DeviceId]].values should contain only duid
     }
+  }
+
+  property("can rename a device tag id and it's idempotent") {
+    forAll(sizeRange(10)) { deviceTs: Seq[DeviceT] =>
+      whenever(deviceTs.nonEmpty) {
+        deviceTs.map(createDeviceOk)
+        val csvRows = deviceTs.map(d => Seq(d.deviceId.underlying, "some tag value"))
+        val tagId = TagId("Market").valueOr(throw _)
+        val newTagId = TagId("Country").valueOr(throw _)
+
+        postDeviceTags(csvRows, Seq("DeviceID", tagId.value)) ~> route ~> check {
+          status shouldBe NoContent
+        }
+        getDeviceTagsOk should contain (tagId)
+
+        Put(Resource.uri("device_tags", tagId.value), RenameTagId(newTagId)) ~> route ~> check {
+          status shouldBe OK
+        }
+        getDeviceTagsOk should not contain tagId
+        getDeviceTagsOk should contain (newTagId)
+
+        // Idempotence
+        Put(Resource.uri("device_tags", tagId.value), RenameTagId(newTagId)) ~> route ~> check {
+          status shouldBe OK
+        }
+        getDeviceTagsOk should not contain tagId
+        getDeviceTagsOk should contain (newTagId)
+      }
+    }
+  }
+
+  property("renaming a device tag id also changes the tag in the dynamic group expressions") {
+    val deviceT = genDeviceT.generate
+    val duid = createDeviceOk(deviceT)
+    val expression = GroupExpression("tag(colour) contains ue").valueOr(throw _)
+    val groupId = createDynamicGroupOk(expression = expression)
+    val tagId = TagId("colour").valueOr(throw _)
+    val newTagId = TagId("chromatic spectrum").valueOr(throw _)
+
+    val csvRows = Seq(Seq(deviceT.deviceId.underlying, "Blue"))
+
+    postDeviceTags(csvRows, Seq("DeviceID", tagId.value)) ~> route ~> check {
+      status shouldBe NoContent
+    }
+
+    listDevicesInGroup(groupId) ~> route ~> check {
+      status shouldBe OK
+      responseAs[PaginationResult[DeviceId]].values should contain only duid
+    }
+
+    Put(Resource.uri("device_tags", tagId.value), RenameTagId(newTagId)) ~> route ~> check {
+      status shouldBe OK
+    }
+
+    listDevicesInGroup(groupId) ~> route ~> check {
+      status shouldBe OK
+      responseAs[PaginationResult[DeviceId]].values should contain only duid
+    }
+
+    getGroupDetails(groupId) ~> route ~> check {
+      status shouldBe OK
+    }
+  }
+
+  property("fails to rename a device tag id if the current tag is invalid") {
+    val newTagId = TagId("Country").valueOr(throw _)
+
+    Put(Resource.uri("device_tags", "in+valid*"), RenameTagId(newTagId)) ~> route ~> check {
+      status shouldBe NotFound
+    }
+
+    Put(Resource.uri("device_tags", "in+valid*")) ~> route ~> check {
+      status shouldBe NotFound
+    }
+  }
+
+  property("fails to rename a device tag id if the new tag is invalid") {
+    val deviceT = genDeviceT.generate
+    createDeviceOk(deviceT)
+    val csvRows = Seq(Seq(deviceT.deviceId.underlying, "Monday", "Morning"))
+    val tagId = TagId("market").valueOr(throw _)
+
+    postDeviceTagsOk(csvRows)
+    getDeviceTagsOk should contain (tagId)
+
+    val newTagId = io.circe.parser.parse("""{ "tagId" : "in*valid*" }""").valueOr(throw _)
+    Put(Resource.uri("device_tags", tagId.value), newTagId) ~> route ~> check {
+      status shouldBe BadRequest
+      responseAs[ErrorRepresentation].code shouldBe ErrorCodes.InvalidEntity
+    }
+    getDeviceTagsOk should contain (tagId)
+  }
+
+  property("fails to rename a device tag id to an existing value") {
+    val deviceT = genDeviceT.generate
+    createDeviceOk(deviceT)
+    val csvRows = Seq(Seq(deviceT.deviceId.underlying, "Monday", "Morning"))
+    val tagId = TagId("market").valueOr(throw _)
+    val newTagId = TagId("trim").valueOr(throw _)
+
+    postDeviceTagsOk(csvRows)
+    getDeviceTagsOk should contain (tagId)
+
+    Put(Resource.uri("device_tags", tagId.value), RenameTagId(newTagId)) ~> route ~> check {
+      status shouldBe Conflict
+      responseAs[ErrorRepresentation].code shouldBe ErrorCodes.ConflictingEntity
+    }
+    getDeviceTagsOk should contain (tagId)
   }
 }

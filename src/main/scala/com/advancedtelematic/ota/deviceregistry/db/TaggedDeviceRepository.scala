@@ -42,6 +42,13 @@ object TaggedDeviceRepository {
       .map(td => td.tagId -> td.tagValue)
       .result
 
+  def updateTagId(namespace: Namespace, tagId: TagId, newTagId: TagId): DBIO[Int] =
+    taggedDevices
+      .filter(_.namespace === namespace)
+      .filter(_.tagId === tagId)
+      .map(_.tagId)
+      .update(newTagId)
+
   def delete(deviceUuid: DeviceId)(implicit ec: ExecutionContext): DBIO[Int] =
     taggedDevices
       .filter(_.deviceUuid === deviceUuid)
