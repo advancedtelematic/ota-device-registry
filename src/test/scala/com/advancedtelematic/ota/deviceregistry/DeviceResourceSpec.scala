@@ -1064,6 +1064,7 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
 
     getGroupDetails(groupId) ~> route ~> check {
       status shouldBe OK
+      responseAs[Group].expression shouldBe GroupExpression(s"tag(${newTagId.value}) contains ue").toOption
     }
   }
 
