@@ -10,6 +10,7 @@ package com.advancedtelematic.ota.deviceregistry.daemon
 
 import akka.Done
 import com.advancedtelematic.libats.messaging.MessageBusPublisher
+import com.advancedtelematic.libats.messaging.MsgOperation.MsgOperation
 import com.advancedtelematic.libats.messaging_datatype.Messages.DeviceSeen
 import com.advancedtelematic.ota.deviceregistry.data.DeviceStatus
 import com.advancedtelematic.ota.deviceregistry.db.DeviceRepository
@@ -20,8 +21,8 @@ import org.slf4j.LoggerFactory
 import scala.concurrent.{ExecutionContext, Future}
 import slick.jdbc.MySQLProfile.api._
 
-class DeviceSeenListener(messageBus: MessageBusPublisher)(implicit db: Database, ec: ExecutionContext)
-                                                                                extends (DeviceSeen => Future[Done]) {
+class DeviceSeenListener(messageBus: MessageBusPublisher)
+                        (implicit db: Database, ec: ExecutionContext) extends MsgOperation[DeviceSeen] {
 
   val _logger = LoggerFactory.getLogger(this.getClass)
 

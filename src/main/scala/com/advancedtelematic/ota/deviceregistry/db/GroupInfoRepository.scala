@@ -20,7 +20,7 @@ import com.advancedtelematic.ota.deviceregistry.data
 import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
 import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
 import com.advancedtelematic.ota.deviceregistry.data.SortBy.SortBy
-import com.advancedtelematic.ota.deviceregistry.data.{Group, GroupExpression, GroupName}
+import com.advancedtelematic.ota.deviceregistry.data.{Group, GroupExpression, GroupName, TagId}
 import com.advancedtelematic.ota.deviceregistry.db.DbOps.{PaginationResultOps, sortBySlickOrderedConversion}
 import com.advancedtelematic.ota.deviceregistry.db.SlickMappings._
 import slick.jdbc.MySQLProfile.api._
@@ -80,4 +80,10 @@ object GroupInfoRepository {
       .result
       .failIfNotSingle(Errors.MissingGroup)
 
+  def renameTagIdInExpression(namespace: Namespace, tagId: TagId, newTagId: TagId): DBIO[Int] =
+    sqlu"""
+          UPDATE DeviceGroup
+          SET expression = REPLACE(expression, 'tagId(#${tagId.value})', 'tagId((#${newTagId.value})')
+          WHERE namespace = ${namespace.get} AND expression LIKE '%tagId(#${tagId.value})%';
+         """
 }

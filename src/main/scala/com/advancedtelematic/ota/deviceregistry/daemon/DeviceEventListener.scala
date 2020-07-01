@@ -9,14 +9,14 @@
 package com.advancedtelematic.ota.deviceregistry.daemon
 
 import akka.Done
+import com.advancedtelematic.libats.messaging.MsgOperation.MsgOperation
 import com.advancedtelematic.libats.messaging_datatype.Messages.DeviceEventMessage
 import com.advancedtelematic.ota.deviceregistry.db.EventJournal
 import slick.jdbc.MySQLProfile.api._
 
 import scala.concurrent.{ExecutionContext, Future}
 
-class DeviceEventListener()(implicit val db: Database, ec: ExecutionContext)
-    extends (DeviceEventMessage => Future[Done]) {
+class DeviceEventListener()(implicit val db: Database, ec: ExecutionContext) extends MsgOperation[DeviceEventMessage] {
 
   private[this] val journal = new EventJournal()(db, ec)
 

@@ -27,7 +27,7 @@ import com.advancedtelematic.ota.deviceregistry.data.DataType.{DeviceT, UpdateDe
 import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
 import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
 import com.advancedtelematic.ota.deviceregistry.data.SortBy.SortBy
-import com.advancedtelematic.ota.deviceregistry.data.{DeviceName, GroupExpression, PackageId}
+import com.advancedtelematic.ota.deviceregistry.data.{DeviceName, GroupExpression, PackageId, TagId}
 import com.advancedtelematic.ota.deviceregistry.http.`application/toml`
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
 import io.circe.Json
@@ -238,5 +238,11 @@ trait DeviceRequests { self: ResourceSpec =>
   def postDeviceTagsOk(tags: Seq[Seq[String]]) =
     postDeviceTags(tags) ~> route ~> check {
       status shouldBe NoContent
+    }
+
+  def getDeviceTagsOk: Seq[TagId] =
+    Get(Resource.uri("device_tags")) ~> route ~> check {
+      status shouldBe OK
+      responseAs[Seq[TagId]]
     }
 }
