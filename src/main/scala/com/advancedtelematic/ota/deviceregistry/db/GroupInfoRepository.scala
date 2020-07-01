@@ -83,7 +83,7 @@ object GroupInfoRepository {
   def renameTagIdInExpression(namespace: Namespace, tagId: TagId, newTagId: TagId): DBIO[Int] =
     sqlu"""
           UPDATE DeviceGroup
-          SET expression = REPLACE(expression, 'tagId(#${tagId.value})', 'tagId((#${newTagId.value})')
-          WHERE namespace = ${namespace.get} AND expression LIKE '%tagId(#${tagId.value})%';
+          SET expression = REPLACE(expression, 'tag(#${tagId.value})', 'tag(#${newTagId.value})')
+          WHERE namespace = ${namespace.get} AND expression LIKE '%tag(#${tagId.value})%';
          """
 }
