@@ -40,23 +40,37 @@ class DeviceUpdateEventListener(messageBus: MessageBusPublisher)
   case class Unhandleable(name: String, deviceUuid: DeviceId, correlationId: CorrelationId) extends Exception()
 
   override def apply(event: DeviceUpdateEvent): Future[Unit] = {
-    handleEvent(event)
-      .flatMap { setDeviceStatus(event.deviceUuid, _) }
-      .recoverWith {
-        case Errors.MissingDevice =>
-          _log.warn(s"Device ${event.deviceUuid} does not exist ($event)")
-          FastFuture.successful(())
-        case Unhandleable(name, deviceUuid, correlationId) =>
-          _log.error(s"Got message '$name' from device $deviceUuid, correlationId $correlationId and don't know how to handle it")
-          FastFuture.successful(())
-      }
+    wasCompleted(event.correlationId).flatMap {
+      case true =>
+        _log.warn(s"Received $event but a DeviceUpdateComplete event for ${event.correlationId} was already received, ignoring event")
+        FastFuture.successful(())
+      case false =>
+        handleEvent(event)
+          .flatMap {
+            setDeviceStatus(event.deviceUuid, _)
+          }
+          .recoverWith {
+            case Errors.MissingDevice =>
+              _log.warn(s"Device ${event.deviceUuid} does not exist ($event)")
+              FastFuture.successful(())
+            case Unhandleable(name, deviceUuid, correlationId) =>
+              _log.error(s"Got message '$name' from device $deviceUuid, correlationId $correlationId and don't know how to handle it")
+              FastFuture.successful(())
+          }
+    }
+  }
+
+  private def wasCompleted(correlationId: CorrelationId): Future[Boolean] = {
+    val existingReport = db.run(InstallationReportRepository.fetchDeviceInstallationReport(correlationId))
+    existingReport.map { _.nonEmpty }
   }
 
   private def handleEvent(event: DeviceUpdateEvent): Future[DeviceStatus] = event match {
     case   _: DeviceUpdateAssigned  => Future.successful(DeviceStatus.Outdated)
     case   _: DeviceUpdateCanceled  => Future.successful(DeviceStatus.UpToDate)
-    case msg: DeviceUpdateCompleted => db.run {
-      InstallationReportRepository
+    case msg: DeviceUpdateCompleted =>
+      db.run {
+        InstallationReportRepository
         .saveInstallationResults(
           msg.correlationId, msg.deviceUuid, msg.result.code, msg.result.success, msg.ecuReports,
           msg.eventTime, msg.asJson)
