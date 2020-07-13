@@ -40,7 +40,7 @@ class DeviceUpdateEventListener(messageBus: MessageBusPublisher)
   case class Unhandleable(name: String, deviceUuid: DeviceId, correlationId: CorrelationId) extends Exception()
 
   override def apply(event: DeviceUpdateEvent): Future[Unit] = {
-    wasCompleted(event.correlationId).flatMap {
+    wasCompleted(event.deviceUuid, event.correlationId).flatMap {
       case true =>
         _log.warn(s"Received $event but a DeviceUpdateComplete event for ${event.correlationId} was already received, ignoring event")
         FastFuture.successful(())
@@ -60,8 +60,8 @@ class DeviceUpdateEventListener(messageBus: MessageBusPublisher)
     }
   }
 
-  private def wasCompleted(correlationId: CorrelationId): Future[Boolean] = {
-    val existingReport = db.run(InstallationReportRepository.fetchDeviceInstallationReport(correlationId))
+  private def wasCompleted(deviceId: DeviceId, correlationId: CorrelationId): Future[Boolean] = {
+    val existingReport = db.run(InstallationReportRepository.fetchDeviceInstallationReportFor(deviceId, correlationId))
     existingReport.map { _.nonEmpty }
   }
 
