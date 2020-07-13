@@ -81,4 +81,27 @@ class InstallationReportSpec extends ResourcePropSpec with ScalaFutures with Eve
     }
   }
 
+  property("does not overwrite existing reports") {
+    val deviceId = createDeviceOk(genDeviceT.generate)
+    val correlationId = genCorrelationId.generate
+    val deviceReport01 = genDeviceInstallationReport(correlationId, ResultCode("0"), deviceId).generate
+
+    val deviceReport02 =  genDeviceInstallationReport(correlationId, ResultCode("1"), deviceId).generate
+
+    listener.apply(deviceReport01).futureValue
+
+    import org.scalatest.LoneElement._
+
+    getReportBlob(deviceId) ~> route ~> check {
+      status shouldBe OK
+      responseAs[PaginationResult[DeviceUpdateCompleted]].values.loneElement.result.code shouldBe ResultCode("0")
+    }
+
+    listener.apply(deviceReport02).futureValue
+
+    getReportBlob(deviceId) ~> route ~> check {
+      status shouldBe OK
+      responseAs[PaginationResult[DeviceUpdateCompleted]].values.loneElement.result.code shouldBe ResultCode("0")
+    }
+  }
 }
