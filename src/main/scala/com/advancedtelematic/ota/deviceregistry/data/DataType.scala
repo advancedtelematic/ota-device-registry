@@ -100,4 +100,6 @@ object DataType {
 
   case class PackageListItem(namespace: Namespace, packageId: PackageId, comment: String)
   case class PackageListItemCount(packageId: PackageId, deviceCount: Int)
+
+  case class DeviceIds(deviceIds: Seq[DeviceId])
 }

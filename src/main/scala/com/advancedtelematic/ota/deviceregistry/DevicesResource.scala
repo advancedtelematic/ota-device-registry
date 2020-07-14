@@ -35,7 +35,7 @@ import com.advancedtelematic.ota.deviceregistry.common.Errors
 import com.advancedtelematic.ota.deviceregistry.common.Errors.MissingDevice
 import com.advancedtelematic.ota.deviceregistry.data.Codecs._
 import com.advancedtelematic.ota.deviceregistry.data.DataType.InstallationStatsLevel.InstallationStatsLevel
-import com.advancedtelematic.ota.deviceregistry.data.DataType.{DeviceT, InstallationStatsLevel, RenameTagId, SearchParams, UpdateDevice, UpdateTagValue}
+import com.advancedtelematic.ota.deviceregistry.data.DataType.{DeviceIds, DeviceT, InstallationStatsLevel, RenameTagId, SearchParams, UpdateDevice, UpdateTagValue}
 import com.advancedtelematic.ota.deviceregistry.data.Device.{ActiveDeviceCount, DeviceOemId}
 import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
 import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
@@ -122,8 +122,14 @@ class DevicesResource(
       'notSeenSinceHours.as[Int].?,
       'sortBy.as[SortBy].?,
       'offset.as[Long].?,
-      'limit.as[Long].?)).as(SearchParams.apply _)
-    { params => complete(db.run(DeviceRepository.search(ns, params))) }
+      'limit.as[Long].?)).as(SearchParams.apply _) { params =>
+      requestEntityEmpty {
+        complete(db.run(DeviceRepository.search(ns, params, Vector.empty)))
+      } ~
+      entity(as[DeviceIds]) { deviceIdParam =>
+        complete(db.run(DeviceRepository.search(ns, params, deviceIdParam.deviceIds)))
+      }
+    }
 
   def createDevice(ns: Namespace, device: DeviceT): Route = {
     val f = db

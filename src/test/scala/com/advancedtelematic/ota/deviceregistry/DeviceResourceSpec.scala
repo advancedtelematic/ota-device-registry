@@ -1168,4 +1168,17 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
       responseAs[PaginationResult[DeviceId]].values should contain only duid
     }
   }
+
+  property("can fetch devices by UUIDs") {
+    forAll(genConflictFreeDeviceTs(10)) { devices =>
+      val uuids = devices.map(createDeviceOk(_))
+
+      fetchByDeviceUuids(uuids) ~> route ~> check {
+        status shouldBe OK
+        val page = responseAs[PaginationResult[Device]]
+        page.total shouldBe devices.length
+        page.values.map(_.uuid) should contain theSameElementsAs uuids
+      }
+    }
+  }
 }
