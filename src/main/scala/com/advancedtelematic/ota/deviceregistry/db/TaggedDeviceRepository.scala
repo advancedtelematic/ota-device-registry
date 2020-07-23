@@ -9,7 +9,7 @@ import com.advancedtelematic.libats.slick.db.SlickValidatedGeneric.validatedStri
 import com.advancedtelematic.ota.deviceregistry.common.Errors
 import com.advancedtelematic.ota.deviceregistry.data.DataType.TaggedDevice
 import com.advancedtelematic.ota.deviceregistry.data.Device.DeviceOemId
-import com.advancedtelematic.ota.deviceregistry.data.TagId
+import com.advancedtelematic.ota.deviceregistry.data.{Device, TagId}
 import com.advancedtelematic.ota.deviceregistry.db.DeviceRepository.findByDeviceIdQuery
 import com.advancedtelematic.ota.deviceregistry.db.GroupMemberRepository.{addDeviceToDynamicGroups, deleteDynamicGroupsForDevice}
 import slick.jdbc.MySQLProfile.api._
@@ -58,9 +58,28 @@ object TaggedDeviceRepository {
                       (implicit ec: ExecutionContext): DBIO[Unit] = {
     val action = for {
       d <- findByDeviceIdQuery(namespace, deviceId).result.failIfNotSingle(Errors.MissingDevice)
-      _ <- setDeviceTags(namespace, d.uuid, tags)
-      _ <- deleteDynamicGroupsForDevice(d.uuid)
-      _ <- addDeviceToDynamicGroups(namespace, d, tags)
+      _ <- refreshDeviceTags(namespace, d, tags)
+    } yield ()
+    action.transactionally
+  }
+
+  def updateDeviceTagValue(namespace: Namespace, deviceId: DeviceId, tagId: TagId, tagValue: String)
+                          (implicit ec: ExecutionContext): DBIO[Unit] = {
+    val action = for {
+      d <- DeviceRepository.exists(namespace, deviceId)
+      currentTags <- fetchForDevice(deviceId)
+      newTags = currentTags.toMap.updated(tagId, tagValue)
+      _ <- refreshDeviceTags(namespace, d, newTags)
+    } yield ()
+    action.transactionally
+  }
+
+  private def refreshDeviceTags(namespace: Namespace, device: Device, tags: Map[TagId, String])
+                               (implicit ec: ExecutionContext): DBIO[Unit] = {
+    val action = for {
+      _ <- setDeviceTags(namespace, device.uuid, tags)
+      _ <- deleteDynamicGroupsForDevice(device.uuid)
+      _ <- addDeviceToDynamicGroups(namespace, device, tags)
     } yield ()
     action.transactionally
   }

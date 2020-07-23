@@ -23,7 +23,7 @@ import com.advancedtelematic.libats.http.HttpOps.HttpRequestOps
 import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
 import com.advancedtelematic.ota.deviceregistry.data.Codecs._
 import com.advancedtelematic.ota.deviceregistry.data.DataType.InstallationStatsLevel.InstallationStatsLevel
-import com.advancedtelematic.ota.deviceregistry.data.DataType.{DeviceT, UpdateDevice}
+import com.advancedtelematic.ota.deviceregistry.data.DataType.{DeviceT, UpdateDevice, UpdateTagValue}
 import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
 import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
 import com.advancedtelematic.ota.deviceregistry.data.SortBy.SortBy
@@ -244,5 +244,11 @@ trait DeviceRequests { self: ResourceSpec =>
     Get(Resource.uri("device_tags")) ~> route ~> check {
       status shouldBe OK
       responseAs[Seq[TagId]]
+    }
+
+  def updateDeviceTagOk(deviceId: DeviceId, tagId: TagId, tagValue: String): Unit =
+    Patch(Resource.uri(api, deviceId.show, "device_tags"), UpdateTagValue(tagId, tagValue)) ~> route ~> check {
+      status shouldBe NoContent
+      ()
     }
 }
