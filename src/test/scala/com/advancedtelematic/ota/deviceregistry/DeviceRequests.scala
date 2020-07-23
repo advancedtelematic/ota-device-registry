@@ -13,7 +13,6 @@ import java.time.OffsetDateTime
 import akka.http.scaladsl.model.Uri.{Path, Query}
 import akka.http.scaladsl.model.{ContentTypes, HttpEntity, HttpRequest, Multipart, StatusCodes, Uri}
 import akka.http.scaladsl.server.Route
-import akka.util.ByteString
 import cats.instances.int._
 import cats.instances.string._
 import cats.syntax.option._
@@ -254,6 +253,12 @@ trait DeviceRequests { self: ResourceSpec =>
   def updateDeviceTagOk(deviceId: DeviceId, tagId: TagId, tagValue: String): Unit =
     Patch(Resource.uri(api, deviceId.show, "device_tags"), UpdateTagValue(tagId, tagValue)) ~> route ~> check {
       status shouldBe NoContent
+      ()
+    }
+
+  def deleteDeviceTagOk(tagId: TagId): Unit =
+    Delete(Resource.uri("device_tags", tagId.value)) ~> route ~> check {
+      status shouldBe OK
       ()
     }
 }

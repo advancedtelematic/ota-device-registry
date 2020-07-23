@@ -241,6 +241,9 @@ class DevicesResource(
     complete(db.run(action.transactionally))
   }
 
+  private def deleteDeviceTag(namespace: Namespace, tagId: TagId) =
+    complete(db.run(TaggedDeviceRepository.deleteTag(namespace, tagId)))
+
   private def tagDevicesFromCsv(ns: Namespace, byteSource: Source[ByteString, Any]): Route = {
     val deviceIdKey = "DeviceID"
     val csvRows = byteSource
@@ -354,6 +357,9 @@ class DevicesResource(
     pathPrefix("device_tags") {
       (scope.put & path(tagIdMatcher) & entity(as[RenameTagId])) { (tagId, body) =>
         renameDeviceTag(ns.namespace, tagId, body.tagId)
+      } ~
+      (scope.delete & path(tagIdMatcher)) { tagId =>
+        deleteDeviceTag(ns.namespace, tagId)
       } ~
       pathEnd {
         scope.get {

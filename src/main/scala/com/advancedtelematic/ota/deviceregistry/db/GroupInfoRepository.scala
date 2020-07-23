@@ -20,7 +20,7 @@ import com.advancedtelematic.ota.deviceregistry.data
 import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
 import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
 import com.advancedtelematic.ota.deviceregistry.data.SortBy.SortBy
-import com.advancedtelematic.ota.deviceregistry.data.{Group, GroupExpression, GroupName, TagId}
+import com.advancedtelematic.ota.deviceregistry.data.{Group, GroupExpression, GroupName, GroupType, TagId}
 import com.advancedtelematic.ota.deviceregistry.db.DbOps.{PaginationResultOps, sortBySlickOrderedConversion}
 import com.advancedtelematic.ota.deviceregistry.db.SlickMappings._
 import slick.jdbc.MySQLProfile.api._
@@ -86,4 +86,20 @@ object GroupInfoRepository {
           SET expression = REPLACE(expression, 'tag(#${tagId.value})', 'tag(#${newTagId.value})')
           WHERE namespace = ${namespace.get} AND expression LIKE '%tag(#${tagId.value})%';
          """
+
+  private[db] def findSmartGroupsUsingTag(namespace: Namespace, tagId: TagId)(implicit ec: ExecutionContext): DBIO[Seq[(GroupId, GroupExpression)]] =
+    groupInfos
+      .filter(_.namespace === namespace)
+      .filter(_.groupType === GroupType.dynamic)
+      .filter(gi => gi.expression.mappedTo[String].like(s"%tag(${tagId.value})%"))
+      .map(gi => gi.id -> gi.expression.get)
+      .result
+
+  private[db] def updateSmartGroupExpression(groupId: GroupId, expression: GroupExpression)(implicit ec: ExecutionContext): DBIO[Unit] =
+    groupInfos
+      .filter(_.groupType === GroupType.dynamic)
+      .filter(_.id === groupId)
+      .map(_.expression)
+      .update(Some(expression))
+      .map(_ => ())
 }

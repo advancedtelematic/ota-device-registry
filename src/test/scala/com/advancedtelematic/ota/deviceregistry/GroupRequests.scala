@@ -12,6 +12,7 @@ import akka.http.scaladsl.model.{ContentTypes, HttpEntity, HttpRequest, Multipar
 import akka.http.scaladsl.model.StatusCodes._
 import akka.http.scaladsl.model.Uri.Query
 import cats.syntax.show._
+import com.advancedtelematic.libats.data.PaginationResult
 import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
 import com.advancedtelematic.ota.deviceregistry.data.Device.DeviceOemId
 import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
@@ -21,6 +22,7 @@ import com.advancedtelematic.ota.deviceregistry.data.SortBy.SortBy
 import com.advancedtelematic.ota.deviceregistry.data.{GroupExpression, GroupName, GroupType}
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
 import io.circe.Json
+import org.scalatest.Assertion
 
 import scala.concurrent.ExecutionContext
 import scala.util.Random
@@ -44,6 +46,12 @@ trait GroupRequests {
               Query("offset" -> offset.getOrElse(0).toString, "limit" -> limit.getOrElse(50).toString)
             )
         )
+    }
+
+  def listDevicesInGroupOk(groupId: GroupId, deviceIds: Seq[DeviceId]): Assertion =
+    listDevicesInGroup(groupId) ~> route ~> check {
+      status shouldBe OK
+      responseAs[PaginationResult[DeviceId]].values should contain theSameElementsAs deviceIds
     }
 
   def getGroupDetails(groupId: GroupId)(implicit ec: ExecutionContext): HttpRequest =

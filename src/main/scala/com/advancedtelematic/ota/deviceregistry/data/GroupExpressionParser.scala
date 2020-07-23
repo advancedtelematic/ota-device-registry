@@ -20,7 +20,35 @@ import slick.lifted.Rep
 object GroupExpressionAST {
   type DeviceIdsQuery = Query[Rep[DeviceId], DeviceId, Seq]
 
-  sealed trait Expression
+  val showExpression: Expression => String = {
+    case DeviceIdContains(word) => s"deviceid contains $word"
+    case DeviceIdCharAt(char, position) => s"deviceid position($position) is $char"
+    case TagContains(tagId, word) => s"tag(${tagId.value}) contains $word"
+    case TagCharAt(tagId, char, position) => s"tag(${tagId.value}) position($position) is $char"
+    case Or(cond) => cond.map(showExpression).toList.mkString("(", "or", ")")
+    case And(cond) => cond.map(showExpression).toList.mkString("(", "and", ")")
+    case Not(exp) => s"not ${showExpression(exp)}"
+  }
+
+  sealed trait Expression {
+    def dropDeviceTag(tagId: TagId): Option[Expression] = {
+      def filterList(tagId: TagId, exps: NonEmptyList[Expression], fn: NonEmptyList[Expression] => Expression): Option[Expression] =
+        exps.map(_.dropDeviceTag(tagId)).filter(_.isDefined).map(_.get) match {
+          case Nil => None
+          case e :: Nil => Some(e)
+          case es => Some(fn(NonEmptyList.fromListUnsafe(es)))
+        }
+      this match {
+        case TagContains(tid, _) if tid == tagId => None
+        case TagCharAt(tid, _, _) if tid == tagId => None
+        case Not(exp) => exp.dropDeviceTag(tagId).map(Not)
+        case Or(cond) => filterList(tagId, cond, Or.apply)
+        case And(cond) => filterList(tagId, cond, And.apply)
+        case e => Some(e)
+      }
+    }
+  }
+
   case class DeviceIdContains(word: String) extends Expression
   case class DeviceIdCharAt(char: Char, position: Int) extends Expression
   case class TagContains(tagId: TagId, word: String) extends Expression

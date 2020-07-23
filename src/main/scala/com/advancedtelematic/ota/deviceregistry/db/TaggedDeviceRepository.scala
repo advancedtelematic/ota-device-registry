@@ -54,6 +54,22 @@ object TaggedDeviceRepository {
       .filter(_.deviceUuid === deviceUuid)
       .delete
 
+  def deleteTag(namespace: Namespace, tagId: TagId)(implicit ec: ExecutionContext): DBIO[Unit] = {
+    val action = for {
+      _ <- taggedDevices.filter(_.namespace === namespace).filter(_.tagId === tagId).delete
+      expressions <- GroupInfoRepository.findSmartGroupsUsingTag(namespace, tagId)
+      newExpressions = expressions.map { case (g, e) => g -> e.droppingTag(tagId) }
+      _ <- if (newExpressions.exists(_._2.isEmpty)) {
+        DBIO.failed(Errors.CannotRemoveDeviceTag)
+      } else {
+        DBIO.sequence {
+          newExpressions.map { case (g, e) => GroupMemberRepository.replaceExpression(namespace, g, e.get) }
+        }
+      }
+    } yield ()
+    action.transactionally
+  }
+
   def tagDeviceByOemId(namespace: Namespace, deviceId: DeviceOemId, tags: Map[TagId, String])
                       (implicit ec: ExecutionContext): DBIO[Unit] = {
     val action = for {
@@ -74,7 +90,7 @@ object TaggedDeviceRepository {
     action.transactionally
   }
 
-  private def refreshDeviceTags(namespace: Namespace, device: Device, tags: Map[TagId, String])
+  private[db] def refreshDeviceTags(namespace: Namespace, device: Device, tags: Map[TagId, String])
                                (implicit ec: ExecutionContext): DBIO[Unit] = {
     val action = for {
       _ <- setDeviceTags(namespace, device.uuid, tags)
