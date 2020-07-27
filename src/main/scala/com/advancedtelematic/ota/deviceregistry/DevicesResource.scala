@@ -123,13 +123,11 @@ class DevicesResource(
       'sortBy.as[SortBy].?,
       'offset.as[Long].?,
       'limit.as[Long].?)).as(SearchParams.apply _) { params =>
-      requestEntityEmpty {
+        entity(as[DeviceIds]) { deviceIdParam =>
+          complete(db.run(DeviceRepository.search(ns, params, deviceIdParam.deviceIds)))
+        } ~
         complete(db.run(DeviceRepository.search(ns, params, Vector.empty)))
-      } ~
-      entity(as[DeviceIds]) { deviceIdParam =>
-        complete(db.run(DeviceRepository.search(ns, params, deviceIdParam.deviceIds)))
       }
-    }
 
   def createDevice(ns: Namespace, device: DeviceT): Route = {
     val f = db
