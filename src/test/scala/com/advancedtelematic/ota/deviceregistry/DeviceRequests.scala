@@ -23,7 +23,7 @@ import com.advancedtelematic.libats.http.HttpOps.HttpRequestOps
 import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
 import com.advancedtelematic.ota.deviceregistry.data.Codecs._
 import com.advancedtelematic.ota.deviceregistry.data.DataType.InstallationStatsLevel.InstallationStatsLevel
-import com.advancedtelematic.ota.deviceregistry.data.DataType.{DeviceT, UpdateDevice, UpdateTagValue}
+import com.advancedtelematic.ota.deviceregistry.data.DataType.{DeviceIds, DeviceT, UpdateDevice, UpdateTagValue}
 import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
 import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
 import com.advancedtelematic.ota.deviceregistry.data.SortBy.SortBy
@@ -106,6 +106,9 @@ trait DeviceRequests { self: ResourceSpec =>
           Query("grouped" -> "false", "offset" -> offset.toString, "limit" -> limit.toString)
         )
     )
+
+  def fetchByDeviceUuids(deviceUuids: Seq[DeviceId]): HttpRequest =
+    Get(Resource.uri(api), DeviceIds(deviceUuids))
 
   def fetchNotSeenSince(hours: Int): HttpRequest =
     Get(Resource.uri(api).withQuery(Query("notSeenSinceHours" -> hours.toString, "limit" -> 1000.toString)))

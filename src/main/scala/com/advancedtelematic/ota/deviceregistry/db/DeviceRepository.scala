@@ -183,21 +183,25 @@ object DeviceRepository {
       .map(_._2)
       .distinct
 
-  def search(ns: Namespace, params: SearchParams)(implicit ec: ExecutionContext): DBIO[PaginationResult[Device]] = {
-    val query = params match {
+  def search(ns: Namespace, params: SearchParams, ids: Seq[DeviceId])
+            (implicit ec: ExecutionContext): DBIO[PaginationResult[Device]] = {
+    val query = (params, ids) match {
 
-      case SearchParams(Some(oemId), _, _, None, None, None, _, _, _) =>
+      case (SearchParams(Some(oemId), _, _, None, None, None, _, _, _), Vector()) =>
         findByDeviceIdQuery(ns, oemId)
 
-      case SearchParams(None, Some(true), gt, None, nameContains, None, _, _, _) =>
+      case (SearchParams(None, Some(true), gt, None, nameContains, None, _, _, _), Vector()) =>
         runQueryFilteringByName(ns, groupedDevicesQuery(ns, gt), nameContains)
 
-      case SearchParams(None, Some(false), gt, None, nameContains, None, _, _, _) =>
+      case (SearchParams(None, Some(false), gt, None, nameContains, None, _, _, _), Vector()) =>
         val ungroupedDevicesQuery = devices.filterNot(_.uuid.in(groupedDevicesQuery(ns, gt).map(_.uuid)))
         runQueryFilteringByName(ns, ungroupedDevicesQuery, nameContains)
 
-      case SearchParams(None, _, _, gid, nameContains, notSeenSinceHours, _, _, _) =>
+      case (SearchParams(None, _, _, gid, nameContains, notSeenSinceHours, _, _, _), Vector()) =>
         searchQuery(ns, nameContains, gid, notSeenSinceHours)
+
+      case (SearchParams(None, None, None, None, None, None, None, _, _), ids) if ids.nonEmpty =>
+        findByUuids(ns, ids)
 
       case _ => throw new IllegalArgumentException("Invalid parameter combination.")
     }
@@ -221,6 +225,10 @@ object DeviceRepository {
       .result
       .headOption
       .flatMap(_.fold[DBIO[Device]](DBIO.failed(Errors.MissingDevice))(DBIO.successful))
+
+  def findByUuids(ns: Namespace, ids: Seq[DeviceId]): Query[DeviceTable, Device, Seq] = {
+    devices.filter(d => (d.namespace === ns) && (d.uuid inSet ids))
+  }
 
   def updateLastSeen(uuid: DeviceId, when: Instant)(implicit ec: ExecutionContext): DBIO[(Boolean, Namespace)] = {
     val sometime = Some(when)
