@@ -1173,7 +1173,7 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
     forAll(genConflictFreeDeviceTs(10)) { devices =>
       val uuids = devices.map(createDeviceOk(_))
 
-      fetchByDeviceUuids(uuids) ~> route ~> check {
+      listDevicesByUuids(uuids) ~> route ~> check {
         status shouldBe OK
         val page = responseAs[PaginationResult[Device]]
         page.total shouldBe devices.length
@@ -1181,4 +1181,18 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
       }
     }
   }
+
+  property("can fetch devices by UUIDs and sorted") {
+    forAll(genConflictFreeDeviceTs(10)) { devices =>
+      val uuids = devices.map(createDeviceOk(_))
+
+      listDevicesByUuids(uuids, Some(SortBy.CreatedAt)) ~> route ~> check {
+        status shouldBe OK
+        val page = responseAs[PaginationResult[Device]]
+        page.total shouldBe devices.length
+        page.values.map(_.uuid) should contain theSameElementsAs uuids
+      }
+    }
+  }
+
 }
