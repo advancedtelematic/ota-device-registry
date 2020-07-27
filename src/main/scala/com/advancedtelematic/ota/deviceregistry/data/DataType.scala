@@ -44,6 +44,7 @@ object DataType {
 
   final case class TaggedDevice(namespace: Namespace, deviceUuid: DeviceId, tagId: TagId, tagValue: String)
   final case class RenameTagId(tagId: TagId)
+  final case class UpdateTagValue(tagId: TagId, tagValue: String)
 
   final case class DeviceT(uuid: Option[DeviceId] = None,
                            deviceName: DeviceName,

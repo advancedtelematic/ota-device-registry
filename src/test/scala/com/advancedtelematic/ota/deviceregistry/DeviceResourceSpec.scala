@@ -1113,4 +1113,59 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
     }
     getDeviceTagsOk should contain (tagId)
   }
+
+  property("updates a device tag value and updates the corresponding smart groups") {
+    val deviceT1 = genDeviceT.generate
+    val deviceT2 = genDeviceT.generate
+    val duid1 = createDeviceOk(deviceT1)
+    val duid2 = createDeviceOk(deviceT2)
+    val expression = GroupExpression("tag(country) contains Ita").valueOr(throw _)
+    val groupId = createDynamicGroupOk(expression = expression)
+    val tagId = TagId("country").right.get
+
+    val csvRows = Seq(
+      Seq(deviceT1.deviceId.underlying, "Italy"),
+      Seq(deviceT2.deviceId.underlying, "Spain"),
+      Seq(genDeviceId.generate.underlying , "France"),
+    )
+    postDeviceTags(csvRows, Seq("DeviceID", tagId.value)) ~> route ~> check {
+      status shouldBe NoContent
+    }
+
+    updateDeviceTagOk(duid1, tagId, "Germany")
+    listDevicesInGroup(groupId) ~> route ~> check {
+      status shouldBe OK
+      responseAs[PaginationResult[DeviceId]].values shouldBe empty
+    }
+
+    updateDeviceTagOk(duid2, tagId, "NotItaly")
+    listDevicesInGroup(groupId) ~> route ~> check {
+      status shouldBe OK
+      responseAs[PaginationResult[DeviceId]].values should contain only duid2
+    }
+  }
+
+  property("updating a device tag value for a non-existing tagId has no effect") {
+    val deviceT = genDeviceT.generate
+    val duid = createDeviceOk(deviceT)
+    val expression = GroupExpression("tag(land) contains Ita").valueOr(throw _)
+    val groupId = createDynamicGroupOk(expression = expression)
+    val tagId = "land"
+
+    val csvRows = Seq(Seq(deviceT.deviceId.underlying, "Italy"))
+    postDeviceTags(csvRows, Seq("DeviceID", tagId)) ~> route ~> check {
+      status shouldBe NoContent
+    }
+
+    listDevicesInGroup(groupId) ~> route ~> check {
+      status shouldBe OK
+      responseAs[PaginationResult[DeviceId]].values should contain only duid
+    }
+
+    updateDeviceTagOk(duid, TagId("nonsense").right.get, "NotItaly")
+    listDevicesInGroup(groupId) ~> route ~> check {
+      status shouldBe OK
+      responseAs[PaginationResult[DeviceId]].values should contain only duid
+    }
+  }
 }

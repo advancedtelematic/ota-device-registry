@@ -35,7 +35,7 @@ import com.advancedtelematic.ota.deviceregistry.common.Errors
 import com.advancedtelematic.ota.deviceregistry.common.Errors.MissingDevice
 import com.advancedtelematic.ota.deviceregistry.data.Codecs._
 import com.advancedtelematic.ota.deviceregistry.data.DataType.InstallationStatsLevel.InstallationStatsLevel
-import com.advancedtelematic.ota.deviceregistry.data.DataType.{DeviceT, InstallationStatsLevel, RenameTagId, SearchParams, UpdateDevice}
+import com.advancedtelematic.ota.deviceregistry.data.DataType.{DeviceT, InstallationStatsLevel, RenameTagId, SearchParams, UpdateDevice, UpdateTagValue}
 import com.advancedtelematic.ota.deviceregistry.data.Device.{ActiveDeviceCount, DeviceOemId}
 import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
 import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
@@ -219,6 +219,16 @@ class DevicesResource(
   private def fetchDeviceTags(ns: Namespace): Route =
     complete(db.run(TaggedDeviceRepository.fetchAll(ns)))
 
+  private def fetchDeviceTags(deviceId: DeviceId): Route =
+    complete(db.run(TaggedDeviceRepository.fetchForDevice(deviceId)))
+
+  private def patchDeviceTagValue(namespace: Namespace, deviceId: DeviceId, tagId: TagId, tagValue: String) = {
+    val f = db.run(TaggedDeviceRepository.updateDeviceTagValue(namespace, deviceId, tagId, tagValue))
+    onSuccess(f) {
+      complete(NoContent)
+    }
+  }
+
   private def renameDeviceTag(ns: Namespace, tagId: TagId, newTagId: TagId): Route = {
     val action = for {
       _ <- TaggedDeviceRepository.updateTagId(ns, tagId, newTagId)
@@ -292,12 +302,18 @@ class DevicesResource(
           (pathPrefix("device_count") & extractPackageId) { pkg =>
             getDevicesCount(pkg, ns.namespace)
           } ~
+          path("device_tags") {
+            fetchDeviceTags(uuid)
+          } ~
           pathEnd {
             fetchDevice(uuid)
           }
         } ~
         (scope.put & pathEnd & entity(as[UpdateDevice])) { updateBody =>
           updateDevice(ns.namespace, uuid, updateBody)
+        } ~
+        (scope.patch & path("device_tags") & entity(as[UpdateTagValue])) { utv =>
+          patchDeviceTagValue(ns.namespace, uuid, utv.tagId, utv.tagValue)
         } ~
         (scope.delete & pathEnd) {
           deleteDevice(ns.namespace, uuid)
