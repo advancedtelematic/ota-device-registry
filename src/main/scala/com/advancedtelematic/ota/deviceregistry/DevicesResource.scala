@@ -35,7 +35,7 @@ import com.advancedtelematic.ota.deviceregistry.common.Errors
 import com.advancedtelematic.ota.deviceregistry.common.Errors.MissingDevice
 import com.advancedtelematic.ota.deviceregistry.data.Codecs._
 import com.advancedtelematic.ota.deviceregistry.data.DataType.InstallationStatsLevel.InstallationStatsLevel
-import com.advancedtelematic.ota.deviceregistry.data.DataType.{DeviceIds, DeviceT, InstallationStatsLevel, RenameTagId, SearchParams, UpdateDevice, UpdateTagValue}
+import com.advancedtelematic.ota.deviceregistry.data.DataType.{DeviceUuids, DeviceT, InstallationStatsLevel, RenameTagId, SearchParams, UpdateDevice, UpdateTagValue}
 import com.advancedtelematic.ota.deviceregistry.data.Device.{ActiveDeviceCount, DeviceOemId}
 import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
 import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
@@ -123,8 +123,8 @@ class DevicesResource(
       'sortBy.as[SortBy].?,
       'offset.as[Long].?,
       'limit.as[Long].?)).as(SearchParams.apply _) { params =>
-        entity(as[DeviceIds]) { deviceIdParam =>
-          complete(db.run(DeviceRepository.search(ns, params, deviceIdParam.deviceIds)))
+        entity(as[DeviceUuids]) { p =>
+          complete(db.run(DeviceRepository.search(ns, params, p.deviceUuids)))
         } ~
         complete(db.run(DeviceRepository.search(ns, params, Vector.empty)))
       }

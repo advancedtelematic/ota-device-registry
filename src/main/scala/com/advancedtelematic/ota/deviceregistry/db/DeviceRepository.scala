@@ -200,7 +200,7 @@ object DeviceRepository {
       case (SearchParams(None, _, _, gid, nameContains, notSeenSinceHours, _, _, _), Vector()) =>
         searchQuery(ns, nameContains, gid, notSeenSinceHours)
 
-      case (SearchParams(None, None, None, None, None, None, None, _, _), ids) if ids.nonEmpty =>
+      case (SearchParams(None, None, None, None, None, None, _, _, _), ids) if ids.nonEmpty =>
         findByUuids(ns, ids)
 
       case _ => throw new IllegalArgumentException("Invalid parameter combination.")
