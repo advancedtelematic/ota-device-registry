@@ -21,7 +21,7 @@ import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
 import com.advancedtelematic.libats.messaging_datatype.Messages.DeviceSeen
 import com.advancedtelematic.ota.deviceregistry.common.{Errors, PackageStat}
 import com.advancedtelematic.ota.deviceregistry.daemon.{DeleteDeviceHandler, DeviceSeenListener}
-import com.advancedtelematic.ota.deviceregistry.data.DataType.{DeviceT, RenameTagId}
+import com.advancedtelematic.ota.deviceregistry.data.DataType.{DeviceT, RenameTagId, TagInfo}
 import com.advancedtelematic.ota.deviceregistry.data.DeviceName.validatedDeviceType
 import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
 import com.advancedtelematic.ota.deviceregistry.data.{Device, DeviceStatus, PackageId, _}
@@ -877,10 +877,7 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
         .map { case (k, v) => k.value -> v } should contain only ("market" -> "China", "trim" -> "Deluxe")
     }
 
-    Get(Resource.uri("device_tags")) ~> route ~> check {
-      status shouldBe OK
-      responseAs[Seq[TagId]].map(_.value) should contain theSameElementsAs Seq("market", "trim")
-    }
+    getDeviceTagsOk.map(_.value) should contain theSameElementsAs Seq("market", "trim")
   }
 
   property("tagging from a csv overrides the previous tags") {
@@ -1174,7 +1171,7 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
     val duid = createDeviceOk(deviceT)
     val expression = GroupExpression("tag(pais) contains Ita or deviceid contains nonsense").valueOr(throw _)
     val groupId = createDynamicGroupOk(expression = expression)
-    val tagId = TagId("pais").right.get
+    val tagId = TagId("pais").valueOr(throw _)
 
     val csvRows = Seq(Seq(deviceT.deviceId.underlying, "Italy"))
     postDeviceTags(csvRows, Seq("DeviceID", tagId.value)) ~> route ~> check {
@@ -1201,16 +1198,16 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
     val duid = createDeviceOk(deviceT)
     val expression = GroupExpression("tag(paese) contains Ita").valueOr(throw _)
     val groupId = createDynamicGroupOk(expression = expression)
-    val tagId = TagId("paese").right.get
+    val tagId = "paese"
 
     val csvRows = Seq(Seq(deviceT.deviceId.underlying, "Italy"))
-    postDeviceTags(csvRows, Seq("DeviceID", tagId.value)) ~> route ~> check {
+    postDeviceTags(csvRows, Seq("DeviceID", tagId)) ~> route ~> check {
       status shouldBe NoContent
     }
 
     listDevicesInGroupOk(groupId, Seq(duid))
 
-    Delete(Resource.uri("device_tags", tagId.value)) ~> route ~> check {
+    Delete(Resource.uri("device_tags", tagId)) ~> route ~> check {
       status shouldBe BadRequest
       responseAs[ErrorRepresentation].code shouldBe Errors.CannotRemoveDeviceTag.code
     }
@@ -1221,6 +1218,63 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
     }
 
     listDevicesInGroupOk(groupId, Seq(duid))
+  }
+
+  property("checks which device tags are delible and which are not") {
+    val deviceT = genDeviceT.generate
+    createDeviceOk(deviceT)
+    val csvRows = Seq(deviceT.deviceId.underlying +: List.fill(8)("ha-ha"))
+    val tagIds = (1 to 8).map(_.toString)
+    postDeviceTags(csvRows, "DeviceID" +: tagIds) ~> route ~> check {
+      status shouldBe NoContent
+    }
+
+    // Delible expressions
+    Seq(
+      GroupExpression("tag(1) contains ha-ha or deviceid contains abc").valueOr(throw _),
+      GroupExpression("tag(2) contains ha-ha or (deviceid contains abc and tag(2) position(4) is h)").valueOr(throw _),
+      GroupExpression("tag(3) contains ha-ha and tag(4) position(4) is h").valueOr(throw _),
+    ).map(createDynamicGroupOk(_))
+    // Indelible expressions
+    Seq(
+      GroupExpression("tag(5) contains ha-ha").valueOr(throw _),
+      GroupExpression("tag(6) position(4) is h").valueOr(throw _),
+      GroupExpression("tag(7) contains ha-ha and tag(7) position(4) is h").valueOr(throw _),
+      GroupExpression("tag(8) contains ha-ha or (tag(8) contains ha-ha and tag(8) position(4) is h)").valueOr(throw _),
+    ).map(createDynamicGroupOk(_))
+
+    Get(Resource.uri("device_tags")) ~> route ~> check {
+      status shouldBe OK
+      val (delibles, indelibles) = responseAs[Seq[TagInfo]].filter(ti => tagIds.contains(ti.tagId.value)).partition(_.isDelible)
+      delibles.map(_.tagId.value) should contain only ("1", "2", "3", "4")
+      indelibles.map(_.tagId.value) should contain only ("5", "6", "7", "8")
+    }
+  }
+
+  property("device tag becomes indelible after another is deleted") {
+    val deviceT = genDeviceT.generate
+    createDeviceOk(deviceT)
+    val csvRows = Seq(Seq(deviceT.deviceId.underlying, "ha-ha", "ha-ha"))
+    postDeviceTags(csvRows, Seq("DeviceID", "10", "11")) ~> route ~> check {
+      status shouldBe NoContent
+    }
+
+    val expression = GroupExpression("tag(10) position(2) is h and tag(11) contains ha-ha").valueOr(throw _)
+    createDynamicGroupOk(expression)
+
+    Get(Resource.uri("device_tags")) ~> route ~> check {
+      status shouldBe OK
+      val result = responseAs[Seq[TagInfo]].map(ti => ti.tagId.value -> ti.isDelible)
+      result should contain allOf ("10" -> true, "11" -> true)
+    }
+
+    deleteDeviceTagOk(TagId("10").valueOr(throw _))
+
+    Get(Resource.uri("device_tags")) ~> route ~> check {
+      status shouldBe OK
+      val result = responseAs[Seq[TagInfo]].map(ti => ti.tagId.value -> ti.isDelible)
+      result should contain ("11" -> false)
+    }
   }
 
   property("can fetch devices by UUIDs") {

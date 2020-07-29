@@ -7,7 +7,7 @@ import com.advancedtelematic.libats.slick.db.SlickExtensions._
 import com.advancedtelematic.libats.slick.db.SlickUUIDKey._
 import com.advancedtelematic.libats.slick.db.SlickValidatedGeneric.validatedStringMapper
 import com.advancedtelematic.ota.deviceregistry.common.Errors
-import com.advancedtelematic.ota.deviceregistry.data.DataType.TaggedDevice
+import com.advancedtelematic.ota.deviceregistry.data.DataType.{TagInfo, TaggedDevice}
 import com.advancedtelematic.ota.deviceregistry.data.Device.DeviceOemId
 import com.advancedtelematic.ota.deviceregistry.data.{Device, TagId}
 import com.advancedtelematic.ota.deviceregistry.db.DeviceRepository.findByDeviceIdQuery
@@ -29,12 +29,19 @@ object TaggedDeviceRepository {
 
   val taggedDevices = TableQuery[TaggedDeviceTable]
 
-  def fetchAll(namespace: Namespace): DBIO[Seq[TagId]] =
-    taggedDevices
-      .filter(_.namespace === namespace)
-      .map(_.tagId)
-      .distinct
-      .result
+  private def isTagDelible(namespace: Namespace, tagId: TagId)(implicit ec: ExecutionContext): DBIO[Boolean] =
+    GroupInfoRepository
+      .findSmartGroupsUsingTag(namespace, tagId)
+      .map(_.map(_._2.droppingTag(tagId)))
+      .map(_.forall(_.isDefined))
+
+  def fetchAll(namespace: Namespace)(implicit ec: ExecutionContext): DBIO[Seq[TagInfo]] =
+    for {
+      tagIds <- taggedDevices.filter(_.namespace === namespace).map(_.tagId).distinct.result
+      tagIdsAndDelibles <- DBIO.sequence {
+        tagIds.map(tagId => isTagDelible(namespace, tagId).map(tagId -> _))
+      }
+    } yield tagIdsAndDelibles.map((TagInfo.apply _).tupled)
 
   def fetchForDevice(deviceUuid: DeviceId)(implicit ec: ExecutionContext): DBIO[Seq[(TagId, String)]] =
     taggedDevices
