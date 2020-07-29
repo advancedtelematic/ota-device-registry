@@ -1,10 +1,20 @@
 package com.advancedtelematic.ota.deviceregistry.data
 
+import cats.syntax.either._
 import com.advancedtelematic.libats.codecs.CirceValidatedGeneric
 import com.advancedtelematic.libats.data.{ValidatedGeneric, ValidationError}
+import com.advancedtelematic.ota.deviceregistry.data.GroupExpressionParser.parse
 import io.circe.{Decoder, Encoder}
 
-final case class GroupExpression private (value: String) extends AnyVal
+final case class GroupExpression private (value: String) extends AnyVal {
+  def droppingTag(tagId: TagId): Option[GroupExpression] =
+    parse(value)
+      .map(_.dropDeviceTag(tagId))
+      .valueOr(throw _)
+      .map(GroupExpressionAST.showExpression)
+      .map(GroupExpression(_))
+      .map(_.valueOr(throw _))
+}
 
 object GroupExpression {
 

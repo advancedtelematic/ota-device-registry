@@ -12,6 +12,7 @@ import com.advancedtelematic.ota.deviceregistry.db.DeviceRepository
 import com.advancedtelematic.ota.deviceregistry.db.DeviceRepository._
 import com.advancedtelematic.ota.deviceregistry.db.TaggedDeviceRepository.tagDeviceByOemId
 import org.scalatest.EitherValues._
+import org.scalatest.OptionValues._
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.time.{Millis, Span}
 import org.scalatest.{FunSuite, Matchers}
@@ -203,6 +204,25 @@ class GroupExpressionParserSpec extends FunSuite with Matchers {
   test("fails to parse 'tag() contains' when the tagId contains invalid characters") {
     runParserUnchecked("tag(mar/ket) contains erma").left.value shouldBe a[Errors.RawError]
     runParserUnchecked("tag(mar)ket) contains erma").left.value shouldBe a[Errors.RawError]
+  }
+
+  test("removes device tag from expressions") {
+    val country = TagId("country").valueOr(throw _)
+    val land = TagId("land").valueOr(throw _)
+    TagContains(country, "abc").dropDeviceTag(country) shouldBe None
+    TagCharAt(country, 'a', 0).dropDeviceTag(country) shouldBe None
+    TagContains(land, "abc").dropDeviceTag(country).value shouldBe TagContains(land, "abc")
+    Not(TagContains(country, "abc")).dropDeviceTag(country) shouldBe None
+    Not(TagContains(land, "abc")).dropDeviceTag(country).value shouldBe Not(TagContains(land, "abc"))
+    And(NonEmptyList.of(TagContains(country, "abc"), TagCharAt(country, 'a', 0))).dropDeviceTag(country) shouldBe None
+    And(NonEmptyList.of(TagContains(country, "abc"), DeviceIdContains("abc"))).dropDeviceTag(country).value shouldBe DeviceIdContains("abc")
+    Or(NonEmptyList.of(DeviceIdContains("abc"), TagCharAt(country, 'a', 0))).dropDeviceTag(country).value shouldBe DeviceIdContains("abc")
+    Or(NonEmptyList.of(DeviceIdContains("abc"), DeviceIdContains("def"))).dropDeviceTag(country).value shouldBe Or(NonEmptyList.of(DeviceIdContains("abc"), DeviceIdContains("def")))
+    And(
+      NonEmptyList.of(TagContains(country, "abc"), TagCharAt(country, 'a', 0), Or(
+        NonEmptyList.of(DeviceIdContains("abc"), TagContains(country, "abc")))
+      )
+    ).dropDeviceTag(country).value shouldBe DeviceIdContains("abc")
   }
 
 }

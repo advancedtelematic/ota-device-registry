@@ -17,7 +17,7 @@ import com.advancedtelematic.libats.slick.db.SlickUUIDKey._
 import com.advancedtelematic.ota.deviceregistry.common.Errors
 import com.advancedtelematic.ota.deviceregistry.common.Errors.MemberAlreadyExists
 import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
-import com.advancedtelematic.ota.deviceregistry.data.{Device, GroupExpressionAST, GroupType, TagId}
+import com.advancedtelematic.ota.deviceregistry.data.{Device, GroupExpression, GroupExpressionAST, GroupType, TagId}
 import com.advancedtelematic.ota.deviceregistry.db.DbOps.PaginationResultOps
 import slick.jdbc.MySQLProfile.api._
 import slick.lifted.Tag
@@ -105,10 +105,25 @@ object GroupMemberRepository {
     }.map(_ => ())
   }
 
+  private[db] def addDeviceToDynamicGroups(namespace: Namespace, device: Device)(implicit ec: ExecutionContext): DBIO[Unit] =
+    for {
+      tags <- TaggedDeviceRepository.fetchForDevice(device.uuid)
+      _ <- GroupMemberRepository.addDeviceToDynamicGroups(namespace, device, tags.toMap)
+    } yield ()
+
   def listGroupsForDevice(deviceUuid: DeviceId, offset: Option[Long], limit: Option[Long])
                          (implicit ec: ExecutionContext): DBIO[PaginationResult[GroupId]] =
     groupMembers
       .filter(_.deviceUuid === deviceUuid)
       .map(_.groupId)
       .paginateResult(offset.orDefaultOffset, limit.orDefaultLimit)
+
+  private[db] def replaceExpression(namespace: Namespace, groupId: GroupId, newExpression: GroupExpression)
+                                   (implicit ec: ExecutionContext): DBIO[Unit] =
+    for {
+      _ <- GroupInfoRepository.updateSmartGroupExpression(groupId, newExpression)
+      _ <- groupMembers.filter(_.groupId === groupId).delete
+      devs <- DeviceRepository.devices.filter(_.namespace === namespace).result
+      _ <- DBIO.sequence(devs.map(GroupMemberRepository.addDeviceToDynamicGroups(namespace, _)))
+    } yield ()
 }

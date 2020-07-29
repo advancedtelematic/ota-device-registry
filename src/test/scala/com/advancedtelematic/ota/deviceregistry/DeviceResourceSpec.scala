@@ -1169,6 +1169,60 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
     }
   }
 
+  property("deleting a device tag updates the groups' expression and members") {
+    val deviceT = genDeviceT.generate
+    val duid = createDeviceOk(deviceT)
+    val expression = GroupExpression("tag(pais) contains Ita or deviceid contains nonsense").valueOr(throw _)
+    val groupId = createDynamicGroupOk(expression = expression)
+    val tagId = TagId("pais").right.get
+
+    val csvRows = Seq(Seq(deviceT.deviceId.underlying, "Italy"))
+    postDeviceTags(csvRows, Seq("DeviceID", tagId.value)) ~> route ~> check {
+      status shouldBe NoContent
+    }
+
+    listDevicesInGroupOk(groupId, Seq(duid))
+
+    deleteDeviceTagOk(tagId)
+
+    getGroupDetails(groupId) ~> route ~> check {
+      status shouldBe OK
+      responseAs[Group].expression shouldBe GroupExpression("deviceid contains nonsense").toOption
+    }
+
+    listDevicesInGroup(groupId) ~> route ~> check {
+      status shouldBe OK
+      responseAs[PaginationResult[DeviceId]].total shouldBe 0
+    }
+  }
+
+  property("fails to delete a device tag if there is at least one smart group that uses only that tag in the expression") {
+    val deviceT = genDeviceT.generate
+    val duid = createDeviceOk(deviceT)
+    val expression = GroupExpression("tag(paese) contains Ita").valueOr(throw _)
+    val groupId = createDynamicGroupOk(expression = expression)
+    val tagId = TagId("paese").right.get
+
+    val csvRows = Seq(Seq(deviceT.deviceId.underlying, "Italy"))
+    postDeviceTags(csvRows, Seq("DeviceID", tagId.value)) ~> route ~> check {
+      status shouldBe NoContent
+    }
+
+    listDevicesInGroupOk(groupId, Seq(duid))
+
+    Delete(Resource.uri("device_tags", tagId.value)) ~> route ~> check {
+      status shouldBe BadRequest
+      responseAs[ErrorRepresentation].code shouldBe Errors.CannotRemoveDeviceTag.code
+    }
+
+    getGroupDetails(groupId) ~> route ~> check {
+      status shouldBe OK
+      responseAs[Group].expression shouldBe Some(expression)
+    }
+
+    listDevicesInGroupOk(groupId, Seq(duid))
+  }
+
   property("can fetch devices by UUIDs") {
     forAll(genConflictFreeDeviceTs(10)) { devices =>
       val uuids = devices.map(createDeviceOk(_))
