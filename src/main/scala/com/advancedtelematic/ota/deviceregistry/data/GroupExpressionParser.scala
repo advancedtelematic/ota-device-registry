@@ -25,8 +25,8 @@ object GroupExpressionAST {
     case DeviceIdCharAt(char, position) => s"deviceid position($position) is $char"
     case TagContains(tagId, word) => s"tag(${tagId.value}) contains $word"
     case TagCharAt(tagId, char, position) => s"tag(${tagId.value}) position($position) is $char"
-    case Or(cond) => cond.map(showExpression).toList.mkString("(", "or", ")")
-    case And(cond) => cond.map(showExpression).toList.mkString("(", "and", ")")
+    case Or(cond) => cond.map(showExpression).toList.mkString("(", " or ", ")")
+    case And(cond) => cond.map(showExpression).toList.mkString("(", " and ", ")")
     case Not(exp) => s"not ${showExpression(exp)}"
   }
 

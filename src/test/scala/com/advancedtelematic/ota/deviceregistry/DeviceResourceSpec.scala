@@ -1234,6 +1234,7 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
       GroupExpression("tag(1) contains ha-ha or deviceid contains abc").valueOr(throw _),
       GroupExpression("tag(2) contains ha-ha or (deviceid contains abc and tag(2) position(4) is h)").valueOr(throw _),
       GroupExpression("tag(3) contains ha-ha and tag(4) position(4) is h").valueOr(throw _),
+      GroupExpression("tag(3) contains ha-ha and tag(4) position(4) is h or tag(3) contains ha-ha and tag(4) position(4) is h").valueOr(throw _),
     ).map(createDynamicGroupOk(_))
     // Indelible expressions
     Seq(
