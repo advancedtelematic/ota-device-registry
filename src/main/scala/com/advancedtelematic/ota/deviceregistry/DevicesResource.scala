@@ -227,10 +227,13 @@ class DevicesResource(
     complete(db.run(TaggedDeviceRepository.fetchForDevice(deviceId)))
 
   private def patchDeviceTagValue(namespace: Namespace, deviceId: DeviceId, tagId: TagId, tagValue: String) = {
-    val f = db.run(TaggedDeviceRepository.updateDeviceTagValue(namespace, deviceId, tagId, tagValue))
-    onSuccess(f) {
-      complete(NoContent)
+    val f = db.run {
+      for {
+        _ <- TaggedDeviceRepository.updateDeviceTagValue(namespace, deviceId, tagId, tagValue)
+        tags <- TaggedDeviceRepository.fetchForDevice(deviceId)
+      } yield tags
     }
+    complete(f)
   }
 
   private def renameDeviceTag(ns: Namespace, tagId: TagId, newTagId: TagId): Route = {

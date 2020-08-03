@@ -239,9 +239,10 @@ trait DeviceRequests { self: ResourceSpec =>
     Post(Resource.uri("device_tags"), multipartForm)
   }
 
-  def postDeviceTagsOk(tags: Seq[Seq[String]]) =
+  def postDeviceTagsOk(tags: Seq[Seq[String]]): Unit =
     postDeviceTags(tags) ~> route ~> check {
       status shouldBe NoContent
+      ()
     }
 
   def getDeviceTagsOk: Seq[TagId] =
@@ -250,10 +251,10 @@ trait DeviceRequests { self: ResourceSpec =>
       responseAs[Seq[TagInfo]].map(_.tagId)
     }
 
-  def updateDeviceTagOk(deviceId: DeviceId, tagId: TagId, tagValue: String): Unit =
+  def updateDeviceTagOk(deviceId: DeviceId, tagId: TagId, tagValue: String): Seq[(String, String)] =
     Patch(Resource.uri(api, deviceId.show, "device_tags"), UpdateTagValue(tagId, tagValue)) ~> route ~> check {
-      status shouldBe NoContent
-      ()
+      status shouldBe OK
+      responseAs[Seq[(String, String)]]
     }
 
   def deleteDeviceTagOk(tagId: TagId): Unit =
