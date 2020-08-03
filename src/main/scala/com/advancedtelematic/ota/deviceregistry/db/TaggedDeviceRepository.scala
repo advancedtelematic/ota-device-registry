@@ -90,8 +90,8 @@ object TaggedDeviceRepository {
                           (implicit ec: ExecutionContext): DBIO[Unit] = {
     val action = for {
       d <- DeviceRepository.exists(namespace, deviceId)
-      currentTags <- fetchForDevice(deviceId)
-      newTags = currentTags.toMap.updated(tagId, tagValue)
+      currentTags <- fetchForDevice(deviceId).map(_.toMap)
+      newTags = if(currentTags.contains(tagId)) currentTags.updated(tagId, tagValue) else currentTags
       _ <- refreshDeviceTags(namespace, d, newTags)
     } yield ()
     action.transactionally
