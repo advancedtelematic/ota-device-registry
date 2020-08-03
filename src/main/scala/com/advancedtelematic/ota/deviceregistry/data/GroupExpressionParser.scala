@@ -22,9 +22,9 @@ object GroupExpressionAST {
 
   val showExpression: Expression => String = {
     case DeviceIdContains(word) => s"deviceid contains $word"
-    case DeviceIdCharAt(char, position) => s"deviceid position($position) is $char"
+    case DeviceIdCharAt(char, position) => s"deviceid position(${position + 1}) is $char"
     case TagContains(tagId, word) => s"tag(${tagId.value}) contains $word"
-    case TagCharAt(tagId, char, position) => s"tag(${tagId.value}) position($position) is $char"
+    case TagCharAt(tagId, char, position) => s"tag(${tagId.value}) position(${position + 1}) is $char"
     case Or(cond) => cond.map(showExpression).toList.mkString(" or ")
     case And(cond) => cond.map(showExpression).toList.mkString(" and ")
     case Not(exp) => s"not ${showExpression(exp)}"
