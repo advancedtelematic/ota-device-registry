@@ -9,8 +9,8 @@
 package com.advancedtelematic.ota.deviceregistry.daemon
 
 import akka.Done
+import com.advancedtelematic.libats.messaging_datatype.Messages.DeleteDeviceRequest
 import com.advancedtelematic.ota.deviceregistry.db.DeviceRepository
-import com.advancedtelematic.ota.deviceregistry.messages.DeleteDeviceRequest
 import com.advancedtelematic.ota.deviceregistry.common.Errors
 import org.slf4j.LoggerFactory
 import slick.jdbc.MySQLProfile.api._

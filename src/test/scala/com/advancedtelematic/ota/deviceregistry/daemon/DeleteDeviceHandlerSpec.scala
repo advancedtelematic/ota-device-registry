@@ -1,10 +1,10 @@
 package com.advancedtelematic.ota.deviceregistry.daemon
 
 import akka.Done
-import com.advancedtelematic.ota.deviceregistry.messages.DeleteDeviceRequest
 import com.advancedtelematic.ota.deviceregistry.data.GeneratorOps
 import com.advancedtelematic.libats.data.DataType.Namespace
 import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
+import com.advancedtelematic.libats.messaging_datatype.Messages.DeleteDeviceRequest
 import com.advancedtelematic.libats.test.DatabaseSpec
 import org.scalacheck.Gen
 import org.scalatest._
