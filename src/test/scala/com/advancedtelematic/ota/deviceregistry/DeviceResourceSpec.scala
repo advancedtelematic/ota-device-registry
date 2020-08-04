@@ -1135,7 +1135,9 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
       responseAs[PaginationResult[DeviceId]].values shouldBe empty
     }
 
-    updateDeviceTagOk(duid2, tagId, "NotItaly")
+    val updatedTags = updateDeviceTagOk(duid2, tagId, "NotItaly")
+    updatedTags should contain only "country" -> "NotItaly"
+
     listDevicesInGroup(groupId) ~> route ~> check {
       status shouldBe OK
       responseAs[PaginationResult[DeviceId]].values should contain only duid2
@@ -1159,7 +1161,9 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
       responseAs[PaginationResult[DeviceId]].values should contain only duid
     }
 
-    updateDeviceTagOk(duid, TagId("nonsense").right.get, "NotItaly")
+    val updatedTags = updateDeviceTagOk(duid, TagId("nonsense").right.get, "NotItaly")
+    updatedTags should contain only "land" -> "Italy"
+
     listDevicesInGroup(groupId) ~> route ~> check {
       status shouldBe OK
       responseAs[PaginationResult[DeviceId]].values should contain only duid
