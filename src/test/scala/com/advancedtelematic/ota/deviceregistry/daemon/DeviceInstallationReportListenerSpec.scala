@@ -32,13 +32,13 @@ class DeviceUpdateEventListenerSpec
   property("should parse and save DeviceUpdateReport messages and is idempotent") {
     val deviceUuid = createDeviceOk(genDeviceT.generate)
     val correlationId = genCorrelationId.generate
-    val message = genDeviceInstallationReport(correlationId, ResultCode("0"), deviceUuid).generate
+    val message = genDeviceUpdateCompleted(correlationId, ResultCode("0"), deviceUuid).generate
 
     listener.apply(message).futureValue shouldBe (())
 
     val expectedDeviceReports =
       Seq(DeviceInstallationResult(correlationId, message.result.code, deviceUuid, message.result.success, message.eventTime, message.asJson))
-    val deviceReports = db.run(InstallationReportRepository.fetchDeviceInstallationReport(correlationId))
+    val deviceReports = db.run(InstallationReportRepository.fetchDeviceInstallationResult(correlationId))
     deviceReports.futureValue shouldBe expectedDeviceReports
 
     val expectedEcuReports = message.ecuReports.map{
@@ -50,7 +50,7 @@ class DeviceUpdateEventListenerSpec
     // Saving the reports is idempotent
     listener.apply(message).futureValue shouldBe (())
 
-    val deviceReportsAgain = db.run(InstallationReportRepository.fetchDeviceInstallationReport(correlationId))
+    val deviceReportsAgain = db.run(InstallationReportRepository.fetchDeviceInstallationResult(correlationId))
     deviceReportsAgain.futureValue shouldBe expectedDeviceReports
     val ecuReportsAgain = db.run(InstallationReportRepository.fetchEcuInstallationReport(correlationId))
     ecuReportsAgain.futureValue shouldBe expectedEcuReports

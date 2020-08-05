@@ -61,7 +61,7 @@ class DeviceUpdateEventListener(messageBus: MessageBusPublisher)
   }
 
   private def wasCompleted(deviceId: DeviceId, correlationId: CorrelationId): Future[Boolean] = {
-    val existingReport = db.run(InstallationReportRepository.fetchDeviceInstallationReportFor(deviceId, correlationId))
+    val existingReport = db.run(InstallationReportRepository.fetchDeviceInstallationResultFor(deviceId, correlationId))
     existingReport.map { _.nonEmpty }
   }
 

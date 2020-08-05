@@ -27,9 +27,9 @@ class InstallationReportSpec extends ResourcePropSpec with ScalaFutures with Eve
   property("should save device reports and retrieve failed stats per devices") {
     val correlationId = genCorrelationId.generate
     val resultCodes = Seq("0", "1", "2", "2", "3", "3", "3").map(ResultCode)
-    val deviceReports = resultCodes.map(genDeviceInstallationReport(correlationId, _)).map(_.generate)
+    val updatesCompleted = resultCodes.map(genDeviceUpdateCompleted(correlationId, _)).map(_.generate)
 
-    deviceReports.foreach(listener.apply)
+    updatesCompleted.foreach(listener.apply)
 
     eventually {
       getStats(correlationId, InstallationStatsLevel.Device) ~> route ~> check {
@@ -48,9 +48,9 @@ class InstallationReportSpec extends ResourcePropSpec with ScalaFutures with Eve
   property("should save device reports and retrieve failed stats per ECUs") {
     val correlationId = genCorrelationId.generate
     val resultCodes = Seq("0", "1", "2", "2", "3", "3", "3").map(ResultCode)
-    val deviceReports = resultCodes.map(genDeviceInstallationReport(correlationId, _)).map(_.generate)
+    val updatesCompleted = resultCodes.map(genDeviceUpdateCompleted(correlationId, _)).map(_.generate)
 
-    deviceReports.foreach(listener.apply)
+    updatesCompleted.foreach(listener.apply)
 
     eventually {
       getStats(correlationId, InstallationStatsLevel.Ecu) ~> route ~> check {
@@ -69,14 +69,14 @@ class InstallationReportSpec extends ResourcePropSpec with ScalaFutures with Eve
   property("should save the whole message as a blob and get back the history for a device") {
     val deviceId       = createDeviceOk(genDeviceT.generate)
     val correlationIds = Gen.listOfN(50, genCorrelationId).generate
-    val deviceReports  = correlationIds.map(cid => genDeviceInstallationReport(cid, ResultCode("0"), deviceId)).map(_.generate)
+    val updatesCompleted  = correlationIds.map(cid => genDeviceUpdateCompleted(cid, ResultCode("0"), deviceId)).map(_.generate)
 
-    deviceReports.foreach(listener.apply)
+    updatesCompleted.foreach(listener.apply)
 
     eventually {
       getReportBlob(deviceId) ~> route ~> check {
         status shouldBe OK
-        responseAs[PaginationResult[DeviceUpdateCompleted]].values should contain allElementsOf deviceReports
+        responseAs[PaginationResult[DeviceUpdateCompleted]].values should contain allElementsOf updatesCompleted
       }
     }
   }
@@ -84,11 +84,10 @@ class InstallationReportSpec extends ResourcePropSpec with ScalaFutures with Eve
   property("does not overwrite existing reports") {
     val deviceId = createDeviceOk(genDeviceT.generate)
     val correlationId = genCorrelationId.generate
-    val deviceReport01 = genDeviceInstallationReport(correlationId, ResultCode("0"), deviceId).generate
+    val updateCompleted1 = genDeviceUpdateCompleted(correlationId, ResultCode("0"), deviceId).generate
+    val updateCompleted2 =  genDeviceUpdateCompleted(correlationId, ResultCode("1"), deviceId).generate
 
-    val deviceReport02 =  genDeviceInstallationReport(correlationId, ResultCode("1"), deviceId).generate
-
-    listener.apply(deviceReport01).futureValue
+    listener.apply(updateCompleted1).futureValue
 
     import org.scalatest.LoneElement._
 
@@ -97,7 +96,7 @@ class InstallationReportSpec extends ResourcePropSpec with ScalaFutures with Eve
       responseAs[PaginationResult[DeviceUpdateCompleted]].values.loneElement.result.code shouldBe ResultCode("0")
     }
 
-    listener.apply(deviceReport02).futureValue
+    listener.apply(updateCompleted2).futureValue
 
     getReportBlob(deviceId) ~> route ~> check {
       status shouldBe OK

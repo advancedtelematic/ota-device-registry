@@ -105,10 +105,10 @@ object InstallationReportRepository {
   def installationStatsPerEcu(correlationId: CorrelationId)(implicit ec: ExecutionContext): DBIO[Seq[InstallationStat]] =
     statsQuery(ecuInstallationResults, correlationId)
 
-  def fetchDeviceInstallationReport(correlationId: CorrelationId)(implicit ec: ExecutionContext): DBIO[Seq[DeviceInstallationResult]] =
+  def fetchDeviceInstallationResult(correlationId: CorrelationId)(implicit ec: ExecutionContext): DBIO[Seq[DeviceInstallationResult]] =
     deviceInstallationResults.filter(_.correlationId === correlationId).result
 
-  def fetchDeviceInstallationReportFor(deviceId: DeviceId, correlationId: CorrelationId)(implicit ec: ExecutionContext): DBIO[Seq[DeviceInstallationResult]] =
+  def fetchDeviceInstallationResultFor(deviceId: DeviceId, correlationId: CorrelationId)(implicit ec: ExecutionContext): DBIO[Seq[DeviceInstallationResult]] =
     deviceInstallationResults.filter(_.deviceUuid === deviceId).filter(_.correlationId === correlationId).result
 
   def fetchEcuInstallationReport(correlationId: CorrelationId)(implicit ec: ExecutionContext): DBIO[Seq[EcuInstallationResult]] =
