@@ -9,7 +9,6 @@ import com.advancedtelematic.libats.messaging_datatype.MessageCodecs.deviceUpdat
 import com.advancedtelematic.libats.messaging_datatype.Messages.DeviceUpdateCompleted
 import com.advancedtelematic.libats.slick.db.SlickAnyVal._
 import com.advancedtelematic.libats.slick.db.SlickCirceMapper._
-import com.advancedtelematic.ota.deviceregistry.common.Errors
 import com.advancedtelematic.libats.slick.db.SlickExtensions._
 import com.advancedtelematic.libats.slick.db.SlickUUIDKey._
 import com.advancedtelematic.libats.slick.db.SlickUrnMapper.correlationIdMapper
@@ -50,15 +49,6 @@ object InstallationReportRepository {
   }
 
   val deviceInstallationResults = TableQuery[DeviceInstallationResultTable]
-
-  def updateInstallationResultReport(correlationId: CorrelationId, deviceUuid: DeviceId, report: Json)
-    (implicit ec: ExecutionContext): DBIO[Unit] =
-    deviceInstallationResults
-      .filter(_.correlationId === correlationId)
-      .filter(_.deviceUuid === deviceUuid)
-      .map(_.installationReport)
-      .update(report)
-      .handleSingleUpdateError(Errors.MissingDevice)
 
   class EcuInstallationResultTable(tag: Tag)
     extends Table[EcuInstallationResult](tag, "EcuInstallationResult") with InstallationResultTable {
