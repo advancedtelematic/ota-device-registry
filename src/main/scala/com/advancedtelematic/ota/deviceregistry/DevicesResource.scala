@@ -15,7 +15,7 @@ import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.headers._
 import akka.http.scaladsl.server._
 import akka.http.scaladsl.unmarshalling.{FromStringUnmarshaller, Unmarshaller}
-import akka.stream.ActorMaterializer
+import akka.stream.Materializer
 import akka.stream.alpakka.csv.scaladsl.{CsvParsing, CsvToMap}
 import akka.stream.scaladsl.{Sink, Source}
 import akka.util.ByteString
@@ -29,13 +29,13 @@ import com.advancedtelematic.libats.messaging.MessageBusPublisher
 import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId._
 import com.advancedtelematic.libats.messaging_datatype.DataType.{DeviceId, Event, EventType}
 import com.advancedtelematic.libats.messaging_datatype.MessageCodecs._
-import com.advancedtelematic.libats.messaging_datatype.Messages.DeviceEventMessage
+import com.advancedtelematic.libats.messaging_datatype.Messages.{DeleteDeviceRequest, DeviceEventMessage}
 import com.advancedtelematic.libats.slick.db.SlickExtensions._
 import com.advancedtelematic.ota.deviceregistry.common.Errors
 import com.advancedtelematic.ota.deviceregistry.common.Errors.MissingDevice
 import com.advancedtelematic.ota.deviceregistry.data.Codecs._
 import com.advancedtelematic.ota.deviceregistry.data.DataType.InstallationStatsLevel.InstallationStatsLevel
-import com.advancedtelematic.ota.deviceregistry.data.DataType.{DeviceUuids, DeviceT, InstallationStatsLevel, RenameTagId, SearchParams, UpdateDevice, UpdateTagValue}
+import com.advancedtelematic.ota.deviceregistry.data.DataType.{DeviceT, DeviceUuids, InstallationStatsLevel, RenameTagId, SearchParams, UpdateDevice, UpdateTagValue}
 import com.advancedtelematic.ota.deviceregistry.data.Device.{ActiveDeviceCount, DeviceOemId}
 import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
 import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
@@ -43,7 +43,7 @@ import com.advancedtelematic.ota.deviceregistry.data.SortBy.SortBy
 import com.advancedtelematic.ota.deviceregistry.data.TagId.validatedTagId
 import com.advancedtelematic.ota.deviceregistry.data.{GroupExpression, PackageId, SortBy, TagId}
 import com.advancedtelematic.ota.deviceregistry.db._
-import com.advancedtelematic.ota.deviceregistry.messages.{DeleteDeviceRequest, DeviceCreated}
+import com.advancedtelematic.ota.deviceregistry.messages.DeviceCreated
 import io.circe.Json
 import slick.jdbc.MySQLProfile.api._
 
@@ -99,7 +99,7 @@ class DevicesResource(
     namespaceExtractor: Directive1[AuthedNamespaceScope],
     messageBus: MessageBusPublisher,
     deviceNamespaceAuthorizer: Directive1[DeviceId]
-)(implicit system: ActorSystem, db: Database, mat: ActorMaterializer, ec: ExecutionContext) {
+)(implicit system: ActorSystem, db: Database, mat: Materializer, ec: ExecutionContext) {
 
   import DevicesResource._
   import Directives._

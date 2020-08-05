@@ -18,7 +18,7 @@ import com.advancedtelematic.libats.data.DataType.Namespace
 import com.advancedtelematic.libats.data.{ErrorCodes, ErrorRepresentation, PaginationResult}
 import com.advancedtelematic.libats.messaging.MessageBusPublisher
 import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
-import com.advancedtelematic.libats.messaging_datatype.Messages.DeviceSeen
+import com.advancedtelematic.libats.messaging_datatype.Messages.{DeleteDeviceRequest, DeviceSeen}
 import com.advancedtelematic.ota.deviceregistry.common.{Errors, PackageStat}
 import com.advancedtelematic.ota.deviceregistry.daemon.{DeleteDeviceHandler, DeviceSeenListener}
 import com.advancedtelematic.ota.deviceregistry.data.DataType.{DeviceT, RenameTagId, TagInfo}
@@ -27,7 +27,6 @@ import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
 import com.advancedtelematic.ota.deviceregistry.data.{Device, DeviceStatus, PackageId, _}
 import com.advancedtelematic.ota.deviceregistry.db.InstalledPackages.{DevicesCount, InstalledPackage}
 import com.advancedtelematic.ota.deviceregistry.db.{InstalledPackages, TaggedDeviceRepository}
-import com.advancedtelematic.ota.deviceregistry.messages.DeleteDeviceRequest
 import io.circe.generic.auto._
 import org.scalacheck.Arbitrary._
 import org.scalacheck.{Gen, Shrink}
@@ -628,7 +627,7 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
         devices.values.find(_ == uuid) shouldBe Some(uuid)
       }
 
-      listener.apply(new DeleteDeviceRequest(defaultNs, uuid))
+      listener.apply(DeleteDeviceRequest(defaultNs, uuid))
 
       import org.scalatest.time.SpanSugar._
       eventually(timeout(5.seconds), interval(100.millis)) {

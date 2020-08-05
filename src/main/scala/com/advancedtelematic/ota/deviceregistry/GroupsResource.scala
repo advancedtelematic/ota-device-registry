@@ -13,7 +13,7 @@ import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.server._
 import akka.http.scaladsl.unmarshalling.{FromStringUnmarshaller, Unmarshaller}
 import akka.http.scaladsl.util.FastFuture
-import akka.stream.ActorMaterializer
+import akka.stream.Materializer
 import akka.stream.scaladsl.Framing.FramingException
 import akka.stream.scaladsl.{Framing, Sink, Source}
 import akka.util.ByteString
@@ -35,7 +35,7 @@ import slick.jdbc.MySQLProfile.api._
 import scala.concurrent.{ExecutionContext, Future}
 
 class GroupsResource(namespaceExtractor: Directive1[AuthedNamespaceScope], deviceNamespaceAuthorizer: Directive1[DeviceId])
-                    (implicit ec: ExecutionContext, db: Database, materializer: ActorMaterializer) extends Directives {
+                    (implicit ec: ExecutionContext, db: Database, materializer: Materializer) extends Directives {
 
   private val DEVICE_OEM_ID_MAX_BYTES = 128
   private val FILTER_EXISTING_DEVICES_BATCH_SIZE = 50
@@ -78,7 +78,7 @@ class GroupsResource(namespaceExtractor: Directive1[AuthedNamespaceScope], devic
   def createGroupWithDevices(groupName: GroupName,
                              namespace: Namespace,
                              byteSource: Source[ByteString, Any])
-                            (implicit materializer: ActorMaterializer): Route = {
+                            (implicit materializer: Materializer): Route = {
 
     val deviceIds = byteSource
       .via(Framing.delimiter(ByteString("\n"), DEVICE_OEM_ID_MAX_BYTES, allowTruncation = true))

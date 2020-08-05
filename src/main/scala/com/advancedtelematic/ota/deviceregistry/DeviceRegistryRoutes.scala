@@ -1,7 +1,7 @@
 package com.advancedtelematic.ota.deviceregistry
 import akka.actor.ActorSystem
 import akka.http.scaladsl.server.{Directive1, Directives, Route}
-import akka.stream.ActorMaterializer
+import akka.stream.Materializer
 import com.advancedtelematic.libats.auth.AuthedNamespaceScope
 import com.advancedtelematic.libats.http.DefaultRejectionHandler.rejectionHandler
 import com.advancedtelematic.libats.http.ErrorHandler
@@ -18,7 +18,7 @@ class DeviceRegistryRoutes(
     namespaceExtractor: Directive1[AuthedNamespaceScope],
     deviceNamespaceAuthorizer: Directive1[DeviceId],
     messageBus: MessageBusPublisher
-)(implicit db: Database, system: ActorSystem, mat: ActorMaterializer, exec: ExecutionContext)
+)(implicit db: Database, system: ActorSystem, mat: Materializer, exec: ExecutionContext)
     extends Directives {
 
   val route: Route =
