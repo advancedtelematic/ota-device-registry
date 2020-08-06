@@ -40,7 +40,7 @@ trait InstallationReportGenerators extends DeviceGenerators {
       target <- Gen.listOfN(1, Gen.alphaStr)
     } yield EcuInstallationReport(result, target, None)
 
-  def genDeviceInstallationReport(correlationId: CorrelationId, resultCode: ResultCode, deviceId: DeviceId = genDeviceUUID.sample.get, resultDescription: Option[ResultDescription] = None): Gen[DeviceUpdateCompleted] =
+  def genDeviceUpdateCompleted(correlationId: CorrelationId, resultCode: ResultCode, deviceId: DeviceId = genDeviceUUID.sample.get, resultDescription: Option[ResultDescription] = None): Gen[DeviceUpdateCompleted] =
     for {
       result     <- genInstallationResult(resultCode, resultDescription)
       ecuReports <- genEcuReports(correlationId, resultCode)
