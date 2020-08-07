@@ -20,7 +20,7 @@ import com.advancedtelematic.libats.messaging.MessageBusPublisher
 import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
 import com.advancedtelematic.libats.messaging_datatype.Messages.{DeleteDeviceRequest, DeviceSeen}
 import com.advancedtelematic.ota.deviceregistry.common.{Errors, PackageStat}
-import com.advancedtelematic.ota.deviceregistry.daemon.{DeleteDeviceHandler, DeviceSeenListener}
+import com.advancedtelematic.ota.deviceregistry.daemon.{DeleteDeviceListener, DeviceSeenListener}
 import com.advancedtelematic.ota.deviceregistry.data.DataType.{DeviceT, RenameTagId, TagInfo}
 import com.advancedtelematic.ota.deviceregistry.data.DeviceName.validatedDeviceType
 import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
@@ -613,7 +613,7 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
     }
   }
 
-  val listener = new DeleteDeviceHandler()
+  val listener = new DeleteDeviceListener()
 
   property("DELETE device removes it from its group") {
     forAll { (devicePre: DeviceT, groupName: GroupName) =>

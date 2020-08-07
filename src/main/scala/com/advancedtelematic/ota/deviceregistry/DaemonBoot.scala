@@ -11,7 +11,7 @@ import com.advancedtelematic.libats.slick.db.{BootMigrations, CheckMigrations, D
 import com.advancedtelematic.libats.slick.monitoring.DbHealthResource
 import com.advancedtelematic.metrics.prometheus.PrometheusMetricsSupport
 import com.advancedtelematic.metrics.{MetricsSupport, MonitoredBusListenerSupport}
-import com.advancedtelematic.ota.deviceregistry.daemon.{DeleteDeviceHandler, DeviceEventListener, DeviceSeenListener, DeviceUpdateEventListener}
+import com.advancedtelematic.ota.deviceregistry.daemon.{DeleteDeviceListener, DeviceEventListener, DeviceSeenListener, DeviceUpdateEventListener}
 
 object DaemonBoot extends BootApp
   with DatabaseConfig
@@ -31,7 +31,7 @@ object DaemonBoot extends BootApp
 
   startMonitoredListener[DeviceSeen](new DeviceSeenListener(messageBus))
   startMonitoredListener[DeviceEventMessage](new DeviceEventListener)
-  startMonitoredListener[DeleteDeviceRequest](new DeleteDeviceHandler)
+  startMonitoredListener[DeleteDeviceRequest](new DeleteDeviceListener)
   startMonitoredListener[DeviceUpdateEvent](new DeviceUpdateEventListener(messageBus))
 
   val routes: Route = versionHeaders(version) {

@@ -9,6 +9,7 @@
 package com.advancedtelematic.ota.deviceregistry.daemon
 
 import akka.Done
+import com.advancedtelematic.libats.messaging.MsgOperation.MsgOperation
 import com.advancedtelematic.libats.messaging_datatype.Messages.DeleteDeviceRequest
 import com.advancedtelematic.ota.deviceregistry.db.DeviceRepository
 import com.advancedtelematic.ota.deviceregistry.common.Errors
@@ -17,8 +18,7 @@ import slick.jdbc.MySQLProfile.api._
 
 import scala.concurrent.{ExecutionContext, Future}
 
-class DeleteDeviceHandler()(implicit val db: Database, ec: ExecutionContext)
-    extends (DeleteDeviceRequest => Future[Done]) {
+class DeleteDeviceListener()(implicit val db: Database, ec: ExecutionContext) extends MsgOperation[DeleteDeviceRequest] {
 
   private lazy val log = LoggerFactory.getLogger(this.getClass)
 
