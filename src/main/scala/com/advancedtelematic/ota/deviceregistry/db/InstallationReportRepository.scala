@@ -3,7 +3,7 @@ package com.advancedtelematic.ota.deviceregistry.db
 import java.time.Instant
 
 import com.advancedtelematic.libats.data.DataType.{CorrelationId, ResultCode, ResultDescription}
-import com.advancedtelematic.libats.data.{EcuIdentifier, PaginationResult}
+import com.advancedtelematic.libats.data.EcuIdentifier
 import com.advancedtelematic.libats.messaging_datatype.DataType.{DeviceId, EcuInstallationReport}
 import com.advancedtelematic.libats.messaging_datatype.MessageCodecs.deviceUpdateCompletedCodec
 import com.advancedtelematic.libats.messaging_datatype.Messages.DeviceUpdateCompleted
@@ -16,7 +16,6 @@ import com.advancedtelematic.libats.slick.db.SlickValidatedGeneric.validatedStri
 import com.advancedtelematic.ota.deviceregistry.data.DataType.{DeviceInstallationResult, EcuInstallationResult, InstallationStat}
 import com.advancedtelematic.libats.slick.db.SlickAnyVal._
 import com.advancedtelematic.ota.deviceregistry.data.Device.DeviceOemId
-import com.advancedtelematic.ota.deviceregistry.db.DbOps.PaginationResultOps
 import io.circe.Json
 import slick.jdbc.MySQLProfile.api._
 import slick.lifted.AbstractTable
@@ -114,13 +113,12 @@ object InstallationReportRepository {
   def fetchEcuInstallationReport(correlationId: CorrelationId)(implicit ec: ExecutionContext): DBIO[Seq[EcuInstallationResult]] =
     ecuInstallationResults.filter(_.correlationId === correlationId).result
 
-  def fetchInstallationHistory(deviceId: DeviceId, offset: Option[Long], limit: Option[Long])
-                              (implicit ec: ExecutionContext): DBIO[PaginationResult[Json]] =
+  private[db] def fetchInstallationHistory(deviceId: DeviceId)(implicit ec: ExecutionContext): DBIO[Seq[Json]] =
     deviceInstallationResults
       .filter(_.deviceUuid === deviceId)
       .sortBy(_.receivedAt.desc)
       .map(_.installationReport)
-      .paginateResult(offset.orDefaultOffset, limit.orDefaultLimit)
+      .result
 
   def fetchDeviceFailures(correlationId: CorrelationId, failureCode: Option[ResultCode])
                          (implicit ec: ExecutionContext): DBIO[Seq[(DeviceOemId, ResultCode, ResultDescription)]] =
@@ -137,6 +135,4 @@ object InstallationReportRepository {
           resultCode,
           report.as[DeviceUpdateCompleted].fold(_ => ResultDescription(""), _.result.description))
         })
-
-
 }
