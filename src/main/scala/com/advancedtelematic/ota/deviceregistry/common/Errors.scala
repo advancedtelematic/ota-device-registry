@@ -8,8 +8,9 @@
 
 package com.advancedtelematic.ota.deviceregistry.common
 
-import com.advancedtelematic.libats.data.ErrorCode
+import com.advancedtelematic.libats.data.{EcuIdentifier, ErrorCode}
 import com.advancedtelematic.libats.http.Errors.{EntityAlreadyExists, MissingEntity, RawError}
+import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
 import com.advancedtelematic.ota.deviceregistry.data.DataType.PackageListItem
 import com.advancedtelematic.ota.deviceregistry.data.{Group, GroupExpression}
 import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
@@ -34,6 +35,7 @@ object Errors {
     val InvalidGroupExpression             = ErrorCode("invalid_group_expression")
     val MalformedInput                     = ErrorCode("malformed_input")
     val CannotRemoveDeviceTag              = ErrorCode("cannot_remove_device_tag")
+    val EcuRepeatedReplacement = ErrorCode("ecu_repeated_replacement_not_allowed")
   }
 
   def InvalidGroupExpression(err: String) = RawError(Codes.InvalidGroupExpression, StatusCodes.BadRequest, s"Invalid group expression: '$err'")
@@ -42,6 +44,9 @@ object Errors {
     RawError(Codes.InvalidGroupExpressionForGroupType,
              StatusCodes.BadRequest,
              s"Invalid group expression $expression for group type $groupType")
+
+  def EcuRepeatedReplacement(deviceId: DeviceId, ecuId: EcuIdentifier) =
+    RawError(Codes.EcuRepeatedReplacement, StatusCodes.Conflict, s"The ecu ${ecuId.value} in device ${deviceId.uuid.toString} has already been replaced and it can't be reused.")
 
   val MissingDevice = RawError(Codes.MissingDevice, StatusCodes.NotFound, "device doesn't exist")
   val ConflictingDevice =

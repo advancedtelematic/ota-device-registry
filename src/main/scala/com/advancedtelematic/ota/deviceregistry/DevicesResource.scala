@@ -42,6 +42,7 @@ import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
 import com.advancedtelematic.ota.deviceregistry.data.SortBy.SortBy
 import com.advancedtelematic.ota.deviceregistry.data.TagId.validatedTagId
 import com.advancedtelematic.ota.deviceregistry.data.{GroupExpression, PackageId, SortBy, TagId}
+import com.advancedtelematic.ota.deviceregistry.db.DbOps.PaginationResultOps
 import com.advancedtelematic.ota.deviceregistry.db._
 import com.advancedtelematic.ota.deviceregistry.messages.DeviceCreated
 import io.circe.Json
@@ -210,7 +211,7 @@ class DevicesResource(
     }
 
   def fetchInstallationHistory(deviceId: DeviceId, offset: Option[Long], limit: Option[Long]): Route =
-    complete(db.run(InstallationReportRepository.fetchInstallationHistory(deviceId, offset, limit)))
+    complete(db.run(EcuReplacementRepository.deviceHistory(deviceId, offset.orDefaultOffset, limit.orDefaultLimit)))
 
   def fetchInstallationStats(correlationId: CorrelationId, reportLevel: Option[InstallationStatsLevel]): Route = {
     val action = reportLevel match {

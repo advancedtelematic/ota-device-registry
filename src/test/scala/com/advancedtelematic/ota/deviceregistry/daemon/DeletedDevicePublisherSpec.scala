@@ -18,7 +18,7 @@ class DeletedDevicePublisherSpec extends FunSuite with ResourceSpec with DeviceR
   implicit override val patienceConfig =
     PatienceConfig(timeout = Span(5, Seconds), interval = Span(15, Millis))
 
-  val deleteDeviceHandler = new DeleteDeviceHandler()
+  val deleteDeviceHandler = new DeleteDeviceListener()
   val msgPub = new MockMessageBus
   val subject = new DeletedDevicePublisher(msgPub)
 

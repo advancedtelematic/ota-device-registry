@@ -1,18 +1,24 @@
 package com.advancedtelematic.ota.deviceregistry
 
+import java.time.Instant
+import java.time.temporal.ChronoUnit
+
 import akka.http.scaladsl.model.StatusCodes._
 import com.advancedtelematic.libats.data.DataType.ResultCode
 import com.advancedtelematic.libats.data.PaginationResult
-import com.advancedtelematic.libats.messaging.MessageBusPublisher
-import com.advancedtelematic.libats.messaging_datatype.MessageCodecs.deviceUpdateCompletedCodec
-import com.advancedtelematic.libats.messaging_datatype.Messages.DeviceUpdateCompleted
-import com.advancedtelematic.ota.deviceregistry.daemon.DeviceUpdateEventListener
+import com.advancedtelematic.libats.messaging.test.MockMessageBus
+import com.advancedtelematic.libats.messaging_datatype.MessageCodecs.{deviceUpdateCompletedCodec, ecuReplacedCodec}
+import com.advancedtelematic.libats.messaging_datatype.Messages.{DeviceUpdateCompleted, EcuReplaced}
+import com.advancedtelematic.ota.deviceregistry.daemon.{DeviceUpdateEventListener, EcuReplacedListener}
 import com.advancedtelematic.ota.deviceregistry.data.Codecs.installationStatDecoder
 import com.advancedtelematic.ota.deviceregistry.data.DataType.{InstallationStat, InstallationStatsLevel}
 import com.advancedtelematic.ota.deviceregistry.data.GeneratorOps._
 import com.advancedtelematic.ota.deviceregistry.data.InstallationReportGenerators
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
+import io.circe.Json
 import org.scalacheck.Gen
+import org.scalatest.EitherValues._
+import org.scalatest.LoneElement._
 import org.scalatest.concurrent.{Eventually, ScalaFutures}
 import org.scalatest.time.{Millis, Seconds, Span}
 
@@ -20,9 +26,10 @@ class InstallationReportSpec extends ResourcePropSpec with ScalaFutures with Eve
 
   implicit override val patienceConfig: PatienceConfig = PatienceConfig(Span(5, Seconds), Span(50, Millis))
 
-  implicit val msgPub = MessageBusPublisher.ignore
+  implicit val msgPub = new MockMessageBus
 
   val listener = new DeviceUpdateEventListener(msgPub)
+  val ecuReplacementListener = new EcuReplacedListener
 
   property("should save device reports and retrieve failed stats per devices") {
     val correlationId = genCorrelationId.generate
@@ -89,8 +96,6 @@ class InstallationReportSpec extends ResourcePropSpec with ScalaFutures with Eve
 
     listener.apply(updateCompleted1).futureValue
 
-    import org.scalatest.LoneElement._
-
     getReportBlob(deviceId) ~> route ~> check {
       status shouldBe OK
       responseAs[PaginationResult[DeviceUpdateCompleted]].values.loneElement.result.code shouldBe ResultCode("0")
@@ -101,6 +106,40 @@ class InstallationReportSpec extends ResourcePropSpec with ScalaFutures with Eve
     getReportBlob(deviceId) ~> route ~> check {
       status shouldBe OK
       responseAs[PaginationResult[DeviceUpdateCompleted]].values.loneElement.result.code shouldBe ResultCode("0")
+    }
+  }
+
+  property("should fetch installation events and ECU replacement events") {
+    val deviceId = createDeviceOk(genDeviceT.generate)
+    val now = Instant.now.truncatedTo(ChronoUnit.SECONDS)
+
+    val correlationId1 = genCorrelationId.generate
+    val correlationId2 = genCorrelationId.generate
+    val updateCompleted1 = genDeviceUpdateCompleted(correlationId1, ResultCode("0"), deviceId, receivedAt = now.plusSeconds(10)).generate
+    val updateCompleted2 =  genDeviceUpdateCompleted(correlationId2, ResultCode("1"), deviceId, receivedAt = now.plusSeconds(30)).generate
+    val ecuReplaced = genEcuReplaced(deviceId, now.plusSeconds(20)).generate
+
+    listener(updateCompleted1).futureValue
+    getReportBlob(deviceId) ~> route ~> check {
+      status shouldBe OK
+      responseAs[PaginationResult[DeviceUpdateCompleted]].values.loneElement.result.code shouldBe ResultCode("0")
+    }
+
+    ecuReplacementListener(ecuReplaced).futureValue
+    getReportBlob(deviceId) ~> route ~> check {
+      status shouldBe OK
+      val result = responseAs[PaginationResult[Json]].values
+      result.head.as[DeviceUpdateCompleted].right.value.result.code shouldBe ResultCode("0")
+      result.tail.head.as[EcuReplaced].right.value shouldBe ecuReplaced
+    }
+
+    listener.apply(updateCompleted2).futureValue
+    getReportBlob(deviceId) ~> route ~> check {
+      status shouldBe OK
+      val result = responseAs[PaginationResult[Json]].values
+      result.head.as[DeviceUpdateCompleted].right.value.result.code shouldBe ResultCode("0")
+      result.tail.head.as[EcuReplaced].right.value shouldBe ecuReplaced
+      result.tail.tail.head.as[DeviceUpdateCompleted].right.value.result.code shouldBe ResultCode("1")
     }
   }
 }

@@ -10,7 +10,7 @@ import org.scalacheck.Gen
 import org.scalatest._
 import org.scalatest.concurrent.ScalaFutures
 
-final class DeleteDeviceHandlerSpec
+final class DeleteDeviceListenerSpec
     extends FunSuite
     with Matchers
     with ScalaFutures
@@ -19,7 +19,7 @@ final class DeleteDeviceHandlerSpec
   import GeneratorOps._
 
   import scala.concurrent.ExecutionContext.Implicits.global
-  val handler = new DeleteDeviceHandler()
+  val handler = new DeleteDeviceListener()
 
   test("OTA-2445: do not fail when deleting non-existent device") {
     val msg = DeleteDeviceRequest(Gen.identifier.map(Namespace(_)).generate, Gen.uuid.map(DeviceId(_)).generate)
