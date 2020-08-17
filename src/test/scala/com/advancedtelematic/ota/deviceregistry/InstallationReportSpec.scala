@@ -174,4 +174,12 @@ class InstallationReportSpec extends ResourcePropSpec with ScalaFutures with Eve
       status shouldBe NotFound
     }
   }
+
+  property("multiple ECU replacement error is handled gracefully") {
+    val deviceId = createDeviceOk(genDeviceT.generate)
+    val now = Instant.now.truncatedTo(ChronoUnit.SECONDS)
+    val ecuReplaced = genEcuReplaced(deviceId, now).generate
+    ecuReplacementListener(ecuReplaced).futureValue
+    ecuReplacementListener(ecuReplaced).futureValue
+  }
 }
