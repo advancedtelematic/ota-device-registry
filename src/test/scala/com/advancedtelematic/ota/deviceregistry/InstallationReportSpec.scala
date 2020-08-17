@@ -8,8 +8,8 @@ import com.advancedtelematic.libats.data.DataType.ResultCode
 import com.advancedtelematic.libats.data.PaginationResult
 import com.advancedtelematic.libats.messaging.test.MockMessageBus
 import com.advancedtelematic.libats.messaging_datatype.MessageCodecs.{deviceUpdateCompletedCodec, ecuReplacedCodec}
-import com.advancedtelematic.libats.messaging_datatype.Messages.{DeviceUpdateCompleted, EcuReplaced}
-import com.advancedtelematic.ota.deviceregistry.daemon.{DeviceUpdateEventListener, EcuReplacedListener}
+import com.advancedtelematic.libats.messaging_datatype.Messages.{DeleteDeviceRequest, DeviceUpdateCompleted, EcuReplaced}
+import com.advancedtelematic.ota.deviceregistry.daemon.{DeleteDeviceListener, DeviceUpdateEventListener, EcuReplacedListener}
 import com.advancedtelematic.ota.deviceregistry.data.Codecs.installationStatDecoder
 import com.advancedtelematic.ota.deviceregistry.data.DataType.{InstallationStat, InstallationStatsLevel}
 import com.advancedtelematic.ota.deviceregistry.data.GeneratorOps._
@@ -28,15 +28,16 @@ class InstallationReportSpec extends ResourcePropSpec with ScalaFutures with Eve
 
   implicit val msgPub = new MockMessageBus
 
-  val listener = new DeviceUpdateEventListener(msgPub)
+  val updateListener = new DeviceUpdateEventListener(msgPub)
   val ecuReplacementListener = new EcuReplacedListener
+  val deleteDeviceListener = new DeleteDeviceListener()
 
   property("should save device reports and retrieve failed stats per devices") {
     val correlationId = genCorrelationId.generate
     val resultCodes = Seq("0", "1", "2", "2", "3", "3", "3").map(ResultCode)
     val updatesCompleted = resultCodes.map(genDeviceUpdateCompleted(correlationId, _)).map(_.generate)
 
-    updatesCompleted.foreach(listener.apply)
+    updatesCompleted.foreach(updateListener.apply)
 
     eventually {
       getStats(correlationId, InstallationStatsLevel.Device) ~> route ~> check {
@@ -57,7 +58,7 @@ class InstallationReportSpec extends ResourcePropSpec with ScalaFutures with Eve
     val resultCodes = Seq("0", "1", "2", "2", "3", "3", "3").map(ResultCode)
     val updatesCompleted = resultCodes.map(genDeviceUpdateCompleted(correlationId, _)).map(_.generate)
 
-    updatesCompleted.foreach(listener.apply)
+    updatesCompleted.foreach(updateListener.apply)
 
     eventually {
       getStats(correlationId, InstallationStatsLevel.Ecu) ~> route ~> check {
@@ -78,7 +79,7 @@ class InstallationReportSpec extends ResourcePropSpec with ScalaFutures with Eve
     val correlationIds = Gen.listOfN(50, genCorrelationId).generate
     val updatesCompleted  = correlationIds.map(cid => genDeviceUpdateCompleted(cid, ResultCode("0"), deviceId)).map(_.generate)
 
-    updatesCompleted.foreach(listener.apply)
+    updatesCompleted.foreach(updateListener.apply)
 
     eventually {
       getReportBlob(deviceId) ~> route ~> check {
@@ -94,14 +95,14 @@ class InstallationReportSpec extends ResourcePropSpec with ScalaFutures with Eve
     val updateCompleted1 = genDeviceUpdateCompleted(correlationId, ResultCode("0"), deviceId).generate
     val updateCompleted2 =  genDeviceUpdateCompleted(correlationId, ResultCode("1"), deviceId).generate
 
-    listener.apply(updateCompleted1).futureValue
+    updateListener.apply(updateCompleted1).futureValue
 
     getReportBlob(deviceId) ~> route ~> check {
       status shouldBe OK
       responseAs[PaginationResult[DeviceUpdateCompleted]].values.loneElement.result.code shouldBe ResultCode("0")
     }
 
-    listener.apply(updateCompleted2).futureValue
+    updateListener.apply(updateCompleted2).futureValue
 
     getReportBlob(deviceId) ~> route ~> check {
       status shouldBe OK
@@ -119,7 +120,7 @@ class InstallationReportSpec extends ResourcePropSpec with ScalaFutures with Eve
     val updateCompleted2 =  genDeviceUpdateCompleted(correlationId2, ResultCode("1"), deviceId, receivedAt = now.plusSeconds(30)).generate
     val ecuReplaced = genEcuReplaced(deviceId, now.plusSeconds(20)).generate
 
-    listener(updateCompleted1).futureValue
+    updateListener(updateCompleted1).futureValue
     getReportBlob(deviceId) ~> route ~> check {
       status shouldBe OK
       responseAs[PaginationResult[DeviceUpdateCompleted]].values.loneElement.result.code shouldBe ResultCode("0")
@@ -133,7 +134,7 @@ class InstallationReportSpec extends ResourcePropSpec with ScalaFutures with Eve
       result.tail.head.as[EcuReplaced].right.value shouldBe ecuReplaced
     }
 
-    listener.apply(updateCompleted2).futureValue
+    updateListener.apply(updateCompleted2).futureValue
     getReportBlob(deviceId) ~> route ~> check {
       status shouldBe OK
       val result = responseAs[PaginationResult[Json]].values
@@ -141,5 +142,44 @@ class InstallationReportSpec extends ResourcePropSpec with ScalaFutures with Eve
       result.tail.head.as[EcuReplaced].right.value shouldBe ecuReplaced
       result.tail.tail.head.as[DeviceUpdateCompleted].right.value.result.code shouldBe ResultCode("1")
     }
+  }
+
+  property("can delete replaced devices") {
+    getReportBlob(genDeviceUUID.generate) ~> route ~> check {
+      status shouldBe NotFound
+    }
+
+    val deviceId = createDeviceOk(genDeviceT.generate)
+
+    getReportBlob(deviceId) ~> route ~> check {
+      status shouldBe OK
+      val result = responseAs[PaginationResult[Json]]
+      result.total shouldBe 0
+    }
+
+    val now = Instant.now.truncatedTo(ChronoUnit.SECONDS)
+    val ecuReplaced = genEcuReplaced(deviceId, now).generate
+    ecuReplacementListener(ecuReplaced).futureValue
+
+    getReportBlob(deviceId) ~> route ~> check {
+      status shouldBe OK
+      val result = responseAs[PaginationResult[Json]].values
+      result.head.as[EcuReplaced].right.value shouldBe ecuReplaced
+    }
+
+    val deleteDeviceRequest = DeleteDeviceRequest(defaultNs, deviceId)
+    deleteDeviceListener(deleteDeviceRequest).futureValue
+
+    getReportBlob(deviceId) ~> route ~> check {
+      status shouldBe NotFound
+    }
+  }
+
+  property("multiple ECU replacement error is handled gracefully") {
+    val deviceId = createDeviceOk(genDeviceT.generate)
+    val now = Instant.now.truncatedTo(ChronoUnit.SECONDS)
+    val ecuReplaced = genEcuReplaced(deviceId, now).generate
+    ecuReplacementListener(ecuReplaced).futureValue
+    ecuReplacementListener(ecuReplaced).futureValue
   }
 }
