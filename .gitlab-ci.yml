@@ -12,7 +12,7 @@ variables:
   MYSQL_PASSWORD: "device_registry"
   SERVICE_IMAGE: "advancedtelematic/device-registry"
   # The same image have to be used by test and code coverage jobs:
-  TEST_IMAGE: advancedtelematic/gitlab-jobs:0.2.4
+  TEST_IMAGE: advancedtelematic/gitlab-jobs:0.2.5
 
 test:
   stage: test
@@ -62,7 +62,7 @@ build docker image:
   tags:
     - docker-sock
   variables:
-  image: advancedtelematic/gitlab-jobs:0.2.3
+  image: advancedtelematic/gitlab-jobs:0.2.5
   script:
     - env | sort
     - docker login -u $DOCKER_USER -p $DOCKER_PASSWORD
@@ -109,5 +109,5 @@ include:
   - template: Secret-Detection.gitlab-ci.yml
   - template: License-Scanning.gitlab-ci.yml
   - project: olp/edge/ota/infra/security
-    ref: v0.0.7
+    ref: v0.0.9
     file: /shared.yaml
