@@ -130,17 +130,17 @@ class InstallationReportSpec extends ResourcePropSpec with ScalaFutures with Eve
     getReportBlob(deviceId) ~> route ~> check {
       status shouldBe OK
       val result = responseAs[PaginationResult[Json]].values
-      result.head.as[DeviceUpdateCompleted].right.value.result.code shouldBe ResultCode("0")
-      result.tail.head.as[EcuReplaced].right.value shouldBe ecuReplaced
+      result.head.as[EcuReplaced].right.value shouldBe ecuReplaced
+      result.tail.head.as[DeviceUpdateCompleted].right.value.result.code shouldBe ResultCode("0")
     }
 
     updateListener.apply(updateCompleted2).futureValue
     getReportBlob(deviceId) ~> route ~> check {
       status shouldBe OK
       val result = responseAs[PaginationResult[Json]].values
-      result.head.as[DeviceUpdateCompleted].right.value.result.code shouldBe ResultCode("0")
+      result.head.as[DeviceUpdateCompleted].right.value.result.code shouldBe ResultCode("1")
       result.tail.head.as[EcuReplaced].right.value shouldBe ecuReplaced
-      result.tail.tail.head.as[DeviceUpdateCompleted].right.value.result.code shouldBe ResultCode("1")
+      result.tail.tail.head.as[DeviceUpdateCompleted].right.value.result.code shouldBe ResultCode("0")
     }
   }
 
