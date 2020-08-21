@@ -63,7 +63,7 @@ object EcuReplacementRepository {
     for {
       installations <- InstallationReportRepository.fetchInstallationHistory(deviceId)
       replacements <- fetchForDevice(deviceId).map(_.map(_.asJson))
-      history = (installations ++ replacements).sortBy(_.hcursor.get[Instant]("eventTime").toOption)
+      history = (installations ++ replacements).sortBy(_.hcursor.get[Instant]("eventTime").toOption)(Ordering[Option[Instant]].reverse)
       values = history.drop(offset.toInt).take(limit.toInt)
     } yield PaginationResult(values, history.length, offset, limit)
 }
