@@ -15,6 +15,8 @@ class EcuReplacedListener()(implicit db: Database, ec: ExecutionContext) extends
 
   override def apply(msg: EcuReplaced): Future[Unit] =
     db.run(EcuReplacementRepository.insert(msg)).recover {
+      case RawError(Codes.MissingDevice, _, desc, _) =>
+        _log.warn(s"Trying to replace ECUs on a non-existing or deleted device: $desc.")
       case RawError(Codes.EcuRepeatedReplacement, _, desc, errorId) =>
         _log.warn(s"EcuRepeatedReplacement error $errorId: $desc")
     }

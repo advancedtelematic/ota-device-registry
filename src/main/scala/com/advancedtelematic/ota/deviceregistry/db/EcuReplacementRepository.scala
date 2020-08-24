@@ -50,6 +50,7 @@ object EcuReplacementRepository {
 
   def insert(ecuReplaced: EcuReplaced)(implicit ec: ExecutionContext): DBIO[Unit] =
     (ecuReplacements += ecuReplaced)
+      .handleForeignKeyError(Errors.MissingDevice)
       // This is redundant because director won't allow it, but let's not rely on that.
       .handleIntegrityErrors(Errors.EcuRepeatedReplacement(ecuReplaced.deviceUuid, ecuReplaced.former.ecuId))
       .map(_ => ())
