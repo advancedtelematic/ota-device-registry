@@ -144,6 +144,25 @@ class InstallationReportSpec extends ResourcePropSpec with ScalaFutures with Eve
     }
   }
 
+  property("fails gracefully if trying to record ECU replacements for a non-existent or deleted device") {
+    val deviceId = createDeviceOk(genDeviceT.generate)
+
+    getReportBlob(deviceId) ~> route ~> check {
+      status shouldBe OK
+      responseAs[PaginationResult[Json]].total shouldBe 0
+    }
+
+    deleteDeviceListener(DeleteDeviceRequest(defaultNs, deviceId)).futureValue
+
+    val now = Instant.now.truncatedTo(ChronoUnit.SECONDS)
+    val ecuReplaced = genEcuReplaced(deviceId, now).generate
+    ecuReplacementListener(ecuReplaced).futureValue
+
+    getReportBlob(deviceId) ~> route ~> check {
+      status shouldBe NotFound
+    }
+  }
+
   property("can delete replaced devices") {
     getReportBlob(genDeviceUUID.generate) ~> route ~> check {
       status shouldBe NotFound
