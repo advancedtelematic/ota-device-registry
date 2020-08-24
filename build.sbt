@@ -122,7 +122,7 @@ import com.typesafe.sbt.packager.docker.Cmd
 lazy val dockerSettings = Seq(
   dockerRepository := Some("advancedtelematic"),
   packageName := packageName.value,
-  dockerBaseImage := "advancedtelematic/alpine-jre:adoptopenjdk-jdk8u222",
+  dockerBaseImage := "advancedtelematic/alpine-jre:adoptopenjdk-jre8u262-b10",
   dockerUpdateLatest := true,
   dockerAliases ++= Seq(dockerAlias.value.withTag(git.formattedShaVersion.value)),
   dockerCommands ++= Seq(
