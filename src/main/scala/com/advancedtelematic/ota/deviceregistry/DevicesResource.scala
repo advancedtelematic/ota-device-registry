@@ -213,6 +213,9 @@ class DevicesResource(
   def fetchInstallationHistory(deviceId: DeviceId, offset: Option[Long], limit: Option[Long]): Route =
     complete(db.run(EcuReplacementRepository.deviceHistory(deviceId, offset.orDefaultOffset, limit.orDefaultLimit)))
 
+  def installationReports(deviceId: DeviceId, offset: Option[Long], limit: Option[Long]): Route =
+    complete(db.run(InstallationReportRepository.installationReports(deviceId, offset.orDefaultOffset, limit.orDefaultLimit)))
+
   def fetchInstallationStats(correlationId: CorrelationId, reportLevel: Option[InstallationStatsLevel]): Route = {
     val action = reportLevel match {
       case Some(InstallationStatsLevel.Ecu) => InstallationReportRepository.installationStatsPerEcu(correlationId)
@@ -306,6 +309,9 @@ class DevicesResource(
           } ~
           path("active_device_count") {
             getActiveDeviceCount(ns.namespace)
+          } ~
+          (path("installation_reports") & parameters('offset.as[Long].?, 'limit.as[Long].?)) {
+            (offset, limit) => installationReports(uuid, offset, limit)
           } ~
           (path("installation_history") & parameters('offset.as[Long].?, 'limit.as[Long].?)) {
             (offset, limit) => fetchInstallationHistory(uuid, offset, limit)

@@ -62,7 +62,7 @@ object EcuReplacementRepository {
 
   def deviceHistory(deviceId: DeviceId, offset: Long, limit: Long)(implicit ec: ExecutionContext): DBIO[PaginationResult[Json]] =
     for {
-      installations <- InstallationReportRepository.fetchInstallationHistory(deviceId)
+      installations <- InstallationReportRepository.queryInstallationHistory(deviceId).result
       replacements <- fetchForDevice(deviceId).map(_.map(_.asJson))
       history = (installations ++ replacements).sortBy(_.hcursor.get[Instant]("eventTime").toOption)(Ordering[Option[Instant]].reverse)
       values = history.drop(offset.toInt).take(limit.toInt)
