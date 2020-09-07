@@ -3,7 +3,7 @@ package com.advancedtelematic.ota.deviceregistry.db
 import java.time.Instant
 
 import com.advancedtelematic.libats.data.DataType.{CorrelationId, ResultCode, ResultDescription}
-import com.advancedtelematic.libats.data.EcuIdentifier
+import com.advancedtelematic.libats.data.{EcuIdentifier, PaginationResult}
 import com.advancedtelematic.libats.messaging_datatype.DataType.{DeviceId, EcuInstallationReport}
 import com.advancedtelematic.libats.messaging_datatype.MessageCodecs.deviceUpdateCompletedCodec
 import com.advancedtelematic.libats.messaging_datatype.Messages.DeviceUpdateCompleted
@@ -113,12 +113,15 @@ object InstallationReportRepository {
   def fetchEcuInstallationReport(correlationId: CorrelationId)(implicit ec: ExecutionContext): DBIO[Seq[EcuInstallationResult]] =
     ecuInstallationResults.filter(_.correlationId === correlationId).result
 
-  private[db] def fetchInstallationHistory(deviceId: DeviceId)(implicit ec: ExecutionContext): DBIO[Seq[Json]] =
+  private[db] def queryInstallationHistory(deviceId: DeviceId): Query[Rep[Json], Json, Seq] =
     deviceInstallationResults
       .filter(_.deviceUuid === deviceId)
       .sortBy(_.receivedAt.desc)
       .map(_.installationReport)
-      .result
+
+  def installationReports(deviceId: DeviceId, offset: Long, limit: Long)
+                         (implicit ec: ExecutionContext): DBIO[PaginationResult[Json]] =
+    queryInstallationHistory(deviceId).paginateResult(offset, limit)
 
   def fetchDeviceFailures(correlationId: CorrelationId, failureCode: Option[ResultCode])
                          (implicit ec: ExecutionContext): DBIO[Seq[(DeviceOemId, ResultCode, ResultDescription)]] =

@@ -201,4 +201,27 @@ class InstallationReportSpec extends ResourcePropSpec with ScalaFutures with Eve
     ecuReplacementListener(ecuReplaced).futureValue
     ecuReplacementListener(ecuReplaced).futureValue
   }
+
+  property("empty installation reports") {
+    val deviceId = createDeviceOk(genDeviceT.generate)
+
+    getInstallationReports(deviceId) ~> route ~> check {
+      status shouldBe OK
+      responseAs[PaginationResult[DeviceUpdateCompleted]].total shouldBe 0
+    }
+  }
+
+  property("one installationReport") {
+    val deviceId = createDeviceOk(genDeviceT.generate)
+    val now = Instant.now.truncatedTo(ChronoUnit.SECONDS)
+
+    val correlationId = genCorrelationId.generate
+    val updateCompleted = genDeviceUpdateCompleted(correlationId, ResultCode("0"), deviceId, receivedAt = now.plusSeconds(10)).generate
+
+    updateListener(updateCompleted).futureValue
+    getInstallationReports(deviceId) ~> route ~> check {
+      status shouldBe OK
+      responseAs[PaginationResult[DeviceUpdateCompleted]].values.loneElement.result.code shouldBe ResultCode("0")
+    }
+  }
 }

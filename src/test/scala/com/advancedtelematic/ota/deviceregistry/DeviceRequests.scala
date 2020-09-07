@@ -226,6 +226,9 @@ trait DeviceRequests { self: ResourceSpec =>
   def getReportBlob(deviceId: DeviceId): HttpRequest =
     Get(Resource.uri(api, deviceId.show, "installation_history"))
 
+  def getInstallationReports(deviceId: DeviceId): HttpRequest =
+    Get(Resource.uri(api, deviceId.show, "installation_reports"))
+
   def postDeviceTags(tags: Seq[Seq[String]], headers: Seq[String] = Seq("DeviceID", "market", "trim")): HttpRequest = {
     require(tags.map(_.length == headers.length).reduce(_ && _))
 
