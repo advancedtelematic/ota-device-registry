@@ -6,12 +6,12 @@ import akka.http.scaladsl.server.Route
 import com.advancedtelematic.libats.http.BootApp
 import com.advancedtelematic.libats.http.VersionDirectives.versionHeaders
 import com.advancedtelematic.libats.messaging.{MessageBus, MessageListenerSupport}
-import com.advancedtelematic.libats.messaging_datatype.Messages.{DeleteDeviceRequest, DeviceEventMessage, DeviceSeen, DeviceUpdateEvent, EcuReplaced}
+import com.advancedtelematic.libats.messaging_datatype.Messages.{DeleteDeviceRequest, DeviceEventMessage, DeviceSeen, DeviceUpdateEvent, EcuReplacement}
 import com.advancedtelematic.libats.slick.db.{BootMigrations, CheckMigrations, DatabaseConfig}
 import com.advancedtelematic.libats.slick.monitoring.DbHealthResource
 import com.advancedtelematic.metrics.prometheus.PrometheusMetricsSupport
 import com.advancedtelematic.metrics.{MetricsSupport, MonitoredBusListenerSupport}
-import com.advancedtelematic.ota.deviceregistry.daemon.{DeleteDeviceListener, DeviceEventListener, DeviceSeenListener, DeviceUpdateEventListener, EcuReplacedListener}
+import com.advancedtelematic.ota.deviceregistry.daemon.{DeleteDeviceListener, DeviceEventListener, DeviceSeenListener, DeviceUpdateEventListener, EcuReplacementListener}
 
 object DaemonBoot extends BootApp
   with DatabaseConfig
@@ -33,7 +33,7 @@ object DaemonBoot extends BootApp
   startMonitoredListener[DeviceEventMessage](new DeviceEventListener)
   startMonitoredListener[DeleteDeviceRequest](new DeleteDeviceListener)
   startMonitoredListener[DeviceUpdateEvent](new DeviceUpdateEventListener(messageBus))
-  startMonitoredListener[EcuReplaced](new EcuReplacedListener)
+  startMonitoredListener[EcuReplacement](new EcuReplacementListener)
 
   val routes: Route = versionHeaders(version) {
     DbHealthResource(versionMap).route

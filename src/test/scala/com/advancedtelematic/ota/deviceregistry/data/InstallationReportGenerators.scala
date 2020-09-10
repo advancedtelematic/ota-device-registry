@@ -6,7 +6,7 @@ import com.advancedtelematic.libats.data.DataType.{CampaignId, CorrelationId, Mu
 import com.advancedtelematic.libats.data.EcuIdentifier
 import com.advancedtelematic.libats.data.EcuIdentifier.validatedEcuIdentifier
 import com.advancedtelematic.libats.messaging_datatype.DataType.{DeviceId, EcuInstallationReport, InstallationResult}
-import com.advancedtelematic.libats.messaging_datatype.Messages.{DeviceUpdateCompleted, EcuAndHardwareId, EcuReplaced}
+import com.advancedtelematic.libats.messaging_datatype.Messages.{DeviceUpdateCompleted, EcuAndHardwareId, EcuReplaced, EcuReplacement, EcuReplacementFailed}
 import org.scalacheck.Gen
 
 import scala.util.{Success, Try}
@@ -51,15 +51,20 @@ trait InstallationReportGenerators extends DeviceGenerators {
       namespace = Namespace("default")
     } yield DeviceUpdateCompleted(namespace, receivedAt, correlationId, deviceId, result, ecuReports, rawReport = None)
 
-  def genEcuAndHardwareId: Gen[EcuAndHardwareId] =
+  private def genEcuAndHardwareId: Gen[EcuAndHardwareId] =
     for {
       ecuId <- genEcuIdentifier
       hwdId <- Gen.listOfN(100, Gen.alphaNumChar).map(_.mkString(""))
     } yield EcuAndHardwareId(ecuId, hwdId)
 
-  def genEcuReplaced(deviceId: DeviceId, eventTime: Instant): Gen[EcuReplaced] =
+  private def genEcuReplaced(deviceId: DeviceId, eventTime: Instant): Gen[EcuReplaced] =
     for {
       former <- genEcuAndHardwareId
       current <- genEcuAndHardwareId
     } yield EcuReplaced(deviceId, former, current, eventTime)
+
+  def genEcuReplacement(deviceId: DeviceId, eventTime: Instant, success: Boolean): Gen[EcuReplacement] = {
+    if (success) genEcuReplaced(deviceId, eventTime)
+    else Gen.const(EcuReplacementFailed(deviceId, eventTime))
+  }
 }
