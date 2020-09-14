@@ -7,13 +7,13 @@ import akka.http.scaladsl.model.StatusCodes._
 import com.advancedtelematic.libats.data.DataType.ResultCode
 import com.advancedtelematic.libats.data.PaginationResult
 import com.advancedtelematic.libats.messaging.test.MockMessageBus
-import com.advancedtelematic.libats.messaging_datatype.MessageCodecs.{deviceUpdateCompletedCodec, ecuReplacedCodec}
-import com.advancedtelematic.libats.messaging_datatype.Messages.{DeleteDeviceRequest, DeviceUpdateCompleted, EcuReplaced}
-import com.advancedtelematic.ota.deviceregistry.daemon.{DeleteDeviceListener, DeviceUpdateEventListener, EcuReplacedListener}
+import com.advancedtelematic.libats.messaging_datatype.MessageCodecs.{deviceUpdateCompletedCodec, ecuReplacementCodec}
+import com.advancedtelematic.libats.messaging_datatype.Messages.{DeleteDeviceRequest, DeviceUpdateCompleted, EcuReplaced, EcuReplacement, EcuReplacementFailed}
+import com.advancedtelematic.ota.deviceregistry.daemon.{DeleteDeviceListener, DeviceUpdateEventListener, EcuReplacementListener}
 import com.advancedtelematic.ota.deviceregistry.data.Codecs.installationStatDecoder
 import com.advancedtelematic.ota.deviceregistry.data.DataType.{InstallationStat, InstallationStatsLevel}
 import com.advancedtelematic.ota.deviceregistry.data.GeneratorOps._
-import com.advancedtelematic.ota.deviceregistry.data.InstallationReportGenerators
+import com.advancedtelematic.ota.deviceregistry.data.{DeviceStatus, InstallationReportGenerators}
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
 import io.circe.Json
 import org.scalacheck.Gen
@@ -29,7 +29,7 @@ class InstallationReportSpec extends ResourcePropSpec with ScalaFutures with Eve
   implicit val msgPub = new MockMessageBus
 
   val updateListener = new DeviceUpdateEventListener(msgPub)
-  val ecuReplacementListener = new EcuReplacedListener
+  val ecuReplacementListener = new EcuReplacementListener
   val deleteDeviceListener = new DeleteDeviceListener()
 
   property("should save device reports and retrieve failed stats per devices") {
@@ -116,32 +116,25 @@ class InstallationReportSpec extends ResourcePropSpec with ScalaFutures with Eve
 
     val correlationId1 = genCorrelationId.generate
     val correlationId2 = genCorrelationId.generate
-    val updateCompleted1 = genDeviceUpdateCompleted(correlationId1, ResultCode("0"), deviceId, receivedAt = now.plusSeconds(10)).generate
-    val updateCompleted2 =  genDeviceUpdateCompleted(correlationId2, ResultCode("1"), deviceId, receivedAt = now.plusSeconds(30)).generate
-    val ecuReplaced = genEcuReplaced(deviceId, now.plusSeconds(20)).generate
+    val updateCompleted1 = genDeviceUpdateCompleted(correlationId1, ResultCode("0"), deviceId, receivedAt = now).generate
+    val successfulReplacement = genEcuReplacement(deviceId, now.plusSeconds(60), success = true).generate
+    val updateCompleted2 =  genDeviceUpdateCompleted(correlationId2, ResultCode("1"), deviceId, receivedAt = now.plusSeconds(120)).generate
+    val failedReplacement = genEcuReplacement(deviceId, now.plusSeconds(180), success = false).generate
 
     updateListener(updateCompleted1).futureValue
-    getReportBlob(deviceId) ~> route ~> check {
-      status shouldBe OK
-      responseAs[PaginationResult[DeviceUpdateCompleted]].values.loneElement.result.code shouldBe ResultCode("0")
-    }
-
-    ecuReplacementListener(ecuReplaced).futureValue
-    getReportBlob(deviceId) ~> route ~> check {
-      status shouldBe OK
-      val result = responseAs[PaginationResult[Json]].values
-      result.head.as[EcuReplaced].right.value shouldBe ecuReplaced
-      result.tail.head.as[DeviceUpdateCompleted].right.value.result.code shouldBe ResultCode("0")
-    }
-
+    ecuReplacementListener(successfulReplacement).futureValue
     updateListener.apply(updateCompleted2).futureValue
+    ecuReplacementListener(failedReplacement).futureValue
+
     getReportBlob(deviceId) ~> route ~> check {
       status shouldBe OK
       val result = responseAs[PaginationResult[Json]].values
-      result.head.as[DeviceUpdateCompleted].right.value.result.code shouldBe ResultCode("1")
-      result.tail.head.as[EcuReplaced].right.value shouldBe ecuReplaced
-      result.tail.tail.head.as[DeviceUpdateCompleted].right.value.result.code shouldBe ResultCode("0")
+      result(0).as[EcuReplacement].right.value.asInstanceOf[EcuReplacementFailed] shouldBe failedReplacement
+      result(1).as[DeviceUpdateCompleted].right.value.result.code shouldBe ResultCode("1")
+      result(2).as[EcuReplacement].right.value.asInstanceOf[EcuReplaced] shouldBe successfulReplacement
+      result(3).as[DeviceUpdateCompleted].right.value.result.code shouldBe ResultCode("0")
     }
+    fetchDeviceOk(deviceId).deviceStatus shouldBe DeviceStatus.Error
   }
 
   property("fails gracefully if trying to record ECU replacements for a non-existent or deleted device") {
@@ -155,7 +148,7 @@ class InstallationReportSpec extends ResourcePropSpec with ScalaFutures with Eve
     deleteDeviceListener(DeleteDeviceRequest(defaultNs, deviceId)).futureValue
 
     val now = Instant.now.truncatedTo(ChronoUnit.SECONDS)
-    val ecuReplaced = genEcuReplaced(deviceId, now).generate
+    val ecuReplaced = genEcuReplacement(deviceId, now, success = true).generate
     ecuReplacementListener(ecuReplaced).futureValue
 
     getReportBlob(deviceId) ~> route ~> check {
@@ -177,13 +170,13 @@ class InstallationReportSpec extends ResourcePropSpec with ScalaFutures with Eve
     }
 
     val now = Instant.now.truncatedTo(ChronoUnit.SECONDS)
-    val ecuReplaced = genEcuReplaced(deviceId, now).generate
+    val ecuReplaced = genEcuReplacement(deviceId, now, success = true).generate
     ecuReplacementListener(ecuReplaced).futureValue
 
     getReportBlob(deviceId) ~> route ~> check {
       status shouldBe OK
       val result = responseAs[PaginationResult[Json]].values
-      result.head.as[EcuReplaced].right.value shouldBe ecuReplaced
+      result.head.as[EcuReplacement].right.value.asInstanceOf[EcuReplaced] shouldBe ecuReplaced
     }
 
     val deleteDeviceRequest = DeleteDeviceRequest(defaultNs, deviceId)
@@ -197,7 +190,7 @@ class InstallationReportSpec extends ResourcePropSpec with ScalaFutures with Eve
   property("multiple ECU replacement error is handled gracefully") {
     val deviceId = createDeviceOk(genDeviceT.generate)
     val now = Instant.now.truncatedTo(ChronoUnit.SECONDS)
-    val ecuReplaced = genEcuReplaced(deviceId, now).generate
+    val ecuReplaced = genEcuReplacement(deviceId, now, success = true).generate
     ecuReplacementListener(ecuReplaced).futureValue
     ecuReplacementListener(ecuReplaced).futureValue
   }

@@ -26,7 +26,7 @@ import com.advancedtelematic.ota.deviceregistry.data.DataType.{DeviceT, DeviceUu
 import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
 import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
 import com.advancedtelematic.ota.deviceregistry.data.SortBy.SortBy
-import com.advancedtelematic.ota.deviceregistry.data.{DeviceName, GroupExpression, PackageId, TagId}
+import com.advancedtelematic.ota.deviceregistry.data.{Device, DeviceName, GroupExpression, PackageId, TagId}
 import com.advancedtelematic.ota.deviceregistry.http.`application/toml`
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
 import io.circe.Json
@@ -61,6 +61,12 @@ trait DeviceRequests { self: ResourceSpec =>
 
   def fetchDevice(uuid: DeviceId): HttpRequest =
     Get(Resource.uri(api, uuid.show))
+
+  def fetchDeviceOk(uuid: DeviceId): Device =
+    Get(Resource.uri(api, uuid.show)) ~> route ~> check {
+      status shouldBe OK
+      responseAs[Device]
+    }
 
   def listDevices(sortBy: Option[SortBy] = None): HttpRequest = {
     val m = sortBy.fold(Map.empty[String, String])(s => Map("sortBy" -> s.toString))

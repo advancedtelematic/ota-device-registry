@@ -4,10 +4,11 @@ import java.time.Instant
 
 import cats.instances.option._
 import cats.syntax.apply._
+import cats.syntax.option._
 import com.advancedtelematic.libats.data.{EcuIdentifier, PaginationResult}
 import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
-import com.advancedtelematic.libats.messaging_datatype.MessageCodecs.ecuReplacedCodec
-import com.advancedtelematic.libats.messaging_datatype.Messages.{EcuAndHardwareId, EcuReplaced}
+import com.advancedtelematic.libats.messaging_datatype.MessageCodecs.ecuReplacementCodec
+import com.advancedtelematic.libats.messaging_datatype.Messages.{EcuAndHardwareId, EcuReplaced, EcuReplacement, EcuReplacementFailed}
 import com.advancedtelematic.libats.slick.codecs.SlickRefined.refinedMappedType
 import com.advancedtelematic.libats.slick.db.SlickExtensions.javaInstantMapping
 import com.advancedtelematic.libats.slick.db.SlickResultExtensions._
@@ -24,38 +25,48 @@ import scala.concurrent.ExecutionContext
 
 object EcuReplacementRepository {
 
-  class EcuReplacementTable(tag: Tag) extends Table[EcuReplaced](tag, "EcuReplacement") {
+  private type Record = (DeviceId, Option[EcuIdentifier], Option[HardwareIdentifier], Option[EcuIdentifier], Option[HardwareIdentifier], Instant, Boolean)
+
+  class EcuReplacementTable(tag: Tag) extends Table[EcuReplacement](tag, "EcuReplacement") {
     def deviceId = column[DeviceId]("device_uuid")
-    def formerEcuId = column[EcuIdentifier]("former_ecu_id")
-    def formerHardwareId = column[HardwareIdentifier]("former_hardware_id")
-    def currentEcuId = column[EcuIdentifier]("current_ecu_id")
-    def currentHardwareId = column[HardwareIdentifier]("current_hardware_id")
+    def formerEcuId = column[Option[EcuIdentifier]]("former_ecu_id")
+    def formerHardwareId = column[Option[HardwareIdentifier]]("former_hardware_id")
+    def currentEcuId = column[Option[EcuIdentifier]]("current_ecu_id")
+    def currentHardwareId = column[Option[HardwareIdentifier]]("current_hardware_id")
     def replacedAt = column[Instant]("replaced_at")
+    def success = column[Boolean]("success")
+
+    private def tupleToClass(record: Record): EcuReplacement =
+      record match {
+        case (did, Some(fe), Some(fh), Some(ce), Some(ch), at, s) if s =>
+          EcuReplaced(did, EcuAndHardwareId(fe, fh.value), EcuAndHardwareId(ce, ch.value), at)
+        case (did, None, None, None, None, at, s) if !s =>
+          EcuReplacementFailed(did, at)
+      }
+
+    private def classToTuple(ecuReplacement: EcuReplacement): Option[Record] =
+      ecuReplacement match {
+        case EcuReplacementFailed(did, at) =>
+          Some(did, None, None, None, None, at, false)
+        case EcuReplaced(did, f, c, at) =>
+          (
+            refineV[ValidHardwareIdentifier](f.hardwareId).toOption,
+            refineV[ValidHardwareIdentifier](c.hardwareId).toOption
+          ).mapN { case (fhid, chid) => (did, f.ecuId.some, fhid.some, c.ecuId.some, chid.some, at, true) }
+      }
 
     override def * =
-      (deviceId, formerEcuId, formerHardwareId, currentEcuId, currentHardwareId, replacedAt) <> (
-        { case (did, fe, fh, ce, ch, w) =>
-          EcuReplaced(did, EcuAndHardwareId(fe, fh.value), EcuAndHardwareId(ce, ch.value), w)
-        },
-        (er: EcuReplaced) =>
-          (
-            refineV[ValidHardwareIdentifier](er.former.hardwareId).toOption,
-            refineV[ValidHardwareIdentifier](er.current.hardwareId).toOption
-          ).mapN { case (fhid, chid) => (er.deviceUuid, er.former.ecuId, fhid, er.current.ecuId, chid, er.eventTime) }
-      )
-
+      (deviceId, formerEcuId, formerHardwareId, currentEcuId, currentHardwareId, replacedAt, success).shaped <> (tupleToClass, classToTuple)
   }
 
   private val ecuReplacements = TableQuery[EcuReplacementTable]
 
-  def insert(ecuReplaced: EcuReplaced)(implicit ec: ExecutionContext): DBIO[Unit] =
-    (ecuReplacements += ecuReplaced)
+  def insert(er: EcuReplacement)(implicit ec: ExecutionContext): DBIO[Unit] =
+    (ecuReplacements += er)
       .handleForeignKeyError(Errors.MissingDevice)
-      // This is redundant because director won't allow it, but let's not rely on that.
-      .handleIntegrityErrors(Errors.EcuRepeatedReplacement(ecuReplaced.deviceUuid, ecuReplaced.former.ecuId))
       .map(_ => ())
 
-  private def fetchForDevice(deviceId: DeviceId)(implicit ec: ExecutionContext): DBIO[Seq[EcuReplaced]] =
+  def fetchForDevice(deviceId: DeviceId)(implicit ec: ExecutionContext): DBIO[Seq[EcuReplacement]] =
     ecuReplacements
       .filter(_.deviceId === deviceId)
       .result
