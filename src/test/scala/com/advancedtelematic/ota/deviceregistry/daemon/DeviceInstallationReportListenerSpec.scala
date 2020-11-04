@@ -57,4 +57,27 @@ class DeviceUpdateEventListenerSpec
 
   }
 
+  property("should save success result after failed one") {
+    val deviceUuid = createDeviceOk(genDeviceT.generate)
+    val correlationId = genCorrelationId.generate
+    val messageFailed = genDeviceUpdateCompleted(correlationId, ResultCode("-1"), deviceUuid).generate
+    val messageSuccess = genDeviceUpdateCompleted(correlationId, ResultCode("0"), deviceUuid).generate
+
+    listener.apply(messageFailed).futureValue shouldBe (())
+
+    val expectedDeviceReportsFailed =
+      Seq(DeviceInstallationResult(correlationId, messageFailed.result.code, deviceUuid, messageFailed.result.success, messageFailed.eventTime, messageFailed.asJson))
+    val expectedDeviceReportsSuccess =
+      Seq(DeviceInstallationResult(correlationId, messageSuccess.result.code, deviceUuid, messageSuccess.result.success, messageSuccess.eventTime, messageSuccess.asJson))
+
+    val deviceReports = db.run(InstallationReportRepository.fetchDeviceInstallationResult(correlationId))
+    deviceReports.futureValue shouldBe expectedDeviceReportsFailed
+
+    listener.apply(messageSuccess).futureValue shouldBe (())
+
+    val deviceReportsAgain = db.run(InstallationReportRepository.fetchDeviceInstallationResult(correlationId))
+    deviceReportsAgain.futureValue shouldBe expectedDeviceReportsSuccess
+
+  }
+
 }
