@@ -32,7 +32,8 @@ import scala.util.Try
 trait Settings {
   private lazy val _config = ConfigFactory.load()
 
-  val directorUri = Uri(_config.getString("director.uri"))
+  val host = _config.getString("server.host")
+  val port = _config.getInt("server.port")
 }
 
 object Boot extends BootApp
@@ -70,9 +71,6 @@ object Boot extends BootApp
         new DeviceRegistryRoutes(authNamespace, namespaceAuthorizer, messageBus).route
       }
   } ~ DbHealthResource(versionMap, healthMetrics = Seq(new BusListenerMetrics(metricRegistry))).route
-
-  val host = config.getString("server.host")
-  val port = config.getInt("server.port")
 
   val parserSettings = ParserSettings(system).withCustomMediaTypes(`application/toml`.mediaType)
   val serverSettings = ServerSettings(system).withParserSettings(parserSettings)
