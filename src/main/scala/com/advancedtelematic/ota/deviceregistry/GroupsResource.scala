@@ -28,6 +28,7 @@ import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
 import com.advancedtelematic.ota.deviceregistry.data.SortBy.SortBy
 import com.advancedtelematic.ota.deviceregistry.data._
 import com.advancedtelematic.ota.deviceregistry.db.{DeviceRepository, GroupInfoRepository}
+import com.advancedtelematic.ota.deviceregistry.http.nonNegativeLong
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
 import io.circe.{Decoder, Encoder}
 import slick.jdbc.MySQLProfile.api._
@@ -59,7 +60,7 @@ class GroupsResource(namespaceExtractor: Directive1[AuthedNamespaceScope], devic
   val groupMembership = new GroupMembership()
 
   def getDevicesInGroup(groupId: GroupId): Route =
-    parameters(('offset.as[Long].?, 'limit.as[Long].?)) { (offset, limit) =>
+    parameters(('offset.as(nonNegativeLong).?, 'limit.as(nonNegativeLong).?)) { (offset, limit) =>
       complete(groupMembership.listDevices(groupId, offset, limit))
     }
 
@@ -123,7 +124,7 @@ class GroupsResource(namespaceExtractor: Directive1[AuthedNamespaceScope], devic
     (pathPrefix("device_groups") & namespaceExtractor) { ns =>
       val scope = Scopes.devices(ns)
       pathEnd {
-        (scope.get & parameters(('offset.as[Long].?, 'limit.as[Long].?, 'sortBy.as[SortBy].?, 'nameContains.as[String].?))) {
+        (scope.get & parameters(('offset.as(nonNegativeLong).?, 'limit.as(nonNegativeLong).?, 'sortBy.as[SortBy].?, 'nameContains.as[String].?))) {
           (offset, limit, sortBy, nameContains) => listGroups(ns.namespace, offset, limit, sortBy.getOrElse(SortBy.Name), nameContains)
         } ~
         scope.post {

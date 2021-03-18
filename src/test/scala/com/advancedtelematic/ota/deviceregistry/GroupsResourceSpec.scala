@@ -15,7 +15,7 @@ import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
 import org.scalacheck.Arbitrary._
 import org.scalacheck.Gen
 import akka.http.scaladsl.model.StatusCodes._
-import com.advancedtelematic.libats.data.{ErrorRepresentation, PaginationResult}
+import com.advancedtelematic.libats.data.{ErrorCodes, ErrorRepresentation, PaginationResult}
 import com.advancedtelematic.ota.deviceregistry.common.Errors.Codes.MalformedInput
 import com.advancedtelematic.ota.deviceregistry.data.Device.DeviceOemId
 import org.scalatest.FunSuite
@@ -122,6 +122,28 @@ class GroupsResourceSpec extends FunSuite with ResourceSpec with ScalaFutures {
       val result = responseAs[PaginationResult[DeviceId]]
       result.values.length shouldBe limit
       allDevices.slice(offset, offset + limit) shouldEqual result.values
+    }
+  }
+
+  test("lists devices with negative pagination limit fails") {
+    val groupId = createStaticGroupOk()
+
+    listDevicesInGroup(groupId, limit = Some(-1)) ~> route ~> check {
+      status shouldBe BadRequest
+      val res = responseAs[ErrorRepresentation]
+      res.code shouldBe ErrorCodes.InvalidEntity
+      res.description should include("The query parameter 'limit' was malformed")
+    }
+  }
+
+  test("lists devices with negative pagination offset fails") {
+    val groupId = createStaticGroupOk()
+
+    listDevicesInGroup(groupId, offset = Some(-1)) ~> route ~> check {
+      status shouldBe BadRequest
+      val res = responseAs[ErrorRepresentation]
+      res.code shouldBe ErrorCodes.InvalidEntity
+      res.description should include("The query parameter 'offset' was malformed")
     }
   }
 
