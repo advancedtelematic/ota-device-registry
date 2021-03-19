@@ -45,6 +45,7 @@ import com.advancedtelematic.ota.deviceregistry.data.{GroupExpression, PackageId
 import com.advancedtelematic.ota.deviceregistry.db.DbOps.PaginationResultOps
 import com.advancedtelematic.ota.deviceregistry.db._
 import com.advancedtelematic.ota.deviceregistry.messages.DeviceCreated
+import com.advancedtelematic.ota.deviceregistry.http.nonNegativeLong
 import io.circe.Json
 import slick.jdbc.MySQLProfile.api._
 
@@ -122,8 +123,8 @@ class DevicesResource(
       'nameContains.as[String].?,
       'notSeenSinceHours.as[Int].?,
       'sortBy.as[SortBy].?,
-      'offset.as[Long].?,
-      'limit.as[Long].?)).as(SearchParams.apply _) { params =>
+      'offset.as(nonNegativeLong).?,
+      'limit.as(nonNegativeLong).?)).as(SearchParams.apply _) { params =>
         entity(as[DeviceUuids]) { p =>
           complete(db.run(DeviceRepository.search(ns, params, p.deviceUuids)))
         } ~
@@ -162,7 +163,7 @@ class DevicesResource(
     complete(db.run(DeviceRepository.countDevicesForExpression(ns, expression)))
 
   def getGroupsForDevice(uuid: DeviceId): Route =
-    parameters(('offset.as[Long].?, 'limit.as[Long].?)) { (offset, limit) =>
+    parameters(('offset.as(nonNegativeLong).?, 'limit.as(nonNegativeLong).?)) { (offset, limit) =>
       complete(db.run(GroupMemberRepository.listGroupsForDevice(uuid, offset, limit)))
     }
 
@@ -176,7 +177,7 @@ class DevicesResource(
     complete(db.run(InstalledPackages.getDevicesCount(pkg, ns)))
 
   def listPackagesOnDevice(device: DeviceId): Route =
-    parameters(('nameContains.as[String].?, 'offset.as[Long].?, 'limit.as[Long].?)) { (nameContains, offset, limit) =>
+    parameters(('nameContains.as[String].?, 'offset.as(nonNegativeLong).?, 'limit.as(nonNegativeLong).?)) { (nameContains, offset, limit) =>
       complete(db.run(InstalledPackages.installedOn(device, nameContains, offset, limit)))
     }
 
@@ -192,7 +193,7 @@ class DevicesResource(
     }
 
   def getDistinctPackages(ns: Namespace): Route =
-    parameters('offset.as[Long].?, 'limit.as[Long].?) { (offset, limit) =>
+    parameters('offset.as(nonNegativeLong).?, 'limit.as(nonNegativeLong).?) { (offset, limit) =>
       complete(db.run(InstalledPackages.getInstalledForAllDevices(ns, offset, limit)))
     }
 
@@ -205,7 +206,7 @@ class DevicesResource(
     }
 
   def getPackageStats(ns: Namespace, name: PackageId.Name): Route =
-    parameters('offset.as[Long].?, 'limit.as[Long].?) { (offset, limit) =>
+    parameters('offset.as(nonNegativeLong).?, 'limit.as(nonNegativeLong).?) { (offset, limit) =>
       val f = db.run(InstalledPackages.listAllWithPackageByName(ns, name, offset, limit))
       complete(f)
     }
@@ -310,10 +311,10 @@ class DevicesResource(
           path("active_device_count") {
             getActiveDeviceCount(ns.namespace)
           } ~
-          (path("installation_reports") & parameters('offset.as[Long].?, 'limit.as[Long].?)) {
+          (path("installation_reports") & parameters('offset.as(nonNegativeLong).?, 'limit.as(nonNegativeLong).?)) {
             (offset, limit) => installationReports(uuid, offset, limit)
           } ~
-          (path("installation_history") & parameters('offset.as[Long].?, 'limit.as[Long].?)) {
+          (path("installation_history") & parameters('offset.as(nonNegativeLong).?, 'limit.as(nonNegativeLong).?)) {
             (offset, limit) => fetchInstallationHistory(uuid, offset, limit)
           } ~
           (pathPrefix("device_count") & extractPackageId) { pkg =>

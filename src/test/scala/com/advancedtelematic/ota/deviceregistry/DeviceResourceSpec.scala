@@ -394,6 +394,24 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
     }
   }
 
+  property("list devices with negative pagination limit fails") {
+    searchDevice("", limit = -1) ~> route ~> check {
+      status shouldBe BadRequest
+      val res = responseAs[ErrorRepresentation]
+      res.code shouldBe ErrorCodes.InvalidEntity
+      res.description should include("The query parameter 'limit' was malformed")
+    }
+  }
+
+  property("list devices with negative pagination offset fails") {
+    searchDevice("", offset = -1) ~> route ~> check {
+      status shouldBe BadRequest
+      val res = responseAs[ErrorRepresentation]
+      res.code shouldBe ErrorCodes.InvalidEntity
+      res.description should include("The query parameter 'offset' was malformed")
+    }
+  }
+
   property("searching a device by 'nameContains' and 'deviceId' fails") {
     val deviceT = genDeviceT.sample.get
     createDeviceOk(deviceT)
@@ -564,6 +582,24 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
       packages.length shouldBe scala.math.min(limit, allPackages.length)
       packages shouldBe sorted
       packages shouldBe allPackages.slice(offset, offset + limit)
+    }
+  }
+
+  property("list installed packages for all devices with negative pagination limit fails") {
+    getInstalledForAllDevices(limit = -1) ~> route ~> check {
+      status shouldBe BadRequest
+      val res = responseAs[ErrorRepresentation]
+      res.code shouldBe ErrorCodes.InvalidEntity
+      res.description should include("The query parameter 'limit' was malformed")
+    }
+  }
+
+  property("list installed packages for all devices with negative pagination offset fails") {
+    getInstalledForAllDevices(offset = -1) ~> route ~> check {
+      status shouldBe BadRequest
+      val res = responseAs[ErrorRepresentation]
+      res.code shouldBe ErrorCodes.InvalidEntity
+      res.description should include("The query parameter 'offset' was malformed")
     }
   }
 
