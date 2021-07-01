@@ -163,7 +163,7 @@ class EventJournalSpec extends ResourcePropSpec with ScalaFutures with Eventuall
     new DeleteDeviceListener().apply(DeleteDeviceRequest(defaultNs, uuid))
 
     eventually(timeout(5.seconds), interval(100.millis)) {
-      journal.getIndexedEvents(uuid, correlationId = None).futureValue shouldBe empty
+      journal.getIndexedEvents(uuid, correlationId = None, 0, 10).futureValue shouldBe empty
       journal.getArchivedIndexedEvents(uuid).futureValue.map(_.eventID) shouldBe Seq(event.eventId)
     }
   }

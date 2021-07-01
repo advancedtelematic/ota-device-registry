@@ -26,6 +26,9 @@ class DeviceResource2Spec extends FunSuite with ResourceSpec with Eventually wit
 
   private val deviceEventListener = new DeviceEventListener()
 
+  val testOffset = 0
+  val testLimit = 100
+
   test("events includes events for a device") {
     val device = genDeviceT.retryUntil(_.uuid.isDefined).generate
     val deviceId = createDeviceOk(device)
@@ -49,7 +52,7 @@ class DeviceResource2Spec extends FunSuite with ResourceSpec with Eventually wit
     val event03 = Event(deviceId, UUID.randomUUID().toString, EventType("EcuInstallationCompleted", 0), now.plusMillis(2), now.plusMillis(2), payload)
     deviceEventListener.apply(DeviceEventMessage(defaultNs, event03)).futureValue
 
-    getEventsV2(deviceId) ~> route ~> check {
+    getEventsV2(deviceId, offset = testOffset, limit = testLimit) ~> route ~> check {
       status shouldBe StatusCodes.OK
       val updateStatus = responseAs[ApiDeviceEvents]
 
@@ -58,6 +61,9 @@ class DeviceResource2Spec extends FunSuite with ResourceSpec with Eventually wit
       val events = updateStatus.events
 
       events should have size(3)
+      updateStatus.total shouldBe 3
+      updateStatus.offset shouldBe testOffset
+      updateStatus.limit shouldBe testLimit
 
       events.headOption.value.updateId.value shouldBe campaignId
       events.headOption.value.ecuId.value shouldBe ecuId
@@ -90,7 +96,7 @@ class DeviceResource2Spec extends FunSuite with ResourceSpec with Eventually wit
     val event02 = Event(deviceId, UUID.randomUUID().toString, EventType("EcuInstallationCompleted", 0), now, now, payload02)
     deviceEventListener.apply(DeviceEventMessage(defaultNs, event02)).futureValue
 
-    getEventsV2(deviceId, Some(campaignId01)) ~> route ~> check {
+    getEventsV2(deviceId, Some(campaignId01), offset = testOffset, limit = testLimit) ~> route ~> check {
       status shouldBe StatusCodes.OK
       val updateStatus = responseAs[ApiDeviceEvents]
 
@@ -99,6 +105,9 @@ class DeviceResource2Spec extends FunSuite with ResourceSpec with Eventually wit
       val events = updateStatus.events
 
       events should have size(1)
+      updateStatus.total shouldBe 1
+      updateStatus.offset shouldBe testOffset
+      updateStatus.limit shouldBe testLimit
 
       events.headOption.value.updateId.value shouldBe campaignId01
       events.map(_.name).headOption.value shouldBe IndexedEventType.EcuInstallationStarted
