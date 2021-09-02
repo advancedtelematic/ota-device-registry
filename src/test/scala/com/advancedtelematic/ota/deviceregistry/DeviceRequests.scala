@@ -206,8 +206,8 @@ trait DeviceRequests { self: ResourceSpec =>
     Get(Resource.uri(api, deviceUuid.show, "events").withQuery(query))
   }
 
-  def getEventsV2(deviceUuid: DeviceId, updateId: Option[CorrelationId] = None): HttpRequest = {
-    val query = Query(updateId.map("updateId" -> _.toString).toMap)
+  def getEventsV2(deviceUuid: DeviceId, updateId: Option[CorrelationId] = None, offset: Long = 0, limit: Long = 100): HttpRequest = {
+    val query = Query(updateId.map("updateId" -> _.toString).toMap ++ Map("limit" -> limit.toString, "offset" -> offset.toString))
     Get(Resource.uriV2(api, deviceUuid.show, "events").withQuery(query))
   }
 

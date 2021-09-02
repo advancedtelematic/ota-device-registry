@@ -101,7 +101,7 @@ class DevicesResource(
     namespaceExtractor: Directive1[AuthedNamespaceScope],
     messageBus: MessageBusPublisher,
     deviceNamespaceAuthorizer: Directive1[DeviceId]
-)(implicit system: ActorSystem, db: Database, mat: Materializer, ec: ExecutionContext) {
+)(implicit system: ActorSystem, db: Database, mat: Materializer, ec: ExecutionContext) extends Settings {
 
   import DevicesResource._
   import Directives._
@@ -338,11 +338,11 @@ class DevicesResource(
         } ~
         path("events") {
           import DevicesResource.EventPayloadDecoder
-          (get & parameter('correlationId.as[CorrelationId].?)) { correlationId =>
+          (get & parameters('correlationId.as[CorrelationId].?, 'offset.as(nonNegativeLong).?(0), 'limit.as(nonNegativeLong).?(maxAllowedDeviceEventsLimit))) { (correlationId, offset, limit) =>
             // TODO: This should not return raw Events
             // https://saeljira.it.here.com/browse/OTA-4163
             // API should not return arbitrary json (`payload`) to the clients. This is why we index interesting events, so we can give this info to clients
-            val events = eventJournal.getEvents(uuid, correlationId)
+            val events = eventJournal.getEvents(uuid, correlationId, offset, limit.min(maxAllowedDeviceEventsLimit))
             complete(events)
           } ~
           (post & pathEnd) {

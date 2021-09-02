@@ -33,6 +33,8 @@ trait Settings {
   private lazy val _config = ConfigFactory.load()
 
   val directorUri = Uri(_config.getString("director.uri"))
+
+  val maxAllowedDeviceEventsLimit = _config.getInt("maxAllowedDeviceEventsLimit")
 }
 
 object Boot extends BootApp

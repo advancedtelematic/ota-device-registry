@@ -1,7 +1,6 @@
 package com.advancedtelematic.ota.deviceregistry
 
 import java.time.Instant
-
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.{Directive1, Route}
 import com.advancedtelematic.libats.auth.AuthedNamespaceScope
@@ -16,6 +15,7 @@ import slick.jdbc.MySQLProfile.api._
 import com.advancedtelematic.libats.codecs.CirceCodecs._
 import com.advancedtelematic.ota.deviceregistry.data.DataType.IndexedEventType
 import com.advancedtelematic.ota.deviceregistry.DeviceResource2.{ApiDeviceEvent, ApiDeviceEvents}
+import com.advancedtelematic.ota.deviceregistry.http.nonNegativeLong
 
 import scala.async.Async.{async, await}
 import scala.concurrent.{ExecutionContext, Future}
@@ -30,7 +30,7 @@ object DeviceResource2 {
   case class ApiDeviceEvent(ecuId: Option[EcuIdentifier], updateId: Option[ApiUpdateId], name: ApiDeviceUpdateEventName,
                             receivedTime: Instant, deviceTime: Instant)
 
-  case class ApiDeviceEvents(deviceUuid: DeviceId, events: Vector[ApiDeviceEvent])
+  case class ApiDeviceEvents(deviceUuid: DeviceId, events: Vector[ApiDeviceEvent], total: Long, offset: Long, limit: Long)
 
 
   implicit val apiDeviceUpdateEventNameCodec = io.circe.Codec.codecForEnumeration(IndexedEventType)
@@ -41,27 +41,28 @@ object DeviceResource2 {
 }
 
 class DeviceResource2(namespaceExtractor: Directive1[AuthedNamespaceScope], deviceNamespaceAuthorizer: Directive1[DeviceId])
-                     (implicit db: Database, ec: ExecutionContext) {
+                     (implicit db: Database, ec: ExecutionContext) extends Settings {
 
   val eventJournal = new EventJournal()
 
-  def findUpdateEvents(namespace: Namespace, deviceId: DeviceId, correlationId: Option[CorrelationId]): Future[ApiDeviceEvents] = async {
-    val indexedEvents = await(eventJournal.getIndexedEvents(deviceId, correlationId))
+  def findUpdateEvents(namespace: Namespace, deviceId: DeviceId, correlationId: Option[CorrelationId], offset: Long, limit: Long): Future[ApiDeviceEvents] = async {
+    val indexedEvents = await(eventJournal.getPaginatedIndexedEvents(deviceId, correlationId, offset, limit))
 
-    val events = indexedEvents.toVector.map { case (event, indexedEvent) =>
+    val events = indexedEvents.values.toVector.map { case (event, indexedEvent) =>
       val ecuO = event.payload.hcursor.downField("ecu").as[EcuIdentifier].toOption
       ApiDeviceEvent(ecuO, indexedEvent.correlationId, indexedEvent.eventType, event.receivedAt, event.deviceTime)
     }
 
-    ApiDeviceEvents(deviceId, events)
+    ApiDeviceEvents(deviceId, events, indexedEvents.total, indexedEvents.offset, indexedEvents.limit)
   }
 
   def route: Route = namespaceExtractor { ns =>
     pathPrefix("devices") {
       deviceNamespaceAuthorizer { uuid =>
-        (get & path("events") & parameter('updateId.as[CorrelationId].?)) { correlationId =>
-          val f = findUpdateEvents(ns.namespace, uuid, correlationId)
-          complete(f)
+        (get & path("events") & parameters('updateId.as[CorrelationId].?, 'offset.as(nonNegativeLong).?(0), 'limit.as(nonNegativeLong).?(maxAllowedDeviceEventsLimit))) {
+          (correlationId, offset, limit) =>
+            val f = findUpdateEvents(ns.namespace, uuid, correlationId, offset, limit.min(maxAllowedDeviceEventsLimit))
+            complete(f)
         }
       }
     }
