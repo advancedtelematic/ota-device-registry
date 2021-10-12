@@ -148,9 +148,11 @@ lazy val sonarSettings = Seq(
   sonarProperties ++= Map(
     "sonar.projectName" -> "OTA Connect Device Registry",
     "sonar.projectKey" -> "ota-connect-device-registry",
-    "sonar.host.url" -> "http://sonar.in.here.com",
+    "sonar.host.url" -> "https://sonar7.devtools.in.here.com",
     "sonar.links.issue" -> "https://saeljira.it.here.com/projects/OTA/issues",
     "sonar.links.scm" -> "https://main.gitlab.in.here.com/olp/edge/ota/connect/back-end/ota-device-registry",
     "sonar.links.ci" -> "https://main.gitlab.in.here.com/olp/edge/ota/connect/back-end/ota-device-registry/pipelines",
+    "sonar.java.binaries" -> "./target/scala-*/classes", 
+    "sonar.scala.coverage.reportPaths"->"target/scala-2.12/scoverage-report/scoverage.xml",
     "sonar.projectVersion" -> version.value,
     "sonar.language" -> "scala"))
