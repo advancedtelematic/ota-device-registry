@@ -9,7 +9,6 @@
 package com.advancedtelematic.ota.deviceregistry
 
 import akka.http.scaladsl.Http
-import akka.http.scaladsl.model.Uri
 import akka.http.scaladsl.server.{Directives, Route}
 import akka.http.scaladsl.settings.{ParserSettings, ServerSettings}
 import com.advancedtelematic.libats.auth.NamespaceDirectives
@@ -31,8 +30,6 @@ import scala.util.Try
 
 trait Settings {
   private lazy val _config = ConfigFactory.load()
-
-  val directorUri = Uri(_config.getString("director.uri"))
 
   val maxAllowedDeviceEventsLimit = _config.getInt("maxAllowedDeviceEventsLimit")
 }
