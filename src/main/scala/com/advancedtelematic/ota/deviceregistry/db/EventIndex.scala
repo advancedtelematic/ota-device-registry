@@ -3,7 +3,7 @@ package com.advancedtelematic.ota.deviceregistry.db
 import cats.syntax.either._
 import cats.syntax.option._
 import cats.syntax.show._
-import com.advancedtelematic.libats.data.DataType.{CampaignId, CorrelationId}
+import com.advancedtelematic.libats.data.DataType.{CorrelationCampaignId, CorrelationId}
 import com.advancedtelematic.libats.messaging_datatype.DataType.{Event, EventType}
 import com.advancedtelematic.ota.deviceregistry.data.DataType.{IndexedEvent, _}
 import java.util.UUID
@@ -23,7 +23,7 @@ object EventIndex {
     event.payload.hcursor.downField("campaignId").as[UUID]
       .leftMap(err => s"Could not parse payload for event ${event.show}: $err")
       .map { campaignId =>
-        IndexedEvent(event.deviceUuid, event.eventId, indexedEventType, CampaignId(campaignId).some)
+        IndexedEvent(event.deviceUuid, event.eventId, indexedEventType, CorrelationCampaignId(campaignId).some)
       }
   }
 
