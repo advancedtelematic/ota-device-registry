@@ -96,7 +96,7 @@ object GroupExpressionAST {
   def eval(exp: Expression): DeviceIdsQuery => DeviceIdsQuery = exp match {
     case DeviceIdContains(word) =>
       (q: DeviceIdsQuery) =>
-        val a = devices.filter(_.rawId.toLowerCase.like("%" + word.toLowerCase + "%")).map(_.uuid)
+        val a = devices.filter(_.rawId.toLowerCase.like("%" + word.replace("_", "\\_").toLowerCase + "%")).map(_.uuid)
         q.filter(_.in(a))
 
     case DeviceIdCharAt(c, p) =>
@@ -157,7 +157,7 @@ object GroupExpressionParser {
 
   private lazy val deviceIdContains: Parser[Expression] = for {
     _ <- token(string("contains"))
-    str <- takeWhile1(c => c.isLetterOrDigit || c == '-')
+    str <- takeWhile1(c => c.isLetterOrDigit || c == '-' || c == '_')
   } yield DeviceIdContains(str)
 
   private lazy val tagValueContains: Parser[Expression] = for {
@@ -175,13 +175,13 @@ object GroupExpressionParser {
 
   private lazy val deviceIdCharAtIs: Parser[Expression] = for {
     pos  <- charAt
-    char <- letterOrDigit
+    char <- letterOrDigit | char('-') | char('_')
   } yield DeviceIdCharAt(char, pos)
 
   private lazy val deviceIdCharAtIsNot: Parser[Expression] = for {
     pos  <- charAt
     _    <- token(string("not"))
-    char <- letterOrDigit
+    char <- letterOrDigit | char('-') | char('_')
   } yield Not(DeviceIdCharAt(char, pos))
 
   private lazy val tagValueCharAtIs: Parser[Expression] = for {
