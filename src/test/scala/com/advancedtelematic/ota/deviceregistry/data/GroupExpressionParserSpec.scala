@@ -93,6 +93,10 @@ class GroupExpressionParserSpec extends FunSuite with Matchers {
     runParser("deviceid contains eo7z-Onogw") shouldBe DeviceIdContains("eo7z-Onogw")
   }
 
+  test("parses deviceid containing '_'") {
+    runParser("deviceid contains dev_id") shouldBe DeviceIdContains("dev_id")
+  }
+
   test("parses boolean expressions without parenthesis") {
     runParser("deviceid contains eo7zOnogw or deviceid contains Ku05MCxEE6GQ2iKh and deviceid contains ySqlJlu") shouldBe
       Or(NonEmptyList.of(
@@ -111,6 +115,14 @@ class GroupExpressionParserSpec extends FunSuite with Matchers {
     runParser("deviceid position(2) is 8") shouldBe DeviceIdCharAt('8', 1)
   }
 
+  test("parses 'deviceid position is' when provided character is '-'") {
+    runParser("deviceid position(2) is -") shouldBe DeviceIdCharAt('-', 1)
+  }
+
+  test("parses 'deviceid position is' when provided character is '_'") {
+    runParser("deviceid position(2) is _") shouldBe DeviceIdCharAt('_', 1)
+  }
+
   test("parses 'deviceid position is' with parenthesis") {
     runParser("(deviceid position(2) is 8)") shouldBe DeviceIdCharAt('8', 1)
   }
@@ -120,8 +132,7 @@ class GroupExpressionParserSpec extends FunSuite with Matchers {
     runParserUnchecked("deviceid position(-1) is a").left.value shouldBe a[Errors.RawError]
   }
 
-  test("fails to parse 'deviceid position is' when the char is not alphanumeric") {
-    runParserUnchecked("deviceid position(1) is -").left.value shouldBe a[Errors.RawError]
+  test("fails to parse 'deviceid position is' when the char is not alphanumeric, `-`, or `_`") {
     runParserUnchecked("deviceid position(1) is %").left.value shouldBe a[Errors.RawError]
     runParserUnchecked("deviceid position(1) is }").left.value shouldBe a[Errors.RawError]
   }
