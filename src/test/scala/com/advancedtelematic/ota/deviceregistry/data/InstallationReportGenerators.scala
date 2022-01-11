@@ -2,7 +2,7 @@ package com.advancedtelematic.ota.deviceregistry.data
 
 import java.time.Instant
 
-import com.advancedtelematic.libats.data.DataType.{CampaignId, CorrelationId, MultiTargetUpdateId, Namespace, ResultCode, ResultDescription}
+import com.advancedtelematic.libats.data.DataType.{CorrelationCampaignId, CorrelationId, MultiTargetUpdateId, Namespace, ResultCode, ResultDescription}
 import com.advancedtelematic.libats.data.EcuIdentifier
 import com.advancedtelematic.libats.data.EcuIdentifier.validatedEcuIdentifier
 import com.advancedtelematic.libats.messaging_datatype.DataType.{DeviceId, EcuInstallationReport, InstallationResult}
@@ -14,7 +14,7 @@ import scala.util.{Success, Try}
 trait InstallationReportGenerators extends DeviceGenerators {
 
   val genCorrelationId: Gen[CorrelationId] =
-    Gen.uuid.flatMap(uuid => Gen.oneOf(CampaignId(uuid), MultiTargetUpdateId(uuid)))
+    Gen.uuid.flatMap(uuid => Gen.oneOf(CorrelationCampaignId(uuid), MultiTargetUpdateId(uuid)))
 
   val genEcuIdentifier: Gen[EcuIdentifier] =
     Gen.listOfN(64, Gen.alphaNumChar).map(_.mkString("")).map(validatedEcuIdentifier.from(_).right.get)

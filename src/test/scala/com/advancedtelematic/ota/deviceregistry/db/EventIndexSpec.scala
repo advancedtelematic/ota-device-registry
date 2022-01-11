@@ -3,7 +3,7 @@ package com.advancedtelematic.ota.deviceregistry.db
 import java.time.Instant
 
 import cats.syntax.option._
-import com.advancedtelematic.libats.data.DataType.{CampaignId, CorrelationId, MultiTargetUpdateId}
+import com.advancedtelematic.libats.data.DataType.{CorrelationCampaignId, CorrelationId, MultiTargetUpdateId}
 import com.advancedtelematic.libats.messaging_datatype.DataType.{DeviceId, Event, EventType}
 import com.advancedtelematic.libats.test.DatabaseSpec
 import com.advancedtelematic.ota.deviceregistry.data.DataType.{IndexedEvent, IndexedEventType}
@@ -18,7 +18,7 @@ import java.util.UUID
 class EventIndexSpec extends FunSuite with ScalaFutures with DatabaseSpec with Matchers with EitherValues {
 
   val genCorrelationId: Gen[CorrelationId] =
-    Gen.uuid.flatMap(uuid => Gen.oneOf(CampaignId(uuid), MultiTargetUpdateId(uuid)))
+    Gen.uuid.flatMap(uuid => Gen.oneOf(CorrelationCampaignId(uuid), MultiTargetUpdateId(uuid)))
   val eventGen: Gen[Event] = for {
     device <- Gen.uuid.map(DeviceId.apply)
     eventId <- Gen.uuid.map(_.toString)
@@ -68,7 +68,7 @@ class EventIndexSpec extends FunSuite with ScalaFutures with DatabaseSpec with M
     )
     eventTypeMap.foreach { case (eventType, indexedEventType) =>
       val (event, campaignId) = eventWithCampaignIdGen(eventType).generate
-      val correlationId = CampaignId(campaignId)
+      val correlationId = CorrelationCampaignId(campaignId)
       val indexedEvent = EventIndex.index(event).right.value
       indexedEvent shouldBe IndexedEvent(event.deviceUuid, event.eventId, indexedEventType, correlationId.some)
     }

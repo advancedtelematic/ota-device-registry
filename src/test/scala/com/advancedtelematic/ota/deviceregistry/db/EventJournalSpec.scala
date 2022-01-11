@@ -15,7 +15,7 @@ import java.util.UUID
 import akka.http.scaladsl.model.StatusCodes
 import cats.syntax.option._
 import com.advancedtelematic.libats.codecs.CirceCodecs._
-import com.advancedtelematic.libats.data.DataType.{CampaignId, CorrelationId, MultiTargetUpdateId}
+import com.advancedtelematic.libats.data.DataType.{CorrelationCampaignId, CorrelationId, MultiTargetUpdateId}
 import com.advancedtelematic.libats.messaging_datatype.DataType.{Event, EventType}
 import com.advancedtelematic.libats.messaging_datatype.MessageCodecs._
 import com.advancedtelematic.libats.messaging_datatype.Messages.{DeleteDeviceRequest, DeviceEventMessage}
@@ -65,7 +65,7 @@ class EventJournalSpec extends ResourcePropSpec with ScalaFutures with Eventuall
     } yield EventType(id, ver)
 
   val genCorrelationId: Gen[CorrelationId] =
-    Gen.uuid.flatMap(uuid => Gen.oneOf(CampaignId(uuid), MultiTargetUpdateId(uuid)))
+    Gen.uuid.flatMap(uuid => Gen.oneOf(CorrelationCampaignId(uuid), MultiTargetUpdateId(uuid)))
 
   implicit val EventGen = for {
     id        <- Gen.uuid
@@ -144,7 +144,7 @@ class EventJournalSpec extends ResourcePropSpec with ScalaFutures with Eventuall
       .map(listener.apply)
 
     eventually(timeout(3.seconds), interval(100.millis)) {
-      getEvents(deviceUuid, CampaignId(UUID.randomUUID()).some) ~> route ~> check {
+      getEvents(deviceUuid, CorrelationCampaignId(UUID.randomUUID()).some) ~> route ~> check {
         status should equal(StatusCodes.OK)
         val events = responseAs[List[EventPayload]]
         events shouldBe empty

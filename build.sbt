@@ -39,8 +39,8 @@ lazy val library =
       val attoCore = "0.7.1"
       val scalaCheck = "1.14.1"
       val scalaTest  = "3.0.8"
-      val libAts     = "0.4.0-8-g8c1c7f3"
-      val libTuf = "0.7.1-16-g4a20341"
+      val libAts     = "0.4.1-2-gf689d68"
+      val libTuf = "0.7.4-21-g94b8744"
       val akka = "2.6.5"
       val akkaHttp = "10.1.12"
       val alpakkaCsv = "2.0.0"
@@ -152,7 +152,7 @@ lazy val sonarSettings = Seq(
     "sonar.links.issue" -> "https://saeljira.it.here.com/projects/OTA/issues",
     "sonar.links.scm" -> "https://main.gitlab.in.here.com/olp/edge/ota/connect/back-end/ota-device-registry",
     "sonar.links.ci" -> "https://main.gitlab.in.here.com/olp/edge/ota/connect/back-end/ota-device-registry/pipelines",
-    "sonar.java.binaries" -> "./target/scala-*/classes", 
+    "sonar.java.binaries" -> "./target/scala-*/classes",
     "sonar.scala.coverage.reportPaths"->"target/scala-2.12/scoverage-report/scoverage.xml",
     "sonar.projectVersion" -> version.value,
     "sonar.language" -> "scala"))

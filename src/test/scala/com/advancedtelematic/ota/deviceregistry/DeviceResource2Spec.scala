@@ -10,7 +10,7 @@ import com.advancedtelematic.ota.deviceregistry.daemon.DeviceEventListener
 import com.advancedtelematic.ota.deviceregistry.data.DataType.IndexedEventType
 import org.scalatest.concurrent.{Eventually, ScalaFutures}
 import com.advancedtelematic.libats.codecs.CirceCodecs._
-import com.advancedtelematic.libats.data.DataType.CampaignId
+import com.advancedtelematic.libats.data.DataType.CorrelationCampaignId
 import com.advancedtelematic.libats.data.EcuIdentifier
 import com.advancedtelematic.ota.deviceregistry.DeviceResource2.ApiDeviceEvents
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
@@ -34,7 +34,7 @@ class DeviceResource2Spec extends FunSuite with ResourceSpec with Eventually wit
     val deviceId = createDeviceOk(device)
     val ecuId = EcuIdentifier("somefakeid").valueOr(throw _)
     val campaignIdUuid = UUID.randomUUID()
-    val campaignId = CampaignId(campaignIdUuid)
+    val campaignId = CorrelationCampaignId(campaignIdUuid)
     val now = Instant.now()
 
     val payload = Map(
@@ -77,8 +77,8 @@ class DeviceResource2Spec extends FunSuite with ResourceSpec with Eventually wit
     val ecuId = EcuIdentifier("somefakeid").valueOr(throw _)
     val now = Instant.now()
 
-    val campaignId01 = CampaignId(UUID.randomUUID())
-    val campaignId02 = CampaignId(UUID.randomUUID())
+    val campaignId01 = CorrelationCampaignId(UUID.randomUUID())
+    val campaignId02 = CorrelationCampaignId(UUID.randomUUID())
 
     val payload01 = Map(
       "ecu" -> ecuId.asJson,
