@@ -14,6 +14,7 @@ variables:
   # The same image have to be used by test and code coverage jobs:
   TEST_IMAGE: advancedtelematic/gitlab-jobs:0.2.5
   TEST_IMAGE_SONAR: advancedtelematic/gitlab-jobs-sonar:0.0.3
+  VAULT_ADDR: "http://vault.sit-ota.aws.in.here.com"
 
 test:
   stage: test
@@ -64,14 +65,18 @@ build docker image:
     refs:
       - master
       - /^deploy/.*$/
-  tags:
-    - docker-sock
   variables:
-  image: advancedtelematic/gitlab-jobs:0.2.5
+    DOCKER_TLS_CERTDIR: ""
+    DOCKER_HOST: tcp://docker:2375
+  image: advancedtelematic/gitlab-jobs:0.3.3
+  services:
+    - docker:19.03.12-dind
   script:
     - env | sort
-    - docker login -u $DOCKER_USER -p $DOCKER_PASSWORD
+    - gitlab-docker-login $VAULT_ADDR
     - sbt -x -sbt-dir ./.sbt -ivy ./.ivy2 -batch docker:publish -J-Xmx1G -J-XX:ReservedCodeCacheSize=128m -Dsbt.log.noformat=true
+    - docker tag advancedtelematic/device-registry:${CI_COMMIT_SHA} hcr.data.here.com/ota_saas/device-registry:${CI_COMMIT_SHA}
+    - docker push hcr.data.here.com/ota_saas/device-registry:${CI_COMMIT_SHA}
   cache:
     paths:
       - .ivy2/
