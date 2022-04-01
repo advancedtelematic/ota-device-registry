@@ -8,10 +8,12 @@
 
 package com.advancedtelematic.ota.deviceregistry.db
 
-import java.time.Instant
+import akka.actor.Scheduler
 
+import java.time.Instant
 import com.advancedtelematic.libats.data.DataType.Namespace
 import com.advancedtelematic.libats.data.PaginationResult
+import com.advancedtelematic.libats.slick.db.DatabaseHelper.DatabaseWithRetry
 import com.advancedtelematic.libats.slick.db.SlickExtensions._
 import com.advancedtelematic.libats.slick.db.SlickUUIDKey._
 import com.advancedtelematic.libats.slick.db.SlickValidatedGeneric.validatedStringMapper
@@ -50,8 +52,8 @@ object GroupInfoRepository {
       .maybeContains(_.groupName, nameContains)
       .paginateAndSortResult(sortBy, offset.orDefaultOffset, limit.orDefaultLimit)
 
-  def findById(id: GroupId)(implicit db: Database, ec: ExecutionContext): Future[Group] =
-    db.run(findByIdAction(id))
+  def findById(id: GroupId)(implicit db: Database, ec: ExecutionContext, scheduler: Scheduler): Future[Group] =
+    db.runWithRetry(findByIdAction(id))
 
   def findByIdAction(id: GroupId)(implicit ec: ExecutionContext): DBIO[Group] =
     groupInfos

@@ -1,5 +1,7 @@
 package com.advancedtelematic.ota.deviceregistry
 
+import akka.actor.Scheduler
+
 import java.time.Instant
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.{Directive1, Route}
@@ -41,7 +43,7 @@ object DeviceResource2 {
 }
 
 class DeviceResource2(namespaceExtractor: Directive1[AuthedNamespaceScope], deviceNamespaceAuthorizer: Directive1[DeviceId])
-                     (implicit db: Database, ec: ExecutionContext) extends Settings {
+                     (implicit db: Database, ec: ExecutionContext, scheduler: Scheduler) extends Settings {
 
   val eventJournal = new EventJournal()
 

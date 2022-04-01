@@ -8,11 +8,14 @@
 
 package com.advancedtelematic.ota.deviceregistry.db
 
+import akka.actor.Scheduler
+
 import java.time.Instant
 import cats.syntax.show._
 import com.advancedtelematic.libats.data.DataType.CorrelationId
 import com.advancedtelematic.libats.data.PaginationResult
 import com.advancedtelematic.libats.messaging_datatype.DataType.{DeviceId, Event, EventType}
+import com.advancedtelematic.libats.slick.db.DatabaseHelper.DatabaseWithRetry
 import com.advancedtelematic.libats.slick.db.SlickCirceMapper._
 import com.advancedtelematic.libats.slick.db.SlickExtensions.javaInstantMapping
 import com.advancedtelematic.libats.slick.db.SlickUUIDKey._
@@ -99,7 +102,7 @@ object EventJournal {
 
 }
 
-class EventJournal()(implicit db: Database, ec: ExecutionContext) {
+class EventJournal()(implicit db: Database, ec: ExecutionContext, scheduler: Scheduler) {
   import EventJournal.{events, indexedEvents, indexedEventsArchive}
 
   private lazy val _log = LoggerFactory.getLogger(this.getClass)
@@ -115,14 +118,14 @@ class EventJournal()(implicit db: Database, ec: ExecutionContext) {
 
     val io = events.insertOrUpdate(event).andThen(indexDbio).transactionally
 
-    db.run(io).map(_ => ())
+    db.runWithRetry(io).map(_ => ())
   }
 
   def getEvents(deviceUuid: DeviceId, correlationId: Option[CorrelationId], offset: Long, limit: Long): Future[Seq[Event]] =
     if(correlationId.isDefined)
       getIndexedEvents(deviceUuid, correlationId, offset, limit).map(_.map(_._1))
     else
-      db.run(events.filter(_.deviceUuid === deviceUuid).take(limit).drop(offset).result)
+      db.runWithRetry(events.filter(_.deviceUuid === deviceUuid).take(limit).drop(offset).result)
 
   private def getIndexedEventsQuery(deviceUuid: DeviceId, correlationId: Option[CorrelationId]) = {
     EventJournal.events
@@ -133,12 +136,12 @@ class EventJournal()(implicit db: Database, ec: ExecutionContext) {
   }
 
   def getIndexedEvents(deviceUuid: DeviceId, correlationId: Option[CorrelationId], offset: Long, limit: Long): Future[Seq[(Event, IndexedEvent)]] =
-    db.run(getIndexedEventsQuery(deviceUuid, correlationId).take(limit).drop(offset).result)
+    db.runWithRetry(getIndexedEventsQuery(deviceUuid, correlationId).take(limit).drop(offset).result)
 
   def getPaginatedIndexedEvents(deviceUuid: DeviceId, correlationId: Option[CorrelationId], offset: Long, limit: Long): Future[PaginationResult[(Event, IndexedEvent)]] =
-    db.run(getIndexedEventsQuery(deviceUuid, correlationId).paginateResult(offset, limit))
+    db.runWithRetry(getIndexedEventsQuery(deviceUuid, correlationId).paginateResult(offset, limit))
 
   protected [db] def getArchivedIndexedEvents(deviceUuid: DeviceId): Future[Seq[IndexedEvent]] =
-    db.run(indexedEventsArchive.filter(_.deviceUuid === deviceUuid).result)
+    db.runWithRetry(indexedEventsArchive.filter(_.deviceUuid === deviceUuid).result)
 }
 

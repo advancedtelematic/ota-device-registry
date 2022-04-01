@@ -1,7 +1,8 @@
 package com.advancedtelematic.ota.deviceregistry.daemon
 
-import java.time.Instant
+import akka.actor.Scheduler
 
+import java.time.Instant
 import akka.http.scaladsl.util.FastFuture
 import com.advancedtelematic.libats.data.DataType.{CorrelationId, Namespace}
 import com.advancedtelematic.libats.messaging.MessageBusPublisher
@@ -10,6 +11,7 @@ import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
 import com.advancedtelematic.libats.messaging_datatype.MessageCodecs.deviceUpdateCompletedCodec
 import com.advancedtelematic.libats.messaging_datatype.MessageLike
 import com.advancedtelematic.libats.messaging_datatype.Messages.{DeviceUpdateAssigned, DeviceUpdateCanceled, DeviceUpdateCompleted, DeviceUpdateEvent}
+import com.advancedtelematic.libats.slick.db.DatabaseHelper.DatabaseWithRetry
 import com.advancedtelematic.ota.deviceregistry.common.Errors
 import com.advancedtelematic.ota.deviceregistry.daemon.DeviceUpdateStatus._
 import com.advancedtelematic.ota.deviceregistry.data.DeviceStatus
@@ -34,7 +36,7 @@ import scala.concurrent.{ExecutionContext, Future}
   }
 
 class DeviceUpdateEventListener(messageBus: MessageBusPublisher)
-                               (implicit val db: Database, ec: ExecutionContext) extends MsgOperation[DeviceUpdateEvent] {
+                               (implicit val db: Database, ec: ExecutionContext, scheduler: Scheduler) extends MsgOperation[DeviceUpdateEvent] {
 
   private val _log = LoggerFactory.getLogger(this.getClass)
   case class Unhandleable(name: String, deviceUuid: DeviceId, correlationId: CorrelationId) extends Exception()
@@ -61,7 +63,7 @@ class DeviceUpdateEventListener(messageBus: MessageBusPublisher)
   }
 
   private def wasCompleted(deviceId: DeviceId, correlationId: CorrelationId): Future[Boolean] = {
-    val existingReport = db.run(InstallationReportRepository.fetchDeviceInstallationResultFor(deviceId, correlationId))
+    val existingReport = db.runWithRetry(InstallationReportRepository.fetchDeviceInstallationResultFor(deviceId, correlationId))
     existingReport.map(_.exists(_.success)) // if we handle success event - other should be ignored
   }
 
@@ -69,7 +71,7 @@ class DeviceUpdateEventListener(messageBus: MessageBusPublisher)
     case   _: DeviceUpdateAssigned  => Future.successful(DeviceStatus.Outdated)
     case   _: DeviceUpdateCanceled  => Future.successful(DeviceStatus.UpToDate)
     case msg: DeviceUpdateCompleted =>
-      db.run {
+      db.runWithRetry {
         InstallationReportRepository
         .saveInstallationResults(
           msg.correlationId, msg.deviceUuid, msg.result.code, msg.result.success, msg.ecuReports,
@@ -88,7 +90,7 @@ class DeviceUpdateEventListener(messageBus: MessageBusPublisher)
         if(device.lastSeen.isEmpty) DeviceStatus.NotSeen else deviceStatus)
     } yield (device, deviceStatus)
 
-    db.run(f)
+    db.runWithRetry(f)
       .flatMap {
       case (device, status) =>
         messageBus

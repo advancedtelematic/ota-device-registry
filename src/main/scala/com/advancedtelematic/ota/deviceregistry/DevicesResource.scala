@@ -9,8 +9,7 @@
 package com.advancedtelematic.ota.deviceregistry
 
 import java.time.{Instant, OffsetDateTime}
-
-import akka.actor.ActorSystem
+import akka.actor.{ActorSystem, Scheduler}
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.headers._
 import akka.http.scaladsl.server._
@@ -30,6 +29,7 @@ import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId._
 import com.advancedtelematic.libats.messaging_datatype.DataType.{DeviceId, Event, EventType}
 import com.advancedtelematic.libats.messaging_datatype.MessageCodecs._
 import com.advancedtelematic.libats.messaging_datatype.Messages.{DeleteDeviceRequest, DeviceEventMessage}
+import com.advancedtelematic.libats.slick.db.DatabaseHelper.DatabaseWithRetry
 import com.advancedtelematic.libats.slick.db.SlickExtensions._
 import com.advancedtelematic.ota.deviceregistry.common.Errors
 import com.advancedtelematic.ota.deviceregistry.common.Errors.MissingDevice
@@ -101,7 +101,7 @@ class DevicesResource(
     namespaceExtractor: Directive1[AuthedNamespaceScope],
     messageBus: MessageBusPublisher,
     deviceNamespaceAuthorizer: Directive1[DeviceId]
-)(implicit system: ActorSystem, db: Database, mat: Materializer, ec: ExecutionContext) extends Settings {
+)(implicit system: ActorSystem, db: Database, mat: Materializer, ec: ExecutionContext, scheduler: Scheduler) extends Settings {
 
   import DevicesResource._
   import Directives._
@@ -126,14 +126,14 @@ class DevicesResource(
       'offset.as(nonNegativeLong).?,
       'limit.as(nonNegativeLong).?)).as(SearchParams.apply _) { params =>
         entity(as[DeviceUuids]) { p =>
-          complete(db.run(DeviceRepository.search(ns, params, p.deviceUuids)))
+          complete(db.runWithRetry(DeviceRepository.search(ns, params, p.deviceUuids)))
         } ~
-        complete(db.run(DeviceRepository.search(ns, params, Vector.empty)))
+        complete(db.runWithRetry(DeviceRepository.search(ns, params, Vector.empty)))
       }
 
   def createDevice(ns: Namespace, device: DeviceT): Route = {
     val f = db
-      .run(DeviceRepository.create(ns, device))
+      .runWithRetry(DeviceRepository.create(ns, device))
       .andThen {
         case scala.util.Success(uuid) =>
           messageBus.publish(
@@ -154,31 +154,31 @@ class DevicesResource(
   }
 
   def fetchDevice(uuid: DeviceId): Route =
-    complete(db.run(DeviceRepository.findByUuid(uuid)))
+    complete(db.runWithRetry(DeviceRepository.findByUuid(uuid)))
 
   def updateDevice(ns: Namespace, uuid: DeviceId, updateDevice: UpdateDevice): Route =
-    complete(db.run(DeviceRepository.updateDeviceName(ns, uuid, updateDevice.deviceName)))
+    complete(db.runWithRetry(DeviceRepository.updateDeviceName(ns, uuid, updateDevice.deviceName)))
 
   def countDynamicGroupCandidates(ns: Namespace, expression: GroupExpression): Route =
-    complete(db.run(DeviceRepository.countDevicesForExpression(ns, expression)))
+    complete(db.runWithRetry(DeviceRepository.countDevicesForExpression(ns, expression)))
 
   def getGroupsForDevice(uuid: DeviceId): Route =
     parameters(('offset.as(nonNegativeLong).?, 'limit.as(nonNegativeLong).?)) { (offset, limit) =>
-      complete(db.run(GroupMemberRepository.listGroupsForDevice(uuid, offset, limit)))
+      complete(db.runWithRetry(GroupMemberRepository.listGroupsForDevice(uuid, offset, limit)))
     }
 
   def updateInstalledSoftware(device: DeviceId): Route =
     entity(as[Seq[PackageId]]) { installedSoftware =>
-      val f = db.run(InstalledPackages.setInstalled(device, installedSoftware.toSet))
+      val f = db.runWithRetry(InstalledPackages.setInstalled(device, installedSoftware.toSet))
       onSuccess(f) { complete(StatusCodes.NoContent) }
     }
 
   def getDevicesCount(pkg: PackageId, ns: Namespace): Route =
-    complete(db.run(InstalledPackages.getDevicesCount(pkg, ns)))
+    complete(db.runWithRetry(InstalledPackages.getDevicesCount(pkg, ns)))
 
   def listPackagesOnDevice(device: DeviceId): Route =
     parameters(('nameContains.as[String].?, 'offset.as(nonNegativeLong).?, 'limit.as(nonNegativeLong).?)) { (nameContains, offset, limit) =>
-      complete(db.run(InstalledPackages.installedOn(device, nameContains, offset, limit)))
+      complete(db.runWithRetry(InstalledPackages.installedOn(device, nameContains, offset, limit)))
     }
 
   implicit def offsetDateTimeUnmarshaller: FromStringUnmarshaller[OffsetDateTime] =
@@ -187,14 +187,14 @@ class DevicesResource(
   def getActiveDeviceCount(ns: Namespace): Route =
     parameters(('start.as[OffsetDateTime], 'end.as[OffsetDateTime])) { (start, end) =>
       complete(
-        db.run(DeviceRepository.countActivatedDevices(ns, start.toInstant, end.toInstant))
+        db.runWithRetry(DeviceRepository.countActivatedDevices(ns, start.toInstant, end.toInstant))
           .map(ActiveDeviceCount.apply)
       )
     }
 
   def getDistinctPackages(ns: Namespace): Route =
     parameters('offset.as(nonNegativeLong).?, 'limit.as(nonNegativeLong).?) { (offset, limit) =>
-      complete(db.run(InstalledPackages.getInstalledForAllDevices(ns, offset, limit)))
+      complete(db.runWithRetry(InstalledPackages.getInstalledForAllDevices(ns, offset, limit)))
     }
 
   def findAffected(ns: Namespace): Route =
@@ -202,37 +202,37 @@ class DevicesResource(
       val f = InstalledPackages.allInstalledPackagesById(ns, packageIds).map {
         _.groupBy(_._1).mapValues(_.map(_._2).toSet)
       }
-      complete(db.run(f))
+      complete(db.runWithRetry(f))
     }
 
   def getPackageStats(ns: Namespace, name: PackageId.Name): Route =
     parameters('offset.as(nonNegativeLong).?, 'limit.as(nonNegativeLong).?) { (offset, limit) =>
-      val f = db.run(InstalledPackages.listAllWithPackageByName(ns, name, offset, limit))
+      val f = db.runWithRetry(InstalledPackages.listAllWithPackageByName(ns, name, offset, limit))
       complete(f)
     }
 
   def fetchInstallationHistory(deviceId: DeviceId, offset: Option[Long], limit: Option[Long]): Route =
-    complete(db.run(EcuReplacementRepository.deviceHistory(deviceId, offset.orDefaultOffset, limit.orDefaultLimit)))
+    complete(db.runWithRetry(EcuReplacementRepository.deviceHistory(deviceId, offset.orDefaultOffset, limit.orDefaultLimit)))
 
   def installationReports(deviceId: DeviceId, offset: Option[Long], limit: Option[Long]): Route =
-    complete(db.run(InstallationReportRepository.installationReports(deviceId, offset.orDefaultOffset, limit.orDefaultLimit)))
+    complete(db.runWithRetry(InstallationReportRepository.installationReports(deviceId, offset.orDefaultOffset, limit.orDefaultLimit)))
 
   def fetchInstallationStats(correlationId: CorrelationId, reportLevel: Option[InstallationStatsLevel]): Route = {
     val action = reportLevel match {
       case Some(InstallationStatsLevel.Ecu) => InstallationReportRepository.installationStatsPerEcu(correlationId)
       case _                                => InstallationReportRepository.installationStatsPerDevice(correlationId)
     }
-    complete(db.run(action))
+    complete(db.runWithRetry(action))
   }
 
   private def fetchDeviceTags(ns: Namespace): Route =
-    complete(db.run(TaggedDeviceRepository.fetchAll(ns)))
+    complete(db.runWithRetry(TaggedDeviceRepository.fetchAll(ns)))
 
   private def fetchDeviceTags(deviceId: DeviceId): Route =
-    complete(db.run(TaggedDeviceRepository.fetchForDevice(deviceId)))
+    complete(db.runWithRetry(TaggedDeviceRepository.fetchForDevice(deviceId)))
 
   private def patchDeviceTagValue(namespace: Namespace, deviceId: DeviceId, tagId: TagId, tagValue: String) = {
-    val f = db.run {
+    val f = db.runWithRetry {
       for {
         _ <- TaggedDeviceRepository.updateDeviceTagValue(namespace, deviceId, tagId, tagValue)
         tags <- TaggedDeviceRepository.fetchForDevice(deviceId)
@@ -246,11 +246,11 @@ class DevicesResource(
       _ <- TaggedDeviceRepository.updateTagId(ns, tagId, newTagId)
       _ <- GroupInfoRepository.renameTagIdInExpression(ns, tagId, newTagId)
     } yield ()
-    complete(db.run(action.transactionally))
+    complete(db.runWithRetry(action.transactionally))
   }
 
   private def deleteDeviceTag(namespace: Namespace, tagId: TagId) =
-    complete(db.run(TaggedDeviceRepository.deleteTag(namespace, tagId)))
+    complete(db.runWithRetry(TaggedDeviceRepository.deleteTag(namespace, tagId)))
 
   private def tagDevicesFromCsv(ns: Namespace, byteSource: Source[ByteString, Any]): Route = {
     val deviceIdKey = "DeviceID"
@@ -277,7 +277,7 @@ class DevicesResource(
       for {
         dbios <- f
         action = DBIO.sequence(dbios).transactionally
-        _ <- db.run(action)
+        _ <- db.runWithRetry(action)
       } yield NoContent
     }
   }

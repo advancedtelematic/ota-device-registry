@@ -1,6 +1,7 @@
 package com.advancedtelematic.ota.deviceregistry.daemon
 
 import akka.Done
+import akka.actor.{ActorSystem, Scheduler}
 import com.advancedtelematic.ota.deviceregistry.data.GeneratorOps
 import com.advancedtelematic.libats.data.DataType.Namespace
 import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
@@ -19,6 +20,9 @@ final class DeleteDeviceListenerSpec
   import GeneratorOps._
 
   import scala.concurrent.ExecutionContext.Implicits.global
+  implicit val system: ActorSystem = ActorSystem(this.getClass.getSimpleName)
+  implicit val scheduler: Scheduler = system.scheduler
+
   val handler = new DeleteDeviceListener()
 
   test("OTA-2445: do not fail when deleting non-existent device") {

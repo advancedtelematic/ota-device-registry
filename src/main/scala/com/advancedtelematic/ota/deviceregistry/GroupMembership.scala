@@ -1,5 +1,6 @@
 package com.advancedtelematic.ota.deviceregistry
 
+import akka.actor.Scheduler
 import akka.http.scaladsl.util.FastFuture
 import com.advancedtelematic.libats.data.DataType.Namespace
 import com.advancedtelematic.libats.data.PaginationResult
@@ -12,20 +13,21 @@ import slick.jdbc.MySQLProfile.api._
 
 import scala.concurrent.{ExecutionContext, Future}
 import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
+import com.advancedtelematic.libats.slick.db.DatabaseHelper.DatabaseWithRetry
 
 protected trait GroupMembershipOperations {
   def addMember(groupId: GroupId, deviceId: DeviceId): Future[Unit]
   def removeMember(group: Group, deviceId: DeviceId): Future[Unit]
 }
 
-protected class DynamicMembership(implicit db: Database, ec: ExecutionContext) extends GroupMembershipOperations {
+protected class DynamicMembership(implicit db: Database, ec: ExecutionContext, scheduler: Scheduler) extends GroupMembershipOperations {
 
   def create(
       groupId: GroupId,
       name: GroupName,
       namespace: Namespace,
       expression: GroupExpression
-  ): Future[GroupId] = db.run {
+  ): Future[GroupId] = db.runWithRetry {
     GroupInfoRepository
       .create(groupId, name, namespace, GroupType.dynamic, Some(expression))
       .andThen {
@@ -44,20 +46,20 @@ protected class DynamicMembership(implicit db: Database, ec: ExecutionContext) e
     FastFuture.failed(Errors.CannotRemoveDeviceFromDynamicGroup)
 }
 
-protected class StaticMembership(implicit db: Database, ec: ExecutionContext) extends GroupMembershipOperations {
+protected class StaticMembership(implicit db: Database, ec: ExecutionContext, scheduler: Scheduler) extends GroupMembershipOperations {
 
   override def addMember(groupId: GroupId, deviceId: DeviceId): Future[Unit] =
-    db.run(GroupMemberRepository.addGroupMember(groupId, deviceId)).map(_ => ())
+    db.runWithRetry(GroupMemberRepository.addGroupMember(groupId, deviceId)).map(_ => ())
 
   override def removeMember(group: Group, deviceId: DeviceId): Future[Unit] =
-    db.run(GroupMemberRepository.removeGroupMember(group.id, deviceId))
+    db.runWithRetry(GroupMemberRepository.removeGroupMember(group.id, deviceId))
 
-  def create(groupId: GroupId, name: GroupName, namespace: Namespace): Future[GroupId] = db.run {
+  def create(groupId: GroupId, name: GroupName, namespace: Namespace): Future[GroupId] = db.runWithRetry {
     GroupInfoRepository.create(groupId, name, namespace, GroupType.static, expression = None)
   }
 }
 
-class GroupMembership(implicit val db: Database, ec: ExecutionContext) {
+class GroupMembership(implicit val db: Database, ec: ExecutionContext, scheduler: Scheduler) {
 
   private def runGroupOperation[T](groupId: GroupId)(fn: (Group, GroupMembershipOperations) => Future[T]): Future[T] =
     GroupInfoRepository.findById(groupId).flatMap {
@@ -78,14 +80,14 @@ class GroupMembership(implicit val db: Database, ec: ExecutionContext) {
     }
 
   def listDevices(groupId: GroupId, offset: Option[Long], limit: Option[Long]): Future[PaginationResult[DeviceId]] =
-    db.run(GroupMemberRepository.listDevicesInGroup(groupId, offset, limit))
+    db.runWithRetry(GroupMemberRepository.listDevicesInGroup(groupId, offset, limit))
 
   def addGroupMember(groupId: GroupId, deviceId: DeviceId)(implicit ec: ExecutionContext): Future[Unit] =
     runGroupOperation(groupId) { (g, m) =>
       m.addMember(g.id, deviceId)
     }
 
-  def countDevices(groupId: GroupId): Future[Long] = db.run(GroupMemberRepository.countDevicesInGroup(groupId))
+  def countDevices(groupId: GroupId): Future[Long] = db.runWithRetry(GroupMemberRepository.countDevicesInGroup(groupId))
 
   def removeGroupMember(groupId: GroupId, deviceId: DeviceId): Future[Unit] = runGroupOperation(groupId) { (g, m) =>
     m.removeMember(g, deviceId)

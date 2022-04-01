@@ -1,5 +1,5 @@
 package com.advancedtelematic.ota.deviceregistry
-import akka.actor.ActorSystem
+import akka.actor.{ActorSystem, Scheduler}
 import akka.http.scaladsl.server.{Directive1, Directives, Route}
 import akka.stream.Materializer
 import com.advancedtelematic.libats.auth.AuthedNamespaceScope
@@ -18,7 +18,7 @@ class DeviceRegistryRoutes(
     namespaceExtractor: Directive1[AuthedNamespaceScope],
     deviceNamespaceAuthorizer: Directive1[DeviceId],
     messageBus: MessageBusPublisher
-)(implicit db: Database, system: ActorSystem, mat: Materializer, exec: ExecutionContext)
+)(implicit db: Database, system: ActorSystem, mat: Materializer, exec: ExecutionContext, scheduler: Scheduler)
     extends Directives {
 
   val route: Route =

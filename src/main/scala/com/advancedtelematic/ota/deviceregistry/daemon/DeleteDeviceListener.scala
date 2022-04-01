@@ -9,8 +9,10 @@
 package com.advancedtelematic.ota.deviceregistry.daemon
 
 import akka.Done
+import akka.actor.Scheduler
 import com.advancedtelematic.libats.messaging.MsgOperation.MsgOperation
 import com.advancedtelematic.libats.messaging_datatype.Messages.DeleteDeviceRequest
+import com.advancedtelematic.libats.slick.db.DatabaseHelper.DatabaseWithRetry
 import com.advancedtelematic.ota.deviceregistry.db.DeviceRepository
 import com.advancedtelematic.ota.deviceregistry.common.Errors
 import org.slf4j.LoggerFactory
@@ -18,12 +20,12 @@ import slick.jdbc.MySQLProfile.api._
 
 import scala.concurrent.{ExecutionContext, Future}
 
-class DeleteDeviceListener()(implicit val db: Database, ec: ExecutionContext) extends MsgOperation[DeleteDeviceRequest] {
+class DeleteDeviceListener()(implicit val db: Database, ec: ExecutionContext, scheduler: Scheduler) extends MsgOperation[DeleteDeviceRequest] {
 
   private lazy val log = LoggerFactory.getLogger(this.getClass)
 
   override def apply(message: DeleteDeviceRequest): Future[Done] =
-    db.run(DeviceRepository.delete(message.namespace, message.uuid).map(_ => Done))
+    db.runWithRetry(DeviceRepository.delete(message.namespace, message.uuid).map(_ => Done))
       .recover {
         case Errors.MissingDevice =>
           log.info(s"Can't remove non-existent device: ${message.uuid}")
