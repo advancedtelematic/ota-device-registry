@@ -1,5 +1,6 @@
 package com.advancedtelematic.ota.deviceregistry
 
+import akka.actor.Scheduler
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
@@ -24,6 +25,7 @@ object DaemonBoot extends BootApp
   with VersionInfo {
 
   implicit val _db = db
+  implicit val scheduler: Scheduler = system.scheduler
 
   lazy val messageBus = MessageBus.publisher(system, config)
 

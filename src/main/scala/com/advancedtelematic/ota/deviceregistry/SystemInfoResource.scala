@@ -9,9 +9,8 @@
 package com.advancedtelematic.ota.deviceregistry
 
 import java.time.Instant
-
 import akka.Done
-import akka.actor.ActorSystem
+import akka.actor.{ActorSystem, Scheduler}
 import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.model.StatusCodes._
 import akka.http.scaladsl.server.Directives._
@@ -26,6 +25,7 @@ import com.advancedtelematic.libats.http.UUIDKeyAkka._
 import com.advancedtelematic.libats.messaging.MessageBusPublisher
 import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
 import com.advancedtelematic.libats.messaging_datatype.Messages.{AktualizrConfigChanged, DeviceSystemInfoChanged}
+import com.advancedtelematic.libats.slick.db.DatabaseHelper.DatabaseWithRetry
 import com.advancedtelematic.ota.deviceregistry.common.Errors.{Codes, MissingSystemInfo}
 import com.advancedtelematic.ota.deviceregistry.db.SystemInfoRepository
 import com.advancedtelematic.ota.deviceregistry.db.SystemInfoRepository.NetworkInfo
@@ -57,7 +57,7 @@ class SystemInfoResource(
     messageBus: MessageBusPublisher,
     authNamespace: Directive1[AuthedNamespaceScope],
     deviceNamespaceAuthorizer: Directive1[DeviceId]
-)(implicit db: Database, actorSystem: ActorSystem, ec: ExecutionContext) {
+)(implicit db: Database, actorSystem: ActorSystem, ec: ExecutionContext, scheduler: Scheduler) {
   import SystemInfoResource._
   import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
 
@@ -88,7 +88,7 @@ class SystemInfoResource(
   }.forContentTypes(`application/toml`)
 
   def fetchSystemInfo(uuid: DeviceId): Route = {
-    val comp = db.run(SystemInfoRepository.findByUuid(uuid)).recover {
+    val comp = db.runWithRetry(SystemInfoRepository.findByUuid(uuid)).recover {
       case MissingSystemInfo => Json.obj()
     }
     complete(comp)
@@ -96,7 +96,7 @@ class SystemInfoResource(
 
   def createSystemInfo(ns: Namespace, uuid: DeviceId, data: Json): Route = {
     val f = db
-      .run(SystemInfoRepository.create(uuid, data))
+      .runWithRetry(SystemInfoRepository.create(uuid, data))
       .andThen {
         case scala.util.Success(_) =>
           systemInfoUpdatePublisher.publishSafe(ns, uuid, data.some)
@@ -106,7 +106,7 @@ class SystemInfoResource(
 
   def updateSystemInfo(ns: Namespace, uuid: DeviceId, data: Json): Route = {
     val f = db
-      .run(SystemInfoRepository.update(uuid, data))
+      .runWithRetry(SystemInfoRepository.update(uuid, data))
       .andThen {
         case scala.util.Success(_) =>
           systemInfoUpdatePublisher.publishSafe(ns, uuid, data.some)
@@ -136,7 +136,7 @@ class SystemInfoResource(
           } ~
           path("network") {
             get {
-              val networkInfo = db.run(SystemInfoRepository.getNetworkInfo(uuid))
+              val networkInfo = db.runWithRetry(SystemInfoRepository.getNetworkInfo(uuid))
               completeOrRecoverWith(networkInfo) {
                 case MissingSystemInfo =>
                   complete(OK -> NetworkInfo(uuid, "", "", ""))
@@ -146,7 +146,7 @@ class SystemInfoResource(
             } ~
             (put & entity(as[DeviceId => NetworkInfo])) { payload =>
               val result = db
-                .run(SystemInfoRepository.setNetworkInfo(payload(uuid)))
+                .runWithRetry(SystemInfoRepository.setNetworkInfo(payload(uuid)))
                 .andThen {
                   case scala.util.Success(Done) =>
                     messageBus.publish(DeviceSystemInfoChanged(ns.namespace, uuid, None))

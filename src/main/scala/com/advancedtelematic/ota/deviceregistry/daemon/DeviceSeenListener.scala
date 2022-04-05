@@ -9,9 +9,11 @@
 package com.advancedtelematic.ota.deviceregistry.daemon
 
 import akka.Done
+import akka.actor.Scheduler
 import com.advancedtelematic.libats.messaging.MessageBusPublisher
 import com.advancedtelematic.libats.messaging.MsgOperation.MsgOperation
 import com.advancedtelematic.libats.messaging_datatype.Messages.DeviceSeen
+import com.advancedtelematic.libats.slick.db.DatabaseHelper.DatabaseWithRetry
 import com.advancedtelematic.ota.deviceregistry.data.DeviceStatus
 import com.advancedtelematic.ota.deviceregistry.db.DeviceRepository
 import com.advancedtelematic.ota.deviceregistry.common.Errors
@@ -22,19 +24,19 @@ import scala.concurrent.{ExecutionContext, Future}
 import slick.jdbc.MySQLProfile.api._
 
 class DeviceSeenListener(messageBus: MessageBusPublisher)
-                        (implicit db: Database, ec: ExecutionContext) extends MsgOperation[DeviceSeen] {
+                        (implicit db: Database, ec: ExecutionContext, scheduler: Scheduler) extends MsgOperation[DeviceSeen] {
 
   val _logger = LoggerFactory.getLogger(this.getClass)
 
   override def apply(msg: DeviceSeen): Future[Done] =
-    db.run(DeviceRepository.updateLastSeen(msg.uuid, msg.lastSeen))
+    db.runWithRetry(DeviceRepository.updateLastSeen(msg.uuid, msg.lastSeen))
       .flatMap {
         case (activated, ns) =>
           if (activated) {
             messageBus
               .publishSafe(DeviceActivated(ns, msg.uuid, msg.lastSeen))
               .flatMap { _ =>
-                db.run(DeviceRepository.setDeviceStatus(msg.uuid, DeviceStatus.UpToDate))
+                db.runWithRetry(DeviceRepository.setDeviceStatus(msg.uuid, DeviceStatus.UpToDate))
               }
           } else {
             Future.successful(Done)

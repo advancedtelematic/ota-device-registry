@@ -8,9 +8,10 @@
 
 package com.advancedtelematic.ota.deviceregistry
 
+import akka.actor.Scheduler
+
 import java.time.Instant
 import java.util.Base64
-
 import akka.http.scaladsl.marshalling.Marshaller._
 import akka.http.scaladsl.server.{Directive1, Route}
 import akka.http.scaladsl.server.Directives._
@@ -26,6 +27,7 @@ import com.advancedtelematic.ota.deviceregistry.db.{DeviceRepository, PublicCred
 import com.advancedtelematic.ota.deviceregistry.messages.{DeviceCreated, DevicePublicCredentialsSet}
 import slick.jdbc.MySQLProfile.api._
 import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
+import com.advancedtelematic.libats.slick.db.DatabaseHelper.DatabaseWithRetry
 import com.advancedtelematic.ota.deviceregistry.data.Codecs._
 import com.advancedtelematic.ota.deviceregistry.data.DataType.DeviceT
 
@@ -41,14 +43,14 @@ class PublicCredentialsResource(
     authNamespace: Directive1[AuthedNamespaceScope],
     messageBus: MessageBusPublisher,
     deviceNamespaceAuthorizer: Directive1[DeviceId]
-)(implicit db: Database, mat: Materializer, ec: ExecutionContext) {
+)(implicit db: Database, mat: Materializer, ec: ExecutionContext, scheduler: Scheduler) {
   import PublicCredentialsResource._
   import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
   lazy val base64Decoder = Base64.getDecoder()
   lazy val base64Encoder = Base64.getEncoder()
 
   def fetchPublicCredentials(uuid: DeviceId): Route =
-    complete(db.run(PublicCredentialsRepository.findByUuid(uuid)).map { creds =>
+    complete(db.runWithRetry(PublicCredentialsRepository.findByUuid(uuid)).map { creds =>
       FetchPublicCredentials(uuid, creds.typeCredentials, new String(creds.credentials))
     })
 
@@ -62,7 +64,7 @@ class PublicCredentialsResource(
         } yield (created, uuid)
 
         for {
-          (created, uuid) <- db.run(dbact.transactionally)
+          (created, uuid) <- db.runWithRetry(dbact.transactionally)
           _ <- if (created) {
             messageBus.publish(
               DeviceCreated(ns, uuid, devT.deviceName, devT.deviceId, devT.deviceType, Instant.now())

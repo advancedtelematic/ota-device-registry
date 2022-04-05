@@ -8,6 +8,7 @@
 
 package com.advancedtelematic.ota.deviceregistry
 
+import akka.actor.Scheduler
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.server.{Directives, Route}
 import akka.http.scaladsl.settings.{ParserSettings, ServerSettings}
@@ -17,6 +18,7 @@ import com.advancedtelematic.libats.http._
 import com.advancedtelematic.libats.http.tracing.Tracing
 import com.advancedtelematic.libats.messaging._
 import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
+import com.advancedtelematic.libats.slick.db.DatabaseHelper.DatabaseWithRetry
 import com.advancedtelematic.libats.slick.db.{CheckMigrations, DatabaseConfig}
 import com.advancedtelematic.libats.slick.monitoring.{DatabaseMetrics, DbHealthResource}
 import com.advancedtelematic.metrics.prometheus.PrometheusMetricsSupport
@@ -50,13 +52,14 @@ object Boot extends BootApp
   import VersionDirectives._
 
   implicit val _db = db
+  implicit val scheduler: Scheduler = system.scheduler
 
   val authNamespace = NamespaceDirectives.fromConfig()
 
   private val namespaceAuthorizer = AllowUUIDPath.deviceUUID(authNamespace, deviceAllowed)
 
   private def deviceAllowed(deviceId: DeviceId): Future[Namespace] =
-    db.run(DeviceRepository.deviceNamespace(deviceId))
+    db.runWithRetry(DeviceRepository.deviceNamespace(deviceId))
 
   lazy val messageBus = MessageBus.publisher(system, config)
 

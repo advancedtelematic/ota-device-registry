@@ -9,6 +9,7 @@
 package com.advancedtelematic.ota.deviceregistry.daemon
 
 import akka.Done
+import akka.actor.Scheduler
 import com.advancedtelematic.libats.messaging.MsgOperation.MsgOperation
 import com.advancedtelematic.libats.messaging_datatype.Messages.DeviceEventMessage
 import com.advancedtelematic.ota.deviceregistry.common.Errors
@@ -19,9 +20,9 @@ import slick.jdbc.MySQLProfile.api._
 import java.sql.SQLIntegrityConstraintViolationException
 import scala.concurrent.{ExecutionContext, Future}
 
-class DeviceEventListener()(implicit val db: Database, ec: ExecutionContext) extends MsgOperation[DeviceEventMessage] {
+class DeviceEventListener()(implicit val db: Database, ec: ExecutionContext, scheduler: Scheduler) extends MsgOperation[DeviceEventMessage] {
 
-  private[this] val journal = new EventJournal()(db, ec)
+  private[this] val journal = new EventJournal()
   private lazy val log = LoggerFactory.getLogger(this.getClass)
 
 

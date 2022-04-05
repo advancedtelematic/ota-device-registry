@@ -9,6 +9,7 @@
 package com.advancedtelematic.ota.deviceregistry
 
 
+import akka.actor.Scheduler
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.{RouteTestTimeout, ScalatestRouteTest}
 import com.advancedtelematic.libats.auth.NamespaceDirectives
@@ -56,6 +57,8 @@ trait ResourceSpec
   lazy val messageBus = MessageBus.publisher(system, system.settings.config)
 
   implicit val tracing = new NullServerRequestTracing
+
+  implicit val scheduler: Scheduler = system.scheduler
 
   // Route
   lazy implicit val route: Route =

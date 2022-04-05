@@ -1,11 +1,13 @@
 package com.advancedtelematic.ota.deviceregistry
 
+import akka.actor.Scheduler
 import akka.http.scaladsl.model.StatusCodes.{Created, NoContent}
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server._
 import com.advancedtelematic.libats.auth.{AuthedNamespaceScope, Scopes}
 import com.advancedtelematic.libats.data.DataType.Namespace
 import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
+import com.advancedtelematic.libats.slick.db.DatabaseHelper.DatabaseWithRetry
 import com.advancedtelematic.ota.deviceregistry.data.Codecs._
 import com.advancedtelematic.ota.deviceregistry.data.DataType.{PackageListItem, PackageListItemCount}
 import com.advancedtelematic.ota.deviceregistry.data.PackageId
@@ -34,25 +36,25 @@ import scala.concurrent.{ExecutionContext, Future}
   */
 class PackageListsResource(namespaceExtractor: Directive1[AuthedNamespaceScope],
                            deviceNamespaceAuthorizer: Directive1[DeviceId],
-                          )(implicit db: Database, ec: ExecutionContext) {
+                          )(implicit db: Database, ec: ExecutionContext, scheduler: Scheduler) {
 
   private val extractPackageId: Directive1[PackageId] =
     pathPrefix(Segment / Segment).as(PackageId.apply)
 
   private def getPackageListItem(ns: Namespace, packageId: PackageId): Future[PackageListItem] =
-    db.run(PackageListItemRepository.fetchPackageListItem(ns, packageId))
+    db.runWithRetry(PackageListItemRepository.fetchPackageListItem(ns, packageId))
 
   private def getPackageListItemCounts(ns: Namespace): Future[Seq[PackageListItemCount]] =
-    db.run(PackageListItemRepository.fetchPackageListItemCounts(ns))
+    db.runWithRetry(PackageListItemRepository.fetchPackageListItemCounts(ns))
 
   private def createPackageListItem(packageListItem: PackageListItem): Future[Unit] =
-    db.run(PackageListItemRepository.create(packageListItem).map(_ => ()))
+    db.runWithRetry(PackageListItemRepository.create(packageListItem).map(_ => ()))
 
   private def updatePackageListItem(patchedPackageListItem: PackageListItem): Future[Unit] =
-    db.run(PackageListItemRepository.update(patchedPackageListItem).map(_ => ()))
+    db.runWithRetry(PackageListItemRepository.update(patchedPackageListItem).map(_ => ()))
 
   private def deletePackageListItem(ns: Namespace, packageId: PackageId): Future[Unit] =
-    db.run(PackageListItemRepository.remove(ns, packageId).map(_ => ()))
+    db.runWithRetry(PackageListItemRepository.remove(ns, packageId).map(_ => ()))
 
   val route: Route = namespaceExtractor { namespace =>
     val scope = Scopes.devices(namespace)

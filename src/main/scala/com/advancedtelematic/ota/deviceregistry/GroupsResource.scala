@@ -8,6 +8,7 @@
 
 package com.advancedtelematic.ota.deviceregistry
 
+import akka.actor.Scheduler
 import akka.http.scaladsl.marshalling.Marshaller._
 import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.server._
@@ -21,6 +22,7 @@ import cats.syntax.either._
 import com.advancedtelematic.libats.auth.{AuthedNamespaceScope, Scopes}
 import com.advancedtelematic.libats.data.DataType.Namespace
 import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
+import com.advancedtelematic.libats.slick.db.DatabaseHelper.DatabaseWithRetry
 import com.advancedtelematic.ota.deviceregistry.common.Errors
 import com.advancedtelematic.ota.deviceregistry.data.Device.DeviceOemId
 import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
@@ -36,13 +38,13 @@ import slick.jdbc.MySQLProfile.api._
 import scala.concurrent.{ExecutionContext, Future}
 
 class GroupsResource(namespaceExtractor: Directive1[AuthedNamespaceScope], deviceNamespaceAuthorizer: Directive1[DeviceId])
-                    (implicit ec: ExecutionContext, db: Database, materializer: Materializer) extends Directives {
+                    (implicit ec: ExecutionContext, db: Database, materializer: Materializer, scheduler: Scheduler) extends Directives {
 
   private val DEVICE_OEM_ID_MAX_BYTES = 128
   private val FILTER_EXISTING_DEVICES_BATCH_SIZE = 50
 
   private val GroupIdPath = {
-    def groupAllowed(groupId: GroupId): Future[Namespace] = db.run(GroupInfoRepository.groupInfoNamespace(groupId))
+    def groupAllowed(groupId: GroupId): Future[Namespace] = db.runWithRetry(GroupInfoRepository.groupInfoNamespace(groupId))
     AllowUUIDPath(GroupId)(namespaceExtractor, groupAllowed)
   }
 
@@ -65,10 +67,10 @@ class GroupsResource(namespaceExtractor: Directive1[AuthedNamespaceScope], devic
     }
 
   def listGroups(ns: Namespace, offset: Option[Long], limit: Option[Long], sortBy: SortBy, nameContains: Option[String]): Route =
-    complete(db.run(GroupInfoRepository.list(ns, offset, limit, sortBy, nameContains)))
+    complete(db.runWithRetry(GroupInfoRepository.list(ns, offset, limit, sortBy, nameContains)))
 
   def getGroup(groupId: GroupId): Route =
-    complete(db.run(GroupInfoRepository.findByIdAction(groupId)))
+    complete(db.runWithRetry(GroupInfoRepository.findByIdAction(groupId)))
 
   def createGroup(groupName: GroupName,
                   namespace: Namespace,
@@ -91,7 +93,7 @@ class GroupsResource(namespaceExtractor: Directive1[AuthedNamespaceScope], devic
       .map(_.grouped(FILTER_EXISTING_DEVICES_BATCH_SIZE).toSeq)
       .map(_.map(_.toSet))
       .map(_.map(DeviceRepository.filterExisting(namespace, _)))
-      .flatMap(dbActions => db.run(DBIO.sequence(dbActions)))
+      .flatMap(dbActions => db.runWithRetry(DBIO.sequence(dbActions)))
       .map(_.flatten)
       .recoverWith {
         case _: FramingException =>
@@ -109,7 +111,7 @@ class GroupsResource(namespaceExtractor: Directive1[AuthedNamespaceScope], devic
   }
 
   def renameGroup(groupId: GroupId, newGroupName: GroupName): Route =
-    complete(db.run(GroupInfoRepository.renameGroup(groupId, newGroupName)))
+    complete(db.runWithRetry(GroupInfoRepository.renameGroup(groupId, newGroupName)))
 
   def countDevices(groupId: GroupId): Route =
     complete(groupMembership.countDevices(groupId))
