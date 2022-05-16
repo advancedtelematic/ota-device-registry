@@ -121,27 +121,34 @@ class EventJournal()(implicit db: Database, ec: ExecutionContext, scheduler: Sch
     db.runWithRetry(io).map(_ => ())
   }
 
-  def getEvents(deviceUuid: DeviceId, correlationId: Option[CorrelationId], offset: Long, limit: Long): Future[Seq[Event]] =
+  def getEvents(deviceUuid: DeviceId, correlationId: Option[CorrelationId], offset: Long, limit: Long, eventTypes: Option[Seq[String]]): Future[Seq[Event]] =
     if(correlationId.isDefined)
-      getIndexedEvents(deviceUuid, correlationId, offset, limit).map(_.map(_._1))
+      getIndexedEvents(deviceUuid, correlationId, offset, limit, eventTypes).map(_.map(_._1))
     else
-      db.runWithRetry(events.filter(_.deviceUuid === deviceUuid).take(limit).drop(offset).result)
+      db.runWithRetry(filterEvents(deviceUuid, eventTypes).take(limit).drop(offset).result)
 
-  private def getIndexedEventsQuery(deviceUuid: DeviceId, correlationId: Option[CorrelationId]) = {
-    EventJournal.events
-      .filter(_.deviceUuid === deviceUuid)
+  private def getIndexedEventsQuery(deviceUuid: DeviceId, correlationId: Option[CorrelationId], eventTypes: Option[Seq[String]] = None) = {
+    filterEvents(deviceUuid, eventTypes)
       .join(EventJournal.indexedEvents.maybeFilter(_.correlationId === correlationId))
       .on { case (ej, ie) => ej.deviceUuid === ie.deviceUuid && ej.eventId === ie.eventId }
       .sortBy { case (ej, ie) => ej.deviceTime.desc -> ie.createdAt.desc }
   }
 
-  def getIndexedEvents(deviceUuid: DeviceId, correlationId: Option[CorrelationId], offset: Long, limit: Long): Future[Seq[(Event, IndexedEvent)]] =
-    db.runWithRetry(getIndexedEventsQuery(deviceUuid, correlationId).take(limit).drop(offset).result)
+  def getIndexedEvents(deviceUuid: DeviceId, correlationId: Option[CorrelationId], offset: Long, limit: Long, eventTypes: Option[Seq[String]]): Future[Seq[(Event, IndexedEvent)]] =
+    db.runWithRetry(getIndexedEventsQuery(deviceUuid, correlationId, eventTypes).take(limit).drop(offset).result)
 
   def getPaginatedIndexedEvents(deviceUuid: DeviceId, correlationId: Option[CorrelationId], offset: Long, limit: Long): Future[PaginationResult[(Event, IndexedEvent)]] =
     db.runWithRetry(getIndexedEventsQuery(deviceUuid, correlationId).paginateResult(offset, limit))
 
   protected [db] def getArchivedIndexedEvents(deviceUuid: DeviceId): Future[Seq[IndexedEvent]] =
     db.runWithRetry(indexedEventsArchive.filter(_.deviceUuid === deviceUuid).result)
+
+  private def filterEvents(deviceUuid: DeviceId, eventTypes: Option[Seq[String]]) = {
+    val filteredByUuid = events.filter(_.deviceUuid === deviceUuid)
+    eventTypes match {
+      case Some(types) => filteredByUuid.filter(_.eventTypeId.inSet(types))
+      case None => filteredByUuid
+    }
+  }
 }
 

@@ -83,6 +83,14 @@ class EventJournalSpec extends ResourcePropSpec with ScalaFutures with Eventuall
     json = Json.obj("correlationId" -> correlationId.asJson)
   } yield event.copy(event = json, eventType = EventType("InstallationComplete", 0)) -> correlationId
 
+  val event1Gen: Gen[EventPayload] = for {
+    event <- EventGen
+  } yield event.copy(eventType = EventType("Event1", 0))
+
+  val event2Gen: Gen[EventPayload] = for {
+    event <- EventGen
+  } yield event.copy(eventType = EventType("Event2", 0))
+
   implicit val ArbitraryEvents = Arbitrary(EventsGen)
 
   val listener = new DeviceEventListener()
@@ -163,8 +171,28 @@ class EventJournalSpec extends ResourcePropSpec with ScalaFutures with Eventuall
     new DeleteDeviceListener().apply(DeleteDeviceRequest(defaultNs, uuid))
 
     eventually(timeout(5.seconds), interval(100.millis)) {
-      journal.getIndexedEvents(uuid, correlationId = None, 0, 10).futureValue shouldBe empty
+      journal.getIndexedEvents(uuid, correlationId = None, 0, 10, None).futureValue shouldBe empty
       journal.getArchivedIndexedEvents(uuid).futureValue.map(_.eventID) shouldBe Seq(event.eventId)
+    }
+  }
+
+  property("should return only events of specified type") {
+    val deviceUuid = createDeviceOk(genDeviceT.generate)
+    val event1 = event1Gen.generate
+    val event2 = event2Gen.generate
+
+    List(event1, event2)
+      .map(ep => Event(deviceUuid, ep.id.toString, ep.eventType, ep.deviceTime, Instant.now, ep.event))
+      .map(DeviceEventMessage(defaultNs, _))
+      .map(listener.apply)
+
+    eventually(timeout(3.seconds), interval(100.millis)) {
+      getEvents(deviceUuid, eventTypes = Some("Event1")) ~> route ~> check {
+        status should equal(StatusCodes.OK)
+        val events = responseAs[List[EventPayload]].map(_.id)
+        events should contain(event1.id)
+        events shouldNot contain(event2.id)
+      }
     }
   }
 }
