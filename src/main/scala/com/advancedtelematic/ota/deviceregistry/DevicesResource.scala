@@ -13,7 +13,7 @@ import akka.actor.{ActorSystem, Scheduler}
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.headers._
 import akka.http.scaladsl.server._
-import akka.http.scaladsl.unmarshalling.{FromStringUnmarshaller, Unmarshaller}
+import akka.http.scaladsl.unmarshalling.{FromStringUnmarshaller, PredefinedFromStringUnmarshallers, Unmarshaller}
 import akka.stream.Materializer
 import akka.stream.alpakka.csv.scaladsl.{CsvParsing, CsvToMap}
 import akka.stream.scaladsl.{Sink, Source}
@@ -101,7 +101,7 @@ class DevicesResource(
     namespaceExtractor: Directive1[AuthedNamespaceScope],
     messageBus: MessageBusPublisher,
     deviceNamespaceAuthorizer: Directive1[DeviceId]
-)(implicit system: ActorSystem, db: Database, mat: Materializer, ec: ExecutionContext, scheduler: Scheduler) extends Settings {
+)(implicit system: ActorSystem, db: Database, mat: Materializer, ec: ExecutionContext, scheduler: Scheduler) extends Settings with PredefinedFromStringUnmarshallers {
 
   import DevicesResource._
   import Directives._
@@ -338,11 +338,12 @@ class DevicesResource(
         } ~
         path("events") {
           import DevicesResource.EventPayloadDecoder
-          (get & parameters('correlationId.as[CorrelationId].?, 'offset.as(nonNegativeLong).?(0), 'limit.as(nonNegativeLong).?(maxAllowedDeviceEventsLimit))) { (correlationId, offset, limit) =>
+          (get & parameters('correlationId.as[CorrelationId].?, 'offset.as(nonNegativeLong).?(0), 'limit.as(nonNegativeLong).?(maxAllowedDeviceEventsLimit),
+                            'eventTypes.as(CsvSeq[String]).?)) { (correlationId, offset, limit, eventTypes) =>
             // TODO: This should not return raw Events
             // https://saeljira.it.here.com/browse/OTA-4163
             // API should not return arbitrary json (`payload`) to the clients. This is why we index interesting events, so we can give this info to clients
-            val events = eventJournal.getEvents(uuid, correlationId, offset, limit.min(maxAllowedDeviceEventsLimit))
+            val events = eventJournal.getEvents(uuid, correlationId, offset, limit.min(maxAllowedDeviceEventsLimit), eventTypes)
             complete(events)
           } ~
           (post & pathEnd) {

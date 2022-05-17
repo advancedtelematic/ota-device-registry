@@ -201,8 +201,8 @@ trait DeviceRequests { self: ResourceSpec =>
   def countDevicesForExpression(expression: Option[GroupExpression]): HttpRequest =
     Get(Resource.uri(api, "count").withQuery(Query(expression.map("expression" -> _.value).toMap)))
 
-  def getEvents(deviceUuid: DeviceId, correlationId: Option[CorrelationId] = None): HttpRequest = {
-    val query = Query(correlationId.map("correlationId" -> _.toString).toMap)
+  def getEvents(deviceUuid: DeviceId, correlationId: Option[CorrelationId] = None, eventTypes: Option[String] = None): HttpRequest = {
+    val query = Query(correlationId.map("correlationId" -> _.toString).toMap ++ eventTypes.map("eventTypes" -> _))
     Get(Resource.uri(api, deviceUuid.show, "events").withQuery(query))
   }
 
