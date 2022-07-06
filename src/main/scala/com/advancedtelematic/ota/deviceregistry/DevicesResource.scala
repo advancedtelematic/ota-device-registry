@@ -22,6 +22,8 @@ import cats.syntax.either._
 import cats.syntax.show._
 import com.advancedtelematic.libats.auth.{AuthedNamespaceScope, Scopes}
 import com.advancedtelematic.libats.data.DataType.{CorrelationId, Namespace, ResultCode}
+import com.advancedtelematic.libats.data.{Limit, Offset}
+import com.advancedtelematic.libats.http.FromLongUnmarshallers._
 import com.advancedtelematic.libats.http.UUIDKeyAkka._
 import com.advancedtelematic.libats.http.ValidatedGenericMarshalling.validatedStringUnmarshaller
 import com.advancedtelematic.libats.messaging.MessageBusPublisher
@@ -42,10 +44,9 @@ import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
 import com.advancedtelematic.ota.deviceregistry.data.SortBy.SortBy
 import com.advancedtelematic.ota.deviceregistry.data.TagId.validatedTagId
 import com.advancedtelematic.ota.deviceregistry.data.{GroupExpression, PackageId, SortBy, TagId}
-import com.advancedtelematic.ota.deviceregistry.db.DbOps.PaginationResultOps
+import com.advancedtelematic.ota.deviceregistry.db.DbOps.{LimitOps, OffsetOps}
 import com.advancedtelematic.ota.deviceregistry.db._
 import com.advancedtelematic.ota.deviceregistry.messages.DeviceCreated
-import com.advancedtelematic.ota.deviceregistry.http.nonNegativeLong
 import io.circe.Json
 import slick.jdbc.MySQLProfile.api._
 
@@ -94,6 +95,8 @@ object DevicesResource {
     }
   }
 
+  implicit val limitUnmarshaller: Unmarshaller[String, Limit] = getLimitUnmarshaller()
+
   val tagIdMatcher: PathMatcher1[TagId] = Segment.flatMap(TagId(_).toOption)
 }
 
@@ -123,8 +126,8 @@ class DevicesResource(
       'nameContains.as[String].?,
       'notSeenSinceHours.as[Int].?,
       'sortBy.as[SortBy].?,
-      'offset.as(nonNegativeLong).?,
-      'limit.as(nonNegativeLong).?)).as(SearchParams.apply _) { params =>
+      'offset.as[Offset].?,
+      'limit.as[Limit].?)).as(SearchParams.apply _) { params =>
         entity(as[DeviceUuids]) { p =>
           complete(db.runWithRetry(DeviceRepository.search(ns, params, p.deviceUuids)))
         } ~
@@ -163,7 +166,7 @@ class DevicesResource(
     complete(db.runWithRetry(DeviceRepository.countDevicesForExpression(ns, expression)))
 
   def getGroupsForDevice(uuid: DeviceId): Route =
-    parameters(('offset.as(nonNegativeLong).?, 'limit.as(nonNegativeLong).?)) { (offset, limit) =>
+    parameters(('offset.as[Offset].?, 'limit.as[Limit].?)) { (offset, limit) =>
       complete(db.runWithRetry(GroupMemberRepository.listGroupsForDevice(uuid, offset, limit)))
     }
 
@@ -177,7 +180,7 @@ class DevicesResource(
     complete(db.runWithRetry(InstalledPackages.getDevicesCount(pkg, ns)))
 
   def listPackagesOnDevice(device: DeviceId): Route =
-    parameters(('nameContains.as[String].?, 'offset.as(nonNegativeLong).?, 'limit.as(nonNegativeLong).?)) { (nameContains, offset, limit) =>
+    parameters(('nameContains.as[String].?, 'offset.as[Offset].?, 'limit.as[Limit].?)) { (nameContains, offset, limit) =>
       complete(db.runWithRetry(InstalledPackages.installedOn(device, nameContains, offset, limit)))
     }
 
@@ -193,7 +196,7 @@ class DevicesResource(
     }
 
   def getDistinctPackages(ns: Namespace): Route =
-    parameters('offset.as(nonNegativeLong).?, 'limit.as(nonNegativeLong).?) { (offset, limit) =>
+    parameters('offset.as[Offset].?, 'limit.as[Limit].?) { (offset, limit) =>
       complete(db.runWithRetry(InstalledPackages.getInstalledForAllDevices(ns, offset, limit)))
     }
 
@@ -206,15 +209,15 @@ class DevicesResource(
     }
 
   def getPackageStats(ns: Namespace, name: PackageId.Name): Route =
-    parameters('offset.as(nonNegativeLong).?, 'limit.as(nonNegativeLong).?) { (offset, limit) =>
+    parameters('offset.as[Offset].?, 'limit.as[Limit].?) { (offset, limit) =>
       val f = db.runWithRetry(InstalledPackages.listAllWithPackageByName(ns, name, offset, limit))
       complete(f)
     }
 
-  def fetchInstallationHistory(deviceId: DeviceId, offset: Option[Long], limit: Option[Long]): Route =
+  def fetchInstallationHistory(deviceId: DeviceId, offset: Option[Offset], limit: Option[Limit]): Route =
     complete(db.runWithRetry(EcuReplacementRepository.deviceHistory(deviceId, offset.orDefaultOffset, limit.orDefaultLimit)))
 
-  def installationReports(deviceId: DeviceId, offset: Option[Long], limit: Option[Long]): Route =
+  def installationReports(deviceId: DeviceId, offset: Option[Offset], limit: Option[Limit]): Route =
     complete(db.runWithRetry(InstallationReportRepository.installationReports(deviceId, offset.orDefaultOffset, limit.orDefaultLimit)))
 
   def fetchInstallationStats(correlationId: CorrelationId, reportLevel: Option[InstallationStatsLevel]): Route = {
@@ -311,10 +314,10 @@ class DevicesResource(
           path("active_device_count") {
             getActiveDeviceCount(ns.namespace)
           } ~
-          (path("installation_reports") & parameters('offset.as(nonNegativeLong).?, 'limit.as(nonNegativeLong).?)) {
+          (path("installation_reports") & parameters('offset.as[Offset].?, 'limit.as[Limit].?)) {
             (offset, limit) => installationReports(uuid, offset, limit)
           } ~
-          (path("installation_history") & parameters('offset.as(nonNegativeLong).?, 'limit.as(nonNegativeLong).?)) {
+          (path("installation_history") & parameters('offset.as[Offset].?, 'limit.as[Limit].?)) {
             (offset, limit) => fetchInstallationHistory(uuid, offset, limit)
           } ~
           (pathPrefix("device_count") & extractPackageId) { pkg =>
@@ -338,12 +341,12 @@ class DevicesResource(
         } ~
         path("events") {
           import DevicesResource.EventPayloadDecoder
-          (get & parameters('correlationId.as[CorrelationId].?, 'offset.as(nonNegativeLong).?(0), 'limit.as(nonNegativeLong).?(maxAllowedDeviceEventsLimit),
+          (get & parameters('correlationId.as[CorrelationId].?, 'offset.as[Offset].?(Offset(0)), 'limit.as[Limit].?(maxAllowedDeviceEventsLimit),
                             'eventTypes.as(CsvSeq[String]).?)) { (correlationId, offset, limit, eventTypes) =>
             // TODO: This should not return raw Events
             // https://saeljira.it.here.com/browse/OTA-4163
             // API should not return arbitrary json (`payload`) to the clients. This is why we index interesting events, so we can give this info to clients
-            val events = eventJournal.getEvents(uuid, correlationId, offset, limit.min(maxAllowedDeviceEventsLimit), eventTypes)
+            val events = eventJournal.getEvents(uuid, correlationId, offset, limit, eventTypes)
             complete(events)
           } ~
           (post & pathEnd) {

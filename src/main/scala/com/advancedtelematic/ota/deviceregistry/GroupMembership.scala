@@ -3,7 +3,7 @@ package com.advancedtelematic.ota.deviceregistry
 import akka.actor.Scheduler
 import akka.http.scaladsl.util.FastFuture
 import com.advancedtelematic.libats.data.DataType.Namespace
-import com.advancedtelematic.libats.data.PaginationResult
+import com.advancedtelematic.libats.data.{Limit, Offset, PaginationResult}
 import com.advancedtelematic.ota.deviceregistry.common.Errors
 import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
 import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
@@ -79,7 +79,7 @@ class GroupMembership(implicit val db: Database, ec: ExecutionContext, scheduler
       case (_, _) => throw new IllegalArgumentException(s"(groupType, expression) = ($groupType, $expression)")
     }
 
-  def listDevices(groupId: GroupId, offset: Option[Long], limit: Option[Long]): Future[PaginationResult[DeviceId]] =
+  def listDevices(groupId: GroupId, offset: Option[Offset], limit: Option[Limit]): Future[PaginationResult[DeviceId]] =
     db.runWithRetry(GroupMemberRepository.listDevicesInGroup(groupId, offset, limit))
 
   def addGroupMember(groupId: GroupId, deviceId: DeviceId)(implicit ec: ExecutionContext): Future[Unit] =

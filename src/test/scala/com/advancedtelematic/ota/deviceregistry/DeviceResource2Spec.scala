@@ -2,7 +2,6 @@ package com.advancedtelematic.ota.deviceregistry
 
 import java.time.Instant
 import java.util.UUID
-
 import akka.http.scaladsl.model.StatusCodes
 import com.advancedtelematic.libats.messaging_datatype.DataType.{Event, EventType}
 import com.advancedtelematic.libats.messaging_datatype.Messages.DeviceEventMessage
@@ -11,7 +10,7 @@ import com.advancedtelematic.ota.deviceregistry.data.DataType.IndexedEventType
 import org.scalatest.concurrent.{Eventually, ScalaFutures}
 import com.advancedtelematic.libats.codecs.CirceCodecs._
 import com.advancedtelematic.libats.data.DataType.CorrelationCampaignId
-import com.advancedtelematic.libats.data.EcuIdentifier
+import com.advancedtelematic.libats.data.{EcuIdentifier, Limit, Offset}
 import com.advancedtelematic.ota.deviceregistry.DeviceResource2.ApiDeviceEvents
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
 import io.circe.testing.ArbitraryInstances
@@ -62,8 +61,8 @@ class DeviceResource2Spec extends FunSuite with ResourceSpec with Eventually wit
 
       events should have size(3)
       updateStatus.total shouldBe 3
-      updateStatus.offset shouldBe testOffset
-      updateStatus.limit shouldBe testLimit
+      updateStatus.offset shouldBe Offset(testOffset)
+      updateStatus.limit shouldBe Limit(testLimit)
 
       events.headOption.value.updateId.value shouldBe campaignId
       events.headOption.value.ecuId.value shouldBe ecuId
@@ -106,8 +105,8 @@ class DeviceResource2Spec extends FunSuite with ResourceSpec with Eventually wit
 
       events should have size(1)
       updateStatus.total shouldBe 1
-      updateStatus.offset shouldBe testOffset
-      updateStatus.limit shouldBe testLimit
+      updateStatus.offset shouldBe Offset(testOffset)
+      updateStatus.limit shouldBe Limit(testLimit)
 
       events.headOption.value.updateId.value shouldBe campaignId01
       events.map(_.name).headOption.value shouldBe IndexedEventType.EcuInstallationStarted

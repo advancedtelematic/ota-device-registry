@@ -15,7 +15,7 @@ import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
 import org.scalacheck.Arbitrary._
 import org.scalacheck.Gen
 import akka.http.scaladsl.model.StatusCodes._
-import com.advancedtelematic.libats.data.{ErrorCodes, ErrorRepresentation, PaginationResult}
+import com.advancedtelematic.libats.data.{ErrorCodes, ErrorRepresentation, Limit, Offset, PaginationResult}
 import com.advancedtelematic.ota.deviceregistry.common.Errors.Codes.MalformedInput
 import com.advancedtelematic.ota.deviceregistry.data.Device.DeviceOemId
 import org.scalatest.FunSuite
@@ -246,7 +246,7 @@ class GroupsResourceSpec extends FunSuite with ResourceSpec with ScalaFutures {
     importGroup(groupName, deviceTs.map(_.deviceId)) ~> route ~> check {
       status shouldEqual Created
       val groupId = responseAs[GroupId]
-      val uuidsInGroup = new GroupMembership().listDevices(groupId, Some(0L), Some(deviceTs.size.toLong)).futureValue.values
+      val uuidsInGroup = new GroupMembership().listDevices(groupId, Some(Offset(0L)), Some(Limit(deviceTs.size.toLong))).futureValue.values
       uuidsInGroup should contain allElementsOf uuidsCreated
     }
   }
@@ -259,7 +259,7 @@ class GroupsResourceSpec extends FunSuite with ResourceSpec with ScalaFutures {
     importGroup(groupName, deviceTs.map(_.deviceId)) ~> route ~> check {
       status shouldEqual Created
       val groupId = responseAs[GroupId]
-      val uuidsInGroup = new GroupMembership().listDevices(groupId, Some(0L), Some(deviceTs.size.toLong)).futureValue.values
+      val uuidsInGroup = new GroupMembership().listDevices(groupId, Some(Offset(0L)), Some(Limit(deviceTs.size.toLong))).futureValue.values
       uuidsInGroup should contain allElementsOf uuidsCreated
     }
   }
@@ -271,7 +271,7 @@ class GroupsResourceSpec extends FunSuite with ResourceSpec with ScalaFutures {
     importGroup(groupName, deviceTs.map(_.deviceId)) ~> route ~> check {
       status shouldEqual Created
       val groupId = responseAs[GroupId]
-      val uuidsInGroup = new GroupMembership().listDevices(groupId, Some(0L), Some(deviceTs.size.toLong)).futureValue.values
+      val uuidsInGroup = new GroupMembership().listDevices(groupId, Some(Offset(0L)), Some(Limit(deviceTs.size.toLong))).futureValue.values
       uuidsInGroup shouldBe empty
     }
   }

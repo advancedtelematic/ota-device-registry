@@ -11,11 +11,11 @@ package com.advancedtelematic.ota.deviceregistry.db
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 import java.util.UUID
-
 import akka.http.scaladsl.model.StatusCodes
 import cats.syntax.option._
 import com.advancedtelematic.libats.codecs.CirceCodecs._
 import com.advancedtelematic.libats.data.DataType.{CorrelationCampaignId, CorrelationId, MultiTargetUpdateId}
+import com.advancedtelematic.libats.data.{Limit, Offset}
 import com.advancedtelematic.libats.messaging_datatype.DataType.{Event, EventType}
 import com.advancedtelematic.libats.messaging_datatype.MessageCodecs._
 import com.advancedtelematic.libats.messaging_datatype.Messages.{DeleteDeviceRequest, DeviceEventMessage}
@@ -171,7 +171,7 @@ class EventJournalSpec extends ResourcePropSpec with ScalaFutures with Eventuall
     new DeleteDeviceListener().apply(DeleteDeviceRequest(defaultNs, uuid))
 
     eventually(timeout(5.seconds), interval(100.millis)) {
-      journal.getIndexedEvents(uuid, correlationId = None, 0, 10, None).futureValue shouldBe empty
+      journal.getIndexedEvents(uuid, correlationId = None, Offset(0), Limit(10), None).futureValue shouldBe empty
       journal.getArchivedIndexedEvents(uuid).futureValue.map(_.eventID) shouldBe Seq(event.eventId)
     }
   }

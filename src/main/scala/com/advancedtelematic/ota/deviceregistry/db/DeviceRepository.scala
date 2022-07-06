@@ -25,7 +25,7 @@ import com.advancedtelematic.ota.deviceregistry.data.DeviceStatus.DeviceStatus
 import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
 import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
 import com.advancedtelematic.ota.deviceregistry.data._
-import com.advancedtelematic.ota.deviceregistry.db.DbOps.{PaginationResultOps, sortBySlickOrderedDeviceConversion}
+import com.advancedtelematic.ota.deviceregistry.db.DbOps.{sortBySlickOrderedDeviceConversion, LimitOps, OffsetOps}
 import com.advancedtelematic.ota.deviceregistry.db.GroupInfoRepository.groupInfos
 import com.advancedtelematic.ota.deviceregistry.db.GroupMemberRepository.groupMembers
 import com.advancedtelematic.ota.deviceregistry.db.SlickMappings._

@@ -1,5 +1,6 @@
 package com.advancedtelematic.ota.deviceregistry.db
 
+import com.advancedtelematic.libats.data.{Limit, Offset}
 import com.advancedtelematic.libats.slick.db.SlickExtensions._
 import com.advancedtelematic.libats.slick.db.SlickValidatedGeneric.validatedStringMapper
 import com.advancedtelematic.ota.deviceregistry.data.SortBy
@@ -21,8 +22,11 @@ object DbOps {
       case SortBy.CreatedAt => table => table.createdAt.desc
     }
 
-  implicit class PaginationResultOps(x: Option[Long]) {
-    def orDefaultOffset: Long  = x.getOrElse(0L)
-    def orDefaultLimit: Long   = x.getOrElse(50L)
+  implicit class LimitOps(x: Option[Limit]) {
+    def orDefaultLimit: Limit = x.getOrElse(Limit(50))
+  }
+
+  implicit class OffsetOps(x: Option[Offset]) {
+    def orDefaultOffset: Offset = x.getOrElse(Offset(0))
   }
 }
