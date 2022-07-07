@@ -21,6 +21,8 @@ import akka.util.ByteString
 import cats.syntax.either._
 import com.advancedtelematic.libats.auth.{AuthedNamespaceScope, Scopes}
 import com.advancedtelematic.libats.data.DataType.Namespace
+import com.advancedtelematic.libats.data.{Limit, Offset}
+import com.advancedtelematic.libats.http.FromLongUnmarshallers._
 import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
 import com.advancedtelematic.libats.slick.db.DatabaseHelper.DatabaseWithRetry
 import com.advancedtelematic.ota.deviceregistry.common.Errors
@@ -30,7 +32,6 @@ import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
 import com.advancedtelematic.ota.deviceregistry.data.SortBy.SortBy
 import com.advancedtelematic.ota.deviceregistry.data._
 import com.advancedtelematic.ota.deviceregistry.db.{DeviceRepository, GroupInfoRepository}
-import com.advancedtelematic.ota.deviceregistry.http.nonNegativeLong
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
 import io.circe.{Decoder, Encoder}
 import slick.jdbc.MySQLProfile.api._
@@ -59,14 +60,16 @@ class GroupsResource(namespaceExtractor: Directive1[AuthedNamespaceScope], devic
     }
   }
 
+  implicit val limitUnmarshaller: Unmarshaller[String, Limit] = getLimitUnmarshaller()
+
   val groupMembership = new GroupMembership()
 
   def getDevicesInGroup(groupId: GroupId): Route =
-    parameters(('offset.as(nonNegativeLong).?, 'limit.as(nonNegativeLong).?)) { (offset, limit) =>
+    parameters(('offset.as[Offset].?, 'limit.as[Limit].?)) { (offset, limit) =>
       complete(groupMembership.listDevices(groupId, offset, limit))
     }
 
-  def listGroups(ns: Namespace, offset: Option[Long], limit: Option[Long], sortBy: SortBy, nameContains: Option[String]): Route =
+  def listGroups(ns: Namespace, offset: Option[Offset], limit: Option[Limit], sortBy: SortBy, nameContains: Option[String]): Route =
     complete(db.runWithRetry(GroupInfoRepository.list(ns, offset, limit, sortBy, nameContains)))
 
   def getGroup(groupId: GroupId): Route =
@@ -126,7 +129,7 @@ class GroupsResource(namespaceExtractor: Directive1[AuthedNamespaceScope], devic
     (pathPrefix("device_groups") & namespaceExtractor) { ns =>
       val scope = Scopes.devices(ns)
       pathEnd {
-        (scope.get & parameters(('offset.as(nonNegativeLong).?, 'limit.as(nonNegativeLong).?, 'sortBy.as[SortBy].?, 'nameContains.as[String].?))) {
+        (scope.get & parameters(('offset.as[Offset].?, 'limit.as[Limit].?, 'sortBy.as[SortBy].?, 'nameContains.as[String].?))) {
           (offset, limit, sortBy, nameContains) => listGroups(ns.namespace, offset, limit, sortBy.getOrElse(SortBy.Name), nameContains)
         } ~
         scope.post {

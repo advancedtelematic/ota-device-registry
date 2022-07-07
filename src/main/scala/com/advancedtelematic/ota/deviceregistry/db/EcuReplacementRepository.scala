@@ -1,11 +1,10 @@
 package com.advancedtelematic.ota.deviceregistry.db
 
 import java.time.Instant
-
 import cats.instances.option._
 import cats.syntax.apply._
 import cats.syntax.option._
-import com.advancedtelematic.libats.data.{EcuIdentifier, PaginationResult}
+import com.advancedtelematic.libats.data.{EcuIdentifier, Limit, Offset, PaginationResult}
 import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
 import com.advancedtelematic.libats.messaging_datatype.MessageCodecs.ecuReplacementCodec
 import com.advancedtelematic.libats.messaging_datatype.Messages.{EcuAndHardwareId, EcuReplaced, EcuReplacement, EcuReplacementFailed}
@@ -73,11 +72,11 @@ object EcuReplacementRepository {
       .filter(_.deviceId === deviceId)
       .result
 
-  def deviceHistory(deviceId: DeviceId, offset: Long, limit: Long)(implicit ec: ExecutionContext): DBIO[PaginationResult[Json]] =
+  def deviceHistory(deviceId: DeviceId, offset: Offset, limit: Limit)(implicit ec: ExecutionContext): DBIO[PaginationResult[Json]] =
     for {
       installations <- InstallationReportRepository.queryInstallationHistory(deviceId).result
       replacements <- fetchForDevice(deviceId).map(_.map(_.asJson))
       history = (installations ++ replacements).sortBy(_.hcursor.get[Instant]("eventTime").toOption)(Ordering[Option[Instant]].reverse)
-      values = history.drop(offset.toInt).take(limit.toInt)
+      values = history.drop(offset.value.toInt).take(limit.value.toInt)
     } yield PaginationResult(values, history.length, offset, limit)
 }

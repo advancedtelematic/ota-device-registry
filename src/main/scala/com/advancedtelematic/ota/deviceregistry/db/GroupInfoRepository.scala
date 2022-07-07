@@ -12,7 +12,7 @@ import akka.actor.Scheduler
 
 import java.time.Instant
 import com.advancedtelematic.libats.data.DataType.Namespace
-import com.advancedtelematic.libats.data.PaginationResult
+import com.advancedtelematic.libats.data.{Limit, Offset, PaginationResult}
 import com.advancedtelematic.libats.slick.db.DatabaseHelper.DatabaseWithRetry
 import com.advancedtelematic.libats.slick.db.SlickExtensions._
 import com.advancedtelematic.libats.slick.db.SlickUUIDKey._
@@ -23,7 +23,7 @@ import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
 import com.advancedtelematic.ota.deviceregistry.data.GroupType.GroupType
 import com.advancedtelematic.ota.deviceregistry.data.SortBy.SortBy
 import com.advancedtelematic.ota.deviceregistry.data.{Group, GroupExpression, GroupName, GroupType, TagId}
-import com.advancedtelematic.ota.deviceregistry.db.DbOps.{PaginationResultOps, sortBySlickOrderedConversion}
+import com.advancedtelematic.ota.deviceregistry.db.DbOps.{LimitOps, OffsetOps, sortBySlickOrderedConversion}
 import com.advancedtelematic.ota.deviceregistry.db.SlickMappings._
 import slick.jdbc.MySQLProfile.api._
 
@@ -46,7 +46,7 @@ object GroupInfoRepository {
 
   val groupInfos = TableQuery[GroupInfoTable]
 
-  def list(namespace: Namespace, offset: Option[Long], limit: Option[Long], sortBy: SortBy, nameContains: Option[String])(implicit ec: ExecutionContext): DBIO[PaginationResult[Group]] =
+  def list(namespace: Namespace, offset: Option[Offset], limit: Option[Limit], sortBy: SortBy, nameContains: Option[String])(implicit ec: ExecutionContext): DBIO[PaginationResult[Group]] =
     groupInfos
       .filter(_.namespace === namespace)
       .maybeContains(_.groupName, nameContains)

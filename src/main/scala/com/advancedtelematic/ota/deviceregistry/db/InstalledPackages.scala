@@ -9,9 +9,8 @@
 package com.advancedtelematic.ota.deviceregistry.db
 
 import java.time.Instant
-
 import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
-import com.advancedtelematic.libats.data.PaginationResult
+import com.advancedtelematic.libats.data.{Limit, Offset, PaginationResult}
 import com.advancedtelematic.libats.data.DataType.Namespace
 import com.advancedtelematic.libats.slick.db.SlickExtensions._
 import SlickMappings._
@@ -20,7 +19,7 @@ import com.advancedtelematic.ota.deviceregistry.common.PackageStat
 import com.advancedtelematic.ota.deviceregistry.data.Group.GroupId
 import com.advancedtelematic.ota.deviceregistry.data.PackageId
 import com.advancedtelematic.ota.deviceregistry.data.PackageId.Name
-import com.advancedtelematic.ota.deviceregistry.db.DbOps.PaginationResultOps
+import com.advancedtelematic.ota.deviceregistry.db.DbOps.{LimitOps, OffsetOps}
 import slick.jdbc.MySQLProfile.api._
 
 import scala.concurrent.ExecutionContext
@@ -75,8 +74,8 @@ object InstalledPackages {
   def installedOn(
       device: DeviceId,
       nameContains: Option[String],
-      offset: Option[Long],
-      limit: Option[Long]
+      offset: Option[Offset],
+      limit: Option[Limit]
   )(implicit ec: ExecutionContext): DBIO[PaginationResult[InstalledPackage]] =
     installedPackages
       .filter(_.device === device)
@@ -123,7 +122,7 @@ object InstalledPackages {
       case (name, version) => PackageId(name, version)
     })
 
-  def getInstalledForAllDevices(ns: Namespace, offset: Option[Long], limit: Option[Long])(
+  def getInstalledForAllDevices(ns: Namespace, offset: Option[Offset], limit: Option[Limit])(
       implicit ec: ExecutionContext
   ): DBIO[PaginationResult[PackageId]] = {
     val query = installedForAllDevicesQuery(ns)
@@ -154,7 +153,7 @@ object InstalledPackages {
       .map(r => (r._1.device, LiftedPackageId(r._1.name, r._1.version)))
       .result
 
-  def listAllWithPackageByName(ns: Namespace, name: Name, offset: Option[Long], limit: Option[Long])
+  def listAllWithPackageByName(ns: Namespace, name: Name, offset: Option[Offset], limit: Option[Limit])
                               (implicit ec: ExecutionContext): DBIO[PaginationResult[PackageStat]] = {
     val query = installedPackages
       .filter(_.name === name)

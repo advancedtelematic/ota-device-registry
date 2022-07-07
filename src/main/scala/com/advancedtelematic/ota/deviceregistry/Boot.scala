@@ -14,6 +14,7 @@ import akka.http.scaladsl.server.{Directives, Route}
 import akka.http.scaladsl.settings.{ParserSettings, ServerSettings}
 import com.advancedtelematic.libats.auth.NamespaceDirectives
 import com.advancedtelematic.libats.data.DataType.Namespace
+import com.advancedtelematic.libats.data.Limit
 import com.advancedtelematic.libats.http._
 import com.advancedtelematic.libats.http.tracing.Tracing
 import com.advancedtelematic.libats.messaging._
@@ -33,7 +34,7 @@ import scala.util.Try
 trait Settings {
   private lazy val _config = ConfigFactory.load()
 
-  val maxAllowedDeviceEventsLimit = _config.getInt("maxAllowedDeviceEventsLimit")
+  val maxAllowedDeviceEventsLimit = Limit(_config.getLong("maxAllowedDeviceEventsLimit"))
 }
 
 object Boot extends BootApp

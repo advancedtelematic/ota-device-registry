@@ -10,12 +10,12 @@ package com.advancedtelematic.ota.deviceregistry
 
 import java.time.temporal.ChronoUnit
 import java.time.{Instant, OffsetDateTime}
-
 import akka.http.scaladsl.model.StatusCodes._
 import cats.syntax.either._
 import cats.syntax.option._
 import com.advancedtelematic.libats.data.DataType.Namespace
-import com.advancedtelematic.libats.data.{ErrorCodes, ErrorRepresentation, PaginationResult}
+import com.advancedtelematic.libats.data.{ErrorCodes, ErrorRepresentation, Limit, Offset, PaginationResult}
+import com.advancedtelematic.libats.http.FromLongUnmarshallers
 import com.advancedtelematic.libats.messaging.MessageBusPublisher
 import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
 import com.advancedtelematic.libats.messaging_datatype.Messages.{DeleteDeviceRequest, DeviceSeen}
@@ -576,8 +576,8 @@ class DeviceResourceSpec extends ResourcePropSpec with ScalaFutures with Eventua
       status shouldBe OK
       val paginationResult = responseAs[PaginationResult[PackageId]]
       paginationResult.total shouldBe allPackages.length
-      paginationResult.limit shouldBe limit
-      paginationResult.offset shouldBe offset
+      paginationResult.limit shouldBe Limit(limit)
+      paginationResult.offset shouldBe Offset(offset)
       val packages = paginationResult.values.map(canonPkg)
       packages.length shouldBe scala.math.min(limit, allPackages.length)
       packages shouldBe sorted

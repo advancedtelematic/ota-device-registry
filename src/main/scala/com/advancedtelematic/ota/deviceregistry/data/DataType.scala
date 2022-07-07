@@ -4,7 +4,7 @@ import java.time.Instant
 
 import cats.Show
 import com.advancedtelematic.libats.data.DataType.{CorrelationId, Namespace, ResultCode}
-import com.advancedtelematic.libats.data.EcuIdentifier
+import com.advancedtelematic.libats.data.{EcuIdentifier, Limit, Offset}
 import com.advancedtelematic.libats.messaging_datatype.DataType.{DeviceId, Event}
 import com.advancedtelematic.ota.deviceregistry.data.CredentialsType.CredentialsType
 import com.advancedtelematic.ota.deviceregistry.data.DataType.IndexedEventType.IndexedEventType
@@ -69,7 +69,7 @@ object DataType {
   final case class EcuInstallationResult(correlationId: CorrelationId, resultCode: ResultCode, deviceId: DeviceId, ecuId: EcuIdentifier, success: Boolean)
 
   object SearchParams {
-    def all(limit: Option[Long], offset: Option[Long]) = SearchParams(
+    def all(limit: Option[Limit], offset: Option[Offset]) = SearchParams(
       None,
       None,
       None,
@@ -89,8 +89,8 @@ object DataType {
                                 nameContains: Option[String],
                                 notSeenSinceHours: Option[Int],
                                 sortBy: Option[SortBy],
-                                offset: Option[Long],
-                                limit: Option[Long],
+                                offset: Option[Offset],
+                                limit: Option[Limit],
                                ) {
     if (oemId.isDefined) {
       require(groupId.isEmpty, "Invalid parameters: groupId must be empty when searching by deviceId.")

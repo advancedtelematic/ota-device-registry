@@ -5,9 +5,11 @@ import akka.actor.Scheduler
 import java.time.Instant
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.{Directive1, Route}
+import akka.http.scaladsl.unmarshalling.Unmarshaller
 import com.advancedtelematic.libats.auth.AuthedNamespaceScope
 import com.advancedtelematic.libats.data.DataType.{CorrelationId, Namespace}
-import com.advancedtelematic.libats.data.EcuIdentifier
+import com.advancedtelematic.libats.data.{EcuIdentifier, Limit, Offset}
+import com.advancedtelematic.libats.http.FromLongUnmarshallers._
 import com.advancedtelematic.libats.messaging_datatype.DataType.DeviceId
 import com.advancedtelematic.ota.deviceregistry.DevicesResource.correlationIdUnmarshaller
 import com.advancedtelematic.ota.deviceregistry.data.DataType.IndexedEventType.IndexedEventType
@@ -17,7 +19,6 @@ import slick.jdbc.MySQLProfile.api._
 import com.advancedtelematic.libats.codecs.CirceCodecs._
 import com.advancedtelematic.ota.deviceregistry.data.DataType.IndexedEventType
 import com.advancedtelematic.ota.deviceregistry.DeviceResource2.{ApiDeviceEvent, ApiDeviceEvents}
-import com.advancedtelematic.ota.deviceregistry.http.nonNegativeLong
 
 import scala.async.Async.{async, await}
 import scala.concurrent.{ExecutionContext, Future}
@@ -32,7 +33,7 @@ object DeviceResource2 {
   case class ApiDeviceEvent(ecuId: Option[EcuIdentifier], updateId: Option[ApiUpdateId], name: ApiDeviceUpdateEventName,
                             receivedTime: Instant, deviceTime: Instant)
 
-  case class ApiDeviceEvents(deviceUuid: DeviceId, events: Vector[ApiDeviceEvent], total: Long, offset: Long, limit: Long)
+  case class ApiDeviceEvents(deviceUuid: DeviceId, events: Vector[ApiDeviceEvent], total: Long, offset: Offset, limit: Limit)
 
 
   implicit val apiDeviceUpdateEventNameCodec = io.circe.Codec.codecForEnumeration(IndexedEventType)
@@ -47,7 +48,9 @@ class DeviceResource2(namespaceExtractor: Directive1[AuthedNamespaceScope], devi
 
   val eventJournal = new EventJournal()
 
-  def findUpdateEvents(namespace: Namespace, deviceId: DeviceId, correlationId: Option[CorrelationId], offset: Long, limit: Long): Future[ApiDeviceEvents] = async {
+  implicit val limitUnmarshaller: Unmarshaller[String, Limit] = getLimitUnmarshaller()
+
+  def findUpdateEvents(namespace: Namespace, deviceId: DeviceId, correlationId: Option[CorrelationId], offset: Offset, limit: Limit): Future[ApiDeviceEvents] = async {
     val indexedEvents = await(eventJournal.getPaginatedIndexedEvents(deviceId, correlationId, offset, limit))
 
     val events = indexedEvents.values.toVector.map { case (event, indexedEvent) =>
@@ -61,9 +64,9 @@ class DeviceResource2(namespaceExtractor: Directive1[AuthedNamespaceScope], devi
   def route: Route = namespaceExtractor { ns =>
     pathPrefix("devices") {
       deviceNamespaceAuthorizer { uuid =>
-        (get & path("events") & parameters('updateId.as[CorrelationId].?, 'offset.as(nonNegativeLong).?(0), 'limit.as(nonNegativeLong).?(maxAllowedDeviceEventsLimit))) {
+        (get & path("events") & parameters('updateId.as[CorrelationId].?, 'offset.as[Offset].?(Offset(0)), 'limit.as[Limit].?(maxAllowedDeviceEventsLimit))) {
           (correlationId, offset, limit) =>
-            val f = findUpdateEvents(ns.namespace, uuid, correlationId, offset, limit.min(maxAllowedDeviceEventsLimit))
+            val f = findUpdateEvents(ns.namespace, uuid, correlationId, offset, limit)
             complete(f)
         }
       }
