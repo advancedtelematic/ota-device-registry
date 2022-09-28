@@ -136,7 +136,7 @@ class EventJournal()(implicit db: Database, ec: ExecutionContext, scheduler: Sch
     if(correlationId.isDefined)
       getIndexedEvents(deviceUuid, correlationId, offset, limit, eventTypes).map(_.map(_._1))
     else
-      db.runWithRetry(filterEvents(deviceUuid, eventTypes).take(limit.value).drop(offset.value).result)
+      db.runWithRetry(filterEvents(deviceUuid, eventTypes).sortBy(_.receivedAt.desc).take(limit.value).drop(offset.value).result)
 
   private def getIndexedEventsQuery(deviceUuid: DeviceId, correlationId: Option[CorrelationId], eventTypes: Option[Seq[String]] = None) = {
     filterEvents(deviceUuid, eventTypes)
