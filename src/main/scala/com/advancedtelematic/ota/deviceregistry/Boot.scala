@@ -39,7 +39,7 @@ import com.advancedtelematic.ota.deviceregistry.db.DeviceRepository
 import com.advancedtelematic.ota.deviceregistry.http.`application/toml`
 import com.typesafe.config.ConfigFactory
 
-import scala.concurrent.Future
+import scala.concurrent.{Await, Future}
 import scala.util.Try
 
 trait Settings {
@@ -91,12 +91,26 @@ object Boot extends BootApp
   val parserSettings = ParserSettings(system).withCustomMediaTypes(`application/toml`.mediaType)
   val serverSettings = ServerSettings(system).withParserSettings(parserSettings)
 
-  Http().bindAndHandle(withConnectionMetrics(routes, metricRegistry), host, port, settings = serverSettings)
+  val binding: Future[Http.ServerBinding] =
+    Http().bindAndHandle(withConnectionMetrics(routes, metricRegistry), host, port, settings = serverSettings)
+
 
   log.info(s"device registry started at http://$host:$port/")
 
   sys.addShutdownHook {
-    Try(db.close())
-    Try(system.terminate())
+    import scala.concurrent.duration._
+    log.info("Shutdown started ...")
+    val onceAllConnectionsTerminated: Future[Http.HttpTerminated] =
+      Await.result(binding, 10.seconds).terminate(hardDeadline = 5.seconds)
+
+    val terminated = onceAllConnectionsTerminated.flatMap { _ =>
+      log.info("All connections terminated")
+      Try(db.close())
+      val systemTerminate = system.terminate()
+      systemTerminate.foreach(_ => log.info("Actor system terminated"))
+      systemTerminate
+    }
+    Await.result(terminated, 30.seconds)
+    log.info("Shutdown completed")
   }
 }
