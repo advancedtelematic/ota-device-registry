@@ -19,7 +19,7 @@ docker run -d \
   -e MYSQL_ROOT_PASSWORD=root \
   -e MYSQL_USER=device_registry \
   -e MYSQL_PASSWORD=device_registry \
-  mariadb:10.2 \
+  mariadb:10.4.31 \
   --character-set-server=utf8 --collation-server=utf8_unicode_ci \
   --max_connections=1000
 
@@ -29,7 +29,7 @@ function mysqladmin_alive {
     docker run \
            --rm \
            --link mariadb-device-registry \
-           mariadb:10.2 \
+           mariadb:10.4.31 \
            mysqladmin ping --protocol=TCP -h mariadb-device-registry -P 3306 -u device_registry -pdevice_registry
 }
 
